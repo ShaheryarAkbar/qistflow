@@ -36,3 +36,4 @@ describe('Domain: Money & Paisa Arithmetic', () => {
     expect(formattedUr).toContain('روپے');
   });
 });
+

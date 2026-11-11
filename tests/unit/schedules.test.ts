@@ -43,3 +43,4 @@ describe('Domain: Installment Schedule Generator', () => {
     expect(entries[3].dueDateKey).toBe('2026-04-30'); // Apr 30th clamped
   });
 });
+

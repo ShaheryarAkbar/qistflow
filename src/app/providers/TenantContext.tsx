@@ -240,3 +240,4 @@ export const useTenant = (): TenantContextType => {
   }
   return context;
 };
+

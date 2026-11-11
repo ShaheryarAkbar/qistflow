@@ -1,5 +1,5 @@
 // ============================================================================
-// Application Router: Role-Guarded Navigation
+// Application Router: Connected Phase 1 Routes
 // ============================================================================
 
 import React from 'react';
@@ -11,6 +11,12 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
 import { OnboardingPage } from '@/features/onboarding/OnboardingPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { CustomersPage } from '@/features/customers/CustomersPage';
+import { ProductsPage } from '@/features/products/ProductsPage';
+import { InventoryPage } from '@/features/inventory/InventoryPage';
+import { SuppliersPage } from '@/features/suppliers/SuppliersPage';
+import { PosCheckoutPage } from '@/features/sales/PosCheckoutPage';
+import { ContractsPage } from '@/features/contracts/ContractsPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -43,7 +49,6 @@ const RequireTenant: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
-// Placeholder page for secondary routes before Phase 1 completion
 const ModulePlaceholder: React.FC<{ title: string }> = ({ title }) => (
   <div className="card">
     <div className="card-header">
@@ -51,14 +56,13 @@ const ModulePlaceholder: React.FC<{ title: string }> = ({ title }) => (
     </div>
     <div className="card-body text-center" style={{ padding: '3rem 1rem' }}>
       <p className="text-muted mb-4">
-        This module is scheduled for implementation in Phase 1 / Phase 2.
+        This module is scheduled for implementation in Phase 2 / Phase 3.
       </p>
-      <span className="badge badge-info">Phase in Roadmap</span>
+      <span className="badge badge-info">Next Phase</span>
     </div>
   </div>
 );
 
-// HashRouter ensures 100% flawless deep link execution on GitHub Pages without 404s!
 export const router = createHashRouter([
   {
     path: '/login',
@@ -96,31 +100,31 @@ export const router = createHashRouter([
       },
       {
         path: 'customers',
-        element: <ModulePlaceholder title="Customers Directory (Phase 1)" />,
+        element: <CustomersPage />,
       },
       {
         path: 'products',
-        element: <ModulePlaceholder title="Products Catalogue (Phase 1)" />,
+        element: <ProductsPage />,
       },
       {
         path: 'suppliers',
-        element: <ModulePlaceholder title="Suppliers Directory (Phase 1)" />,
+        element: <SuppliersPage />,
       },
       {
         path: 'purchases',
-        element: <ModulePlaceholder title="Purchases & Procurement (Phase 1)" />,
+        element: <SuppliersPage />,
       },
       {
         path: 'inventory',
-        element: <ModulePlaceholder title="Movement-Led Inventory (Phase 1)" />,
+        element: <InventoryPage />,
       },
       {
         path: 'sales/new',
-        element: <ModulePlaceholder title="POS Checkout & Installment Wizard (Phase 1)" />,
+        element: <PosCheckoutPage />,
       },
       {
         path: 'contracts',
-        element: <ModulePlaceholder title="Installment Contracts (Phase 1)" />,
+        element: <ContractsPage />,
       },
       {
         path: 'installments/due',
@@ -128,7 +132,7 @@ export const router = createHashRouter([
       },
       {
         path: 'payments',
-        element: <ModulePlaceholder title="Payments & Allocations (Phase 2)" />,
+        element: <ModulePlaceholder title="Payments Ledger & Reversals (Phase 2)" />,
       },
       {
         path: 'recovery',

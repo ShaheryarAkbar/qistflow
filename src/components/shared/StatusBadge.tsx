@@ -72,3 +72,4 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 
   return <span className={`badge ${getBadgeClass(status)}`}>{getLabel(status)}</span>;
 };
+

@@ -202,6 +202,33 @@ export interface Supplier {
   updatedBy: string;
 }
 
+export interface PurchaseItemSnapshot {
+  productId: string;
+  productNameSnapshot: string;
+  modelSnapshot?: string;
+  quantity: number;
+  unitCostPaisa: number;
+  lineTotalPaisa: number;
+}
+
+export interface Purchase {
+  id?: string;
+  tenantId: string;
+  supplierId: string;
+  branchId?: string;
+  purchaseDate: any;
+  referenceNumber?: string;
+  items: PurchaseItemSnapshot[];
+  subtotalPaisa: number;
+  discountPaisa: number;
+  totalPaisa: number;
+  paidPaisa: number;
+  balancePaisa: number;
+  status: 'draft' | 'posted' | 'partially_paid' | 'paid' | 'cancelled';
+  createdAt: any;
+  createdBy: string;
+}
+
 export interface InventoryMovement {
   id?: string;
   movementId: string;
@@ -432,3 +459,4 @@ export interface Summary {
   calculatedAt: any;
   schemaVersion: number;
 }
+

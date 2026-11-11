@@ -19,3 +19,4 @@ export const App: React.FC = () => {
     </I18nProvider>
   );
 };
+

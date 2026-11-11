@@ -70,3 +70,4 @@ describe('Domain: Payment Allocation Engine', () => {
     expect(result.allocations[2].allocationType).toBe('advance_credit');
   });
 });
+

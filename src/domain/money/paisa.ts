@@ -70,3 +70,4 @@ export function formatPKR(
 
   return `${sign}Rs. ${finalNumber}`;
 }
+

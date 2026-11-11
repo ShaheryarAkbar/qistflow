@@ -10,12 +10,14 @@ interface MoneyDisplayProps {
   paisa: number;
   className?: string;
   showCurrencySymbol?: boolean;
+  style?: React.CSSProperties;
 }
 
 export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
   paisa,
   className = '',
   showCurrencySymbol = true,
+  style,
 }) => {
   const { language } = useI18n();
   const formatted = formatPKR(paisa, {
@@ -24,5 +26,6 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
     useUrduNumerals: language === 'ur',
   });
 
-  return <span className={`font-medium ${className}`}>{formatted}</span>;
+  return <span className={`font-medium ${className}`} style={style}>{formatted}</span>;
 };
+

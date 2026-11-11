@@ -1,5 +1,5 @@
 // ============================================================================
-// Application Router: Connected Phase 1 Routes
+// Application Router: Connected Phase 1 & Phase 2 Routes
 // ============================================================================
 
 import React from 'react';
@@ -17,6 +17,9 @@ import { InventoryPage } from '@/features/inventory/InventoryPage';
 import { SuppliersPage } from '@/features/suppliers/SuppliersPage';
 import { PosCheckoutPage } from '@/features/sales/PosCheckoutPage';
 import { ContractsPage } from '@/features/contracts/ContractsPage';
+import { PaymentsPage } from '@/features/payments/PaymentsPage';
+import { DueInstallmentsPage } from '@/features/installments/DueInstallmentsPage';
+import { RecoveryPortalPage } from '@/features/recovery/RecoveryPortalPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,7 +59,7 @@ const ModulePlaceholder: React.FC<{ title: string }> = ({ title }) => (
     </div>
     <div className="card-body text-center" style={{ padding: '3rem 1rem' }}>
       <p className="text-muted mb-4">
-        This module is scheduled for implementation in Phase 2 / Phase 3.
+        This module is scheduled for implementation in Phase 3 / Phase 4.
       </p>
       <span className="badge badge-info">Next Phase</span>
     </div>
@@ -128,15 +131,15 @@ export const router = createHashRouter([
       },
       {
         path: 'installments/due',
-        element: <ModulePlaceholder title="Due Installments Sheet (Phase 2)" />,
+        element: <DueInstallmentsPage />,
       },
       {
         path: 'payments',
-        element: <ModulePlaceholder title="Payments Ledger & Reversals (Phase 2)" />,
+        element: <PaymentsPage />,
       },
       {
         path: 'recovery',
-        element: <ModulePlaceholder title="Mobile Recovery Field Portal (Phase 2)" />,
+        element: <RecoveryPortalPage />,
       },
       {
         path: 'expenses',

@@ -290,3 +290,4 @@ export const ContractsPage: React.FC = () => {
     </div>
   );
 };
+

@@ -101,3 +101,4 @@ export const InventoryRepository = {
     return movement;
   },
 };
+

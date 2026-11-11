@@ -308,3 +308,4 @@ export const SaleRepository = {
     return { sale: newSale, contract: newContract, scheduleEntries };
   },
 };
+

@@ -557,3 +557,4 @@ export const PosCheckoutPage: React.FC = () => {
     </div>
   );
 };
+

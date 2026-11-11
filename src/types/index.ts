@@ -377,6 +377,20 @@ export interface PaymentReversal {
   createdBy: string;
 }
 
+export interface Receipt {
+  id?: string;
+  tenantId: string;
+  receiptNumber: string;
+  paymentId: string;
+  customerId: string;
+  contractId?: string;
+  language: SupportedLanguage;
+  issuedAt: any;
+  issuedBy: string;
+  documentVersion: number;
+  status: 'issued' | 'voided' | 'reissued';
+}
+
 export interface Expense {
   id?: string;
   expenseId: string;

@@ -1,0 +1,277 @@
+// ============================================================================
+// QistFlow SCSS System: Layouts & Shells
+// ============================================================================
+
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: $color-bg;
+
+  .app-sidebar {
+    width: $sidebar-width;
+    background-color: #ffffff;
+    border-right: 1px solid $color-border;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    transition: transform $transition-normal, width $transition-normal;
+
+    @include respond-to(tablet) {
+      transform: translateX(-100%);
+      &.sidebar-open {
+        transform: translateX(0);
+      }
+    }
+
+    .sidebar-header {
+      height: $header-height;
+      padding: 0 1.25rem;
+      border-bottom: 1px solid $color-border;
+      @include flex-between;
+
+      .logo-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        .logo-icon {
+          width: 2.25rem;
+          height: 2.25rem;
+          background: linear-gradient(135deg, $brand-500, $brand-700);
+          color: #ffffff;
+          border-radius: $radius-lg;
+          @include flex-center;
+        }
+
+        .logo-text {
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: $slate-900;
+          letter-spacing: -0.025em;
+
+          .logo-badge {
+            font-size: 0.625rem;
+            background-color: $brand-100;
+            color: $brand-800;
+            padding: 0.125rem 0.375rem;
+            border-radius: $radius-full;
+            margin-left: 0.25rem;
+          }
+        }
+      }
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0.75rem;
+      overflow-y: auto;
+      @include scrollbar-style;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      .nav-group-title {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: $slate-400;
+        padding: 0.75rem 0.75rem 0.25rem;
+        letter-spacing: 0.05em;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: $radius-md;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: $slate-600;
+        transition: all $transition-fast;
+
+        &:hover {
+          background-color: $slate-100;
+          color: $slate-900;
+        }
+
+        &.active {
+          background-color: $brand-50;
+          color: $brand-700;
+          font-weight: 600;
+
+          svg {
+            color: $brand-600;
+          }
+        }
+      }
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      border-top: 1px solid $color-border;
+      background-color: $slate-50;
+    }
+  }
+
+  .app-main {
+    flex: 1;
+    margin-left: $sidebar-width;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: margin-left $transition-normal;
+
+    @include respond-to(tablet) {
+      margin-left: 0;
+    }
+
+    .app-header {
+      height: $header-height;
+      background-color: #ffffff;
+      border-bottom: 1px solid $color-border;
+      padding: 0 1.5rem;
+      @include flex-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .mobile-menu-btn {
+          display: none;
+          @include respond-to(tablet) {
+            display: inline-flex;
+          }
+        }
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+    }
+
+    .app-content {
+      flex: 1;
+      padding: 1.5rem;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+
+      @include respond-to(mobile) {
+        padding: 1rem;
+      }
+    }
+  }
+}
+
+// --- Auth Shell ---
+.auth-shell {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(circle at top right, $brand-50, $slate-100);
+  @include flex-center;
+  padding: 1.5rem;
+
+  .auth-card {
+    @include card-surface;
+    box-shadow: $shadow-xl;
+    width: 100%;
+    max-width: 440px;
+    padding: 2.25rem;
+
+    .auth-logo {
+      @include flex-center;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+
+      .auth-logo-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        background: linear-gradient(135deg, $brand-500, $brand-700);
+        color: #ffffff;
+        border-radius: $radius-xl;
+        @include flex-center;
+        box-shadow: $shadow-md;
+      }
+
+      .auth-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $slate-900;
+        text-align: center;
+      }
+
+      .auth-subtitle {
+        font-size: 0.875rem;
+        color: $slate-500;
+        text-align: center;
+      }
+    }
+  }
+}
+
+// --- Recovery Mobile Layout ---
+.recovery-shell {
+  min-height: 100vh;
+  background-color: $slate-100;
+  display: flex;
+  flex-direction: column;
+
+  .recovery-header {
+    background-color: $brand-800;
+    color: #ffffff;
+    padding: 1rem;
+    @include flex-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .recovery-content {
+    flex: 1;
+    padding: 1rem;
+    padding-bottom: 5rem;
+  }
+
+  .recovery-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #ffffff;
+    border-top: 1px solid $color-border;
+    display: flex;
+    justify-content: space-around;
+    padding: 0.5rem 0;
+    z-index: 50;
+
+    .recovery-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.6875rem;
+      color: $slate-500;
+
+      &.active {
+        color: $brand-600;
+        font-weight: 600;
+      }
+    }
+  }
+}

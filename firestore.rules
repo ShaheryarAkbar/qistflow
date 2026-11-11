@@ -1,0 +1,236 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getMembership(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/memberships/$(request.auth.uid)).data;
+    }
+
+    function isTenantMember(tenantId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/memberships/$(request.auth.uid)) &&
+        getMembership(tenantId).membershipStatus == "active";
+    }
+
+    function hasRole(tenantId, role) {
+      return isTenantMember(tenantId) && getMembership(tenantId).role == role;
+    }
+
+    function isOwner(tenantId) {
+      return hasRole(tenantId, "owner");
+    }
+
+    function isManagerOrAbove(tenantId) {
+      return isOwner(tenantId) || hasRole(tenantId, "manager");
+    }
+
+    function isAccountantOrAbove(tenantId) {
+      return isManagerOrAbove(tenantId) || hasRole(tenantId, "accountant");
+    }
+
+    function isRecoveryStaff(tenantId) {
+      return hasRole(tenantId, "recovery");
+    }
+
+    // Global user profile
+    match /users/{userId} {
+      allow read, write: if isUser(userId);
+    }
+
+    // Tenant root and subcollections
+    match /tenants/{tenantId} {
+      allow read: if isTenantMember(tenantId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(tenantId);
+      allow delete: if false; // Tenant deletion is strictly protected
+
+      match /memberships/{userId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+
+      match /branches/{branchId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+
+      match /invitations/{invitationId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+
+      match /employees/{employeeId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isManagerOrAbove(tenantId);
+      }
+
+      match /customers/{customerId} {
+        // Recovery staff can only read assigned customers; accountants & managers can read all
+        allow read: if isAccountantOrAbove(tenantId) || 
+          (isRecoveryStaff(tenantId) && exists(/databases/$(database)/documents/tenants/$(tenantId)/recoveryAssignments/$(customerId + "_" + request.auth.uid)));
+        allow create, update: if isManagerOrAbove(tenantId);
+        allow delete: if false; // Customers must not be hard-deleted
+      }
+
+      match /products/{productId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isManagerOrAbove(tenantId);
+      }
+
+      match /suppliers/{supplierId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow write: if isAccountantOrAbove(tenantId);
+      }
+
+      match /purchases/{purchaseId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create: if isAccountantOrAbove(tenantId);
+        allow update: if isAccountantOrAbove(tenantId) && resource.data.status == "draft";
+        allow delete: if false;
+      }
+
+      match /supplierPayments/{supplierPaymentId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create: if isAccountantOrAbove(tenantId);
+        allow update, delete: if false;
+      }
+
+      match /inventoryMovements/{movementId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create: if isManagerOrAbove(tenantId);
+        allow update, delete: if false; // Append-only stock ledger
+      }
+
+      match /sales/{saleId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create: if isManagerOrAbove(tenantId);
+        allow update, delete: if false; // Posted sales are immutable
+      }
+
+      match /contracts/{contractId} {
+        allow read: if isAccountantOrAbove(tenantId) || isRecoveryStaff(tenantId);
+        allow create: if isManagerOrAbove(tenantId);
+        allow update: if isManagerOrAbove(tenantId);
+        allow delete: if false;
+      }
+
+      match /scheduleEntries/{scheduleEntryId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update: if isManagerOrAbove(tenantId) || isRecoveryStaff(tenantId);
+        allow delete: if false;
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isTenantMember(tenantId); // Recovery staff can record payments
+        allow update, delete: if false; // Posted payments are strictly append-only
+      }
+
+      match /paymentAllocations/{allocationId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isTenantMember(tenantId);
+        allow update, delete: if false;
+      }
+
+      match /paymentReversals/{reversalId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create: if isOwner(tenantId); // Elevated permission for reversals
+        allow update, delete: if false;
+      }
+
+      match /receipts/{receiptId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isTenantMember(tenantId);
+        allow update: if isOwner(tenantId);
+        allow delete: if false;
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isAccountantOrAbove(tenantId);
+        allow create, update: if isAccountantOrAbove(tenantId);
+        allow delete: if false;
+      }
+
+      match /recoveryAssignments/{assignmentId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isManagerOrAbove(tenantId);
+      }
+
+      match /recoveryVisits/{visitId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isRecoveryStaff(tenantId) || isManagerOrAbove(tenantId);
+        allow update, delete: if false; // Visits are audit records
+      }
+
+      match /certificates/{certificateId} {
+        allow read: if isTenantMember(tenantId);
+        allow create: if isManagerOrAbove(tenantId);
+        allow update: if isOwner(tenantId); // Reissue or invalidate
+        allow delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isTenantMember(tenantId);
+        allow create, update: if isTenantMember(tenantId);
+        allow delete: if isTenantMember(tenantId);
+      }
+
+      match /uniqueClaims/{claimId} {
+        allow read, write: if isManagerOrAbove(tenantId);
+      }
+
+      match /idempotencyKeys/{keyId} {
+        allow read, create: if isTenantMember(tenantId);
+        allow update, delete: if false;
+      }
+
+      match /auditLogs/{auditId} {
+        allow read: if isOwner(tenantId);
+        allow create: if isTenantMember(tenantId);
+        allow update, delete: if false;
+      }
+
+      match /summaries/{summaryId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isTenantMember(tenantId);
+      }
+
+      match /exportJobs/{exportJobId} {
+        allow read, write: if isOwner(tenantId);
+      }
+
+      match /archiveManifests/{manifestId} {
+        allow read, write: if isOwner(tenantId);
+      }
+    }
+
+    // Platform level (restricted super-admin)
+    match /platformUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /platformPlans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /platformLicences/{licenceId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /platformAuditLogs/{auditId} {
+      allow read, write: if false;
+    }
+  }
+}

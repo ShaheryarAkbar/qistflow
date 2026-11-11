@@ -1,0 +1,70 @@
+// ============================================================================
+// QistFlow SCSS System: Urdu RTL (Right-to-Left) Styles
+// ============================================================================
+
+@use 'variables' as *;
+
+[dir="rtl"] {
+  font-family: $font-family-ur;
+  direction: rtl;
+  text-align: right;
+
+  // Urdu Nastaliq typography line-height adjustments
+  h1, h2, h3, h4, h5, h6, .card-title, .logo-text, .auth-title {
+    font-family: $font-family-ur;
+    line-height: 1.8;
+  }
+
+  p, span, label, input, button, td, th {
+    font-family: $font-family-ur;
+  }
+
+  // Sidebar positioning flipped to right side
+  .app-shell {
+    .app-sidebar {
+      left: auto;
+      right: 0;
+      border-right: none;
+      border-left: 1px solid $color-border;
+
+      @media (max-width: ($bp-tablet - 1)) {
+        transform: translateX(100%);
+        &.sidebar-open {
+          transform: translateX(0);
+        }
+      }
+    }
+
+    .app-main {
+      margin-left: 0;
+      margin-right: $sidebar-width;
+
+      @media (max-width: ($bp-tablet - 1)) {
+        margin-right: 0;
+      }
+    }
+  }
+
+  // Data table alignment
+  .table-wrapper .table {
+    text-align: right;
+  }
+
+  // Input groups and icons
+  .nav-link {
+    svg {
+      margin-left: 0.25rem;
+      margin-right: 0;
+    }
+  }
+
+  .stat-card {
+    .stat-content {
+      text-align: right;
+    }
+  }
+
+  .modal-box .modal-footer {
+    justify-content: flex-start;
+  }
+}

@@ -94,7 +94,7 @@ export const AppLayout: React.FC = () => {
       ];
     }
 
-    // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES)
+    // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES/CALCULATOR)
     if (isSuperAdmin) {
       return [
         {
@@ -102,11 +102,6 @@ export const AppLayout: React.FC = () => {
           label: language === 'ur' ? 'پلیٹ فارم ایڈمن پورٹل' : 'Platform Super-Admin',
           icon: ShieldAlert,
           highlight: true,
-        },
-        {
-          to: '/calculator',
-          label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
-          icon: Calculator,
         },
         {
           to: '/portal',
@@ -232,9 +227,9 @@ export const AppLayout: React.FC = () => {
             <ShieldAlert size={19} />
             <span>{language === 'ur' ? 'ایڈمن' : 'Admin'}</span>
           </NavLink>
-          <NavLink to="/calculator" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
-            <Calculator size={19} />
-            <span>{language === 'ur' ? 'کیلکولیٹر' : 'Calculator'}</span>
+          <NavLink to="/portal" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Smartphone size={19} />
+            <span>{language === 'ur' ? 'پاس بک' : 'Passbook'}</span>
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
             <Settings size={19} />
@@ -543,18 +538,20 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <div className="header-right">
-            {/* Quick Universal Calculator Modal Button */}
-            <button
-              onClick={() => setCalculatorOpen(true)}
-              className="btn btn-sm btn-outline text-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              title="Open Quick Installment Calculator"
-            >
-              <Calculator size={15} />
-              <span className="hidden sm:inline">
-                {language === 'ur' ? 'حساب کتاب' : 'Calculator'}
-              </span>
-            </button>
+            {/* Quick Universal Calculator Modal Button (Shop Roles Only, Hidden for Super-Admin) */}
+            {!isSuperAdmin && (
+              <button
+                onClick={() => setCalculatorOpen(true)}
+                className="btn btn-sm btn-outline text-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                title="Open Quick Installment Calculator"
+              >
+                <Calculator size={15} />
+                <span className="hidden sm:inline">
+                  {language === 'ur' ? 'حساب کتاب' : 'Calculator'}
+                </span>
+              </button>
+            )}
 
             {/* Bilingual toggle button */}
             <button

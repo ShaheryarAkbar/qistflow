@@ -78,7 +78,7 @@ export function checkRoleCanAccessModule(role: UserRole, module: string): boolea
       return true;
 
     case 'super_admin':
-      return ['admin', 'calculator', 'portal', 'settings'].includes(module);
+      return ['admin', 'portal', 'settings'].includes(module);
 
     default:
       return false;
@@ -175,10 +175,10 @@ describe('Strict Role-Based Access Control Matrix (PRD Section 4)', () => {
   it('allows Super-Admin access to platform management while keeping shop products isolated', () => {
     const role: UserRole = 'super_admin';
     expect(checkRoleCanAccessModule(role, 'admin')).toBe(true);
-    expect(checkRoleCanAccessModule(role, 'calculator')).toBe(true);
     expect(checkRoleCanAccessModule(role, 'settings')).toBe(true);
 
-    // Super-Admin does NOT deal with shop products, sales, inventory or customer recovery
+    // Super-Admin does NOT deal with shop products, sales, inventory, recovery or installment calculator
+    expect(checkRoleCanAccessModule(role, 'calculator')).toBe(false);
     expect(checkRoleCanAccessModule(role, 'products')).toBe(false);
     expect(checkRoleCanAccessModule(role, 'sales/new')).toBe(false);
     expect(checkRoleCanAccessModule(role, 'inventory')).toBe(false);

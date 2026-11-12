@@ -264,7 +264,7 @@ export const router = createHashRouter([
       {
         path: 'calculator',
         element: (
-          <RequireRole roles={['owner', 'manager', 'accountant', 'recovery', 'super_admin']}>
+          <RequireRole roles={['owner', 'manager', 'accountant', 'recovery']}>
             <CalculatorPage />
           </RequireRole>
         ),

@@ -24,6 +24,7 @@ import { ExpensesPage } from '@/features/expenses/ExpensesPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
 import { StaffPage } from '@/features/staff/StaffPage';
 import { ArchivesPage } from '@/features/archives/ArchivesPage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,19 +57,6 @@ const RequireTenant: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
-const ModulePlaceholder: React.FC<{ title: string }> = ({ title }) => (
-  <div className="card">
-    <div className="card-header">
-      <h3 className="card-title">{title}</h3>
-    </div>
-    <div className="card-body text-center" style={{ padding: '3rem 1rem' }}>
-      <p className="text-muted mb-4">
-        This module is scheduled for implementation in Phase 4.
-      </p>
-      <span className="badge badge-info">Next Phase</span>
-    </div>
-  </div>
-);
 
 export const router = createHashRouter([
   {
@@ -163,7 +151,7 @@ export const router = createHashRouter([
       },
       {
         path: 'settings',
-        element: <ModulePlaceholder title="Shop Settings & Preferences" />,
+        element: <SettingsPage />,
       },
     ],
   },

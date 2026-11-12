@@ -116,3 +116,4 @@ export async function generateArchiveZip(backupPackage: QistFlowBackupPackage): 
 
   return await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 }
+

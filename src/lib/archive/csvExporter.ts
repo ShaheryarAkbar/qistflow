@@ -46,3 +46,4 @@ export function downloadBlob(content: BlobPart, fileName: string, mimeType: stri
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
 }
+

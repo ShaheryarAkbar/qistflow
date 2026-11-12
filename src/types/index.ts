@@ -10,7 +10,7 @@ export type TimestampLike = {
 
 export type SupportedLanguage = 'en' | 'ur';
 
-export type UserRole = 'owner' | 'manager' | 'accountant' | 'recovery';
+export type UserRole = 'owner' | 'manager' | 'accountant' | 'recovery' | 'super_admin';
 
 export type MembershipStatus = 'invited' | 'active' | 'suspended' | 'removed';
 
@@ -472,5 +472,41 @@ export interface Summary {
   counts?: Record<string, number>;
   calculatedAt: any;
   schemaVersion: number;
+}
+
+// --- Platform Super-Admin Entities (PRD Section 4.5 & 6.16) ---
+
+export interface PlatformPlan {
+  planId: string;
+  name: string;
+  nameUr?: string;
+  billingType: 'monthly' | 'lifetime';
+  pricePaisa: number;
+  features: string[];
+  maxUsers: number;
+  maxCustomers: number;
+  status: 'active' | 'archived';
+}
+
+export interface PlatformLicence {
+  licenceId: string;
+  tenantId: string;
+  tenantName: string;
+  planId: string;
+  planName: string;
+  licenceType: 'subscription' | 'lifetime';
+  status: 'trial' | 'active' | 'grace' | 'suspended' | 'cancelled';
+  startedAt: any;
+  expiresAt?: any;
+  supportNotes?: string;
+}
+
+export interface PlatformAuditEvent {
+  auditId: string;
+  actorUserId: string;
+  action: string;
+  targetTenantId?: string;
+  details: string;
+  occurredAt: any;
 }
 

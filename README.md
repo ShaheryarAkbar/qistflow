@@ -13,8 +13,16 @@
 - **Multi-Tenant Scoping & Security:** Complete tenant data isolation under `/tenants/{tenantId}/...` enforced by production-grade Firestore Security Rules (`firestore.rules`).
 - **Oldest-Due-First Allocation Engine:** Payments cascade systematically across scheduled installment entries, storing excess funds into `advance_credit`. Reversals follow strict double-entry ledger invariants.
 - **Clearance Certificate Protection:** Clearance certificates are blocked from creation unless the contract has reached a strict 0-paisa remaining balance.
+- **Role-Based Access Control (6 Views):** Strict role guards for:
+  1. *Business Owner:* Full business governance, financial corrections, and shop settings.
+  2. *Manager / Admin:* Day-to-day shop floor operations, POS, inventory, and staff provisioning.
+  3. *Accountant:* Dedicated financial ledger, payments, expenses, and collection reports (no access to staff or shop settings).
+  4. *Recovery Employee:* Restricted mobile-first field portal (only assigned customers, 1-tap call/WhatsApp, record collection; zero access to shop dashboard or profits).
+  5. *Platform Super-Admin:* Multi-tenant shop directory, commercial plans, licensing management, and Spark health monitor.
+  6. *Customer Portal (Future):* Customer passbook preview and digital receipt lookup.
+- **Universal Quick Calculator:** Fast on-the-spot financial calculator for new installment plans, overdue balance clearance, and lump-sum cash split, complete with 1-click WhatsApp Urdu sharing.
 - **Comprehensive Data Portability:** 1-click in-browser full ZIP backup bundling (JSZip), JSON v1 schema snapshots, and RFC 4180 CSV exports with UTF-8 BOM (`\uFEFF`) ensuring Urdu text opens correctly in Microsoft Excel.
-- **Demo / Evaluation Mode:** 1-click instant login into an interactive sandbox shop pre-seeded with sample inventory, contracts, and ledger entries—allowing instant review without setting up Firebase.
+- **Demo / Evaluation Mode:** 1-click instant login into an interactive sandbox shop with a dynamic role switcher (Owner, Manager, Accountant, Recovery Agent, Super-Admin).
 
 ---
 
@@ -193,3 +201,4 @@ git push origin master
 ## 📄 License & Compliance
 
 Built for independent installment retailers in Pakistan under the MIT License. Strictly adheres to zero-cost, privacy-first, client-side data sovereignty principles.
+

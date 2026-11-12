@@ -13,7 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/services/firebase/app';
-import { UserProfile } from '@/types';
+import { UserProfile, UserRole } from '@/types';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -24,7 +24,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   isDemoUser: boolean;
-  enableDemoMode: (role?: 'owner' | 'manager' | 'accountant' | 'recovery') => void;
+  enableDemoMode: (role?: UserRole) => void;
+  currentDemoRole?: UserRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemoUser, setIsDemoUser] = useState(false);
+
+  const [currentDemoRole, setCurrentDemoRole] = useState<UserRole | undefined>(undefined);
 
   // Sync Firebase Auth state
   useEffect(() => {
@@ -45,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentUser(parsed.user);
         setUserProfile(parsed.profile);
         setIsDemoUser(true);
+        if (parsed.role) setCurrentDemoRole(parsed.role);
         setLoading(false);
         return;
       } catch (e) {
@@ -135,11 +139,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Immediate 1-click Demo Mode for instant local testing without Firebase setup
-  const enableDemoMode = (role: 'owner' | 'manager' | 'accountant' | 'recovery' = 'owner') => {
+  const enableDemoMode = (role: UserRole = 'owner') => {
+    let displayName = 'Haji Abdul Malik (Owner)';
+    if (role === 'manager') displayName = 'Tariq Mehmood (Shop Manager)';
+    else if (role === 'accountant') displayName = 'Muhammad Zafar (Accountant)';
+    else if (role === 'recovery') displayName = 'Bilal Ahmed (Field Recovery Officer)';
+    else if (role === 'super_admin') displayName = 'QistFlow Platform Super-Admin';
+
     const demoUser = {
       uid: `demo-${role}-101`,
       email: `${role}@qistflow-demo.pk`,
-      displayName: role === 'owner' ? 'Haji Abdul Malik (Owner)' : `Staff Member (${role})`,
+      displayName,
       emailVerified: true,
     } as any;
 
@@ -156,11 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     localStorage.setItem(
       'qistflow_demo_user',
-      JSON.stringify({ user: demoUser, profile: demoProfile })
+      JSON.stringify({ user: demoUser, profile: demoProfile, role })
     );
 
     setCurrentUser(demoUser);
     setUserProfile(demoProfile);
+    setCurrentDemoRole(role);
     setIsDemoUser(true);
     setLoading(false);
   };
@@ -177,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         isDemoUser,
         enableDemoMode,
+        currentDemoRole,
       }}
     >
       {children}

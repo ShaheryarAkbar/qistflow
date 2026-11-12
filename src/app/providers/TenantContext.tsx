@@ -22,10 +22,17 @@ interface TenantContextType {
   activeMembership: Membership | null;
   loadingTenant: boolean;
   userTenants: { tenant: Tenant; membership: Membership }[];
+  currentRole: UserRole;
   isOwner: boolean;
   isManager: boolean;
   isAccountant: boolean;
   isRecovery: boolean;
+  isSuperAdmin: boolean;
+  canManageStaff: boolean;
+  canManageSettings: boolean;
+  canAccessFinancials: boolean;
+  canAccessInventory: boolean;
+  canAccessSales: boolean;
   switchTenant: (tenantId: string) => Promise<void>;
   createTenant: (params: {
     businessName: string;
@@ -74,7 +81,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: currentUser.uid,
       };
 
-      const role: UserRole = currentUser.uid.includes('recovery')
+      const role: UserRole = currentUser.uid.includes('super_admin')
+        ? 'super_admin'
+        : currentUser.uid.includes('recovery')
         ? 'recovery'
         : currentUser.uid.includes('accountant')
         ? 'accountant'
@@ -208,10 +217,18 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return tenantId;
   };
 
-  const isOwner = activeMembership?.role === 'owner';
-  const isManager = isOwner || activeMembership?.role === 'manager';
-  const isAccountant = isManager || activeMembership?.role === 'accountant';
-  const isRecovery = activeMembership?.role === 'recovery';
+  const currentRole: UserRole = activeMembership?.role || 'owner';
+  const isSuperAdmin = currentRole === 'super_admin';
+  const isOwner = currentRole === 'owner' || isSuperAdmin;
+  const isManager = currentRole === 'manager';
+  const isAccountant = currentRole === 'accountant';
+  const isRecovery = currentRole === 'recovery';
+
+  const canManageStaff = isOwner || isManager;
+  const canManageSettings = isOwner;
+  const canAccessFinancials = isOwner || isManager || isAccountant;
+  const canAccessInventory = isOwner || isManager;
+  const canAccessSales = isOwner || isManager;
 
   return (
     <TenantContext.Provider
@@ -220,10 +237,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         activeMembership,
         loadingTenant,
         userTenants,
+        currentRole,
         isOwner,
         isManager,
         isAccountant,
         isRecovery,
+        isSuperAdmin,
+        canManageStaff,
+        canManageSettings,
+        canAccessFinancials,
+        canAccessInventory,
+        canAccessSales,
         switchTenant,
         createTenant,
       }}

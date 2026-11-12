@@ -21,6 +21,9 @@
     "reports": "Reports",
     "archives": "Backups & Portability",
     "staff": "Staff & Roles",
+    "calculator": "Quick Calculator",
+    "admin": "Platform Admin",
+    "customerPortal": "Customer Portal (Future)",
     "settings": "Settings",
     "logout": "Sign Out"
   },

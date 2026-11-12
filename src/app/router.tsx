@@ -1,11 +1,12 @@
 // ============================================================================
-// Application Router: Connected Phase 1, Phase 2 & Phase 3 Routes
+// Application Router: Role-Guarded Multi-Tenant & Platform Navigation
 // ============================================================================
 
 import React from 'react';
 import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { useAuth } from './providers/AuthContext';
 import { useTenant } from './providers/TenantContext';
+import { UserRole } from '@/types';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
@@ -25,6 +26,9 @@ import { ReportsPage } from '@/features/reports/ReportsPage';
 import { StaffPage } from '@/features/staff/StaffPage';
 import { ArchivesPage } from '@/features/archives/ArchivesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { PlatformAdminPage } from '@/features/platform/PlatformAdminPage';
+import { CalculatorPage } from '@/features/calculator/CalculatorPage';
+import { CustomerPortalPage } from '@/features/portal/CustomerPortalPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -57,6 +61,38 @@ const RequireTenant: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
+// Strict Role Guard
+const RequireRole: React.FC<{
+  roles: UserRole[];
+  children: React.ReactNode;
+}> = ({ roles, children }) => {
+  const { currentRole, isRecovery, isSuperAdmin } = useTenant();
+
+  if (roles.includes(currentRole)) {
+    return <>{children}</>;
+  }
+
+  // Gracefully redirect to the role's allowed default screen
+  if (isRecovery) {
+    return <Navigate to="/recovery" replace />;
+  }
+  if (isSuperAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
+
+// Smart default landing router by role
+const RoleLandingRedirect: React.FC = () => {
+  const { isRecovery, isSuperAdmin } = useTenant();
+  if (isRecovery) {
+    return <Navigate to="/recovery" replace />;
+  }
+  if (isSuperAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
 
 export const router = createHashRouter([
   {
@@ -87,77 +123,165 @@ export const router = createHashRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />,
+        element: <RoleLandingRedirect />,
       },
       {
         path: 'dashboard',
-        element: <DashboardPage />,
-      },
-      {
-        path: 'customers',
-        element: <CustomersPage />,
-      },
-      {
-        path: 'products',
-        element: <ProductsPage />,
-      },
-      {
-        path: 'suppliers',
-        element: <SuppliersPage />,
-      },
-      {
-        path: 'purchases',
-        element: <SuppliersPage />,
-      },
-      {
-        path: 'inventory',
-        element: <InventoryPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant', 'super_admin']}>
+            <DashboardPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'sales/new',
-        element: <PosCheckoutPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <PosCheckoutPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'customers',
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
+            <CustomersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'products',
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <ProductsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'suppliers',
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <SuppliersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'purchases',
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <SuppliersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'inventory',
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <InventoryPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'contracts',
-        element: <ContractsPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
+            <ContractsPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'installments/due',
-        element: <DueInstallmentsPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant', 'super_admin']}>
+            <DueInstallmentsPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'payments',
-        element: <PaymentsPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
+            <PaymentsPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'recovery',
-        element: <RecoveryPortalPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'recovery', 'super_admin']}>
+            <RecoveryPortalPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'expenses',
-        element: <ExpensesPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
+            <ExpensesPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'reports',
-        element: <ReportsPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
+            <ReportsPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'staff',
-        element: <StaffPage />,
+        element: (
+          <RequireRole roles={['owner', 'manager']}>
+            <StaffPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'archives',
-        element: <ArchivesPage />,
+        element: (
+          <RequireRole roles={['owner']}>
+            <ArchivesPage />
+          </RequireRole>
+        ),
       },
       {
         path: 'settings',
-        element: <SettingsPage />,
+        element: (
+          <RequireRole roles={['owner', 'super_admin']}>
+            <SettingsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'admin',
+        element: (
+          <RequireRole roles={['super_admin']}>
+            <PlatformAdminPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'calculator',
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant', 'recovery', 'super_admin']}>
+            <CalculatorPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'portal',
+        element: (
+          <RequireRole roles={['owner', 'manager', 'accountant', 'recovery', 'super_admin']}>
+            <CustomerPortalPage />
+          </RequireRole>
+        ),
       },
     ],
   },
   {
     path: '*',
-    element: <Navigate to="/dashboard" replace />,
+    element: <RoleLandingRedirect />,
   },
 ]);
 

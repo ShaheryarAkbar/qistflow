@@ -1,16 +1,16 @@
 // ============================================================================
-// Auth Feature: Register Page
+// Auth Feature: Register Page (New Business Owner Onboarding)
 // ============================================================================
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Coins, UserPlus, Languages, AlertCircle } from 'lucide-react';
+import { Coins, UserPlus, Languages, AlertCircle, Info, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 
 export const RegisterPage: React.FC = () => {
   const { signUp, loading } = useAuth();
-  const { t, toggleLanguage } = useI18n();
+  const { t, toggleLanguage, language } = useI18n();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -45,7 +45,7 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
+      <div className="auth-card" style={{ maxWidth: '480px' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
           <button
             onClick={toggleLanguage}
@@ -61,8 +61,33 @@ export const RegisterPage: React.FC = () => {
           <div className="auth-logo-icon">
             <Coins size={32} />
           </div>
-          <h1 className="auth-title">{t('auth.registerTitle')}</h1>
+          <h1 className="auth-title">
+            {language === 'ur' ? 'نئی دکان رجسٹر کریں (مالک)' : 'Register New Shop (Owner)'}
+          </h1>
           <p className="auth-subtitle">{t('auth.registerSubtitle')}</p>
+        </div>
+
+        {/* Informative Security Notice for Staff */}
+        <div
+          className="mb-4"
+          style={{
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '0.5rem',
+            padding: '0.75rem',
+            fontSize: '0.75rem',
+            color: '#1e40af',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+          }}
+        >
+          <Info size={16} className="text-primary" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <span>
+            {language === 'ur'
+              ? 'توجہ فرمائیں: یہ فارم صرف دکان کے مالک کے لیے ہے۔ اگر آپ ملازم (منیجر، اکاؤنٹنٹ یا ریکوری آفیسر) ہیں، تو یہاں رجسٹریشن کی ضرورت نہیں، مالک کے فراہم کردہ لاگ ان سے سائن ان کریں۔'
+              : 'Attention: This registration is exclusively for Shop Owners. Staff members (managers, accountants, recovery staff) must use the credentials assigned by their shop owner.'}
+          </span>
         </div>
 
         {error && (
@@ -74,7 +99,7 @@ export const RegisterPage: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">{t('auth.fullName')}</label>
+            <label className="form-label">{t('auth.fullName')} (Owner Name)</label>
             <input
               type="text"
               className="form-input"
@@ -90,7 +115,7 @@ export const RegisterPage: React.FC = () => {
             <input
               type="email"
               className="form-input"
-              placeholder="shop@qistflow.pk"
+              placeholder="owner@qistflow.pk"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -106,6 +131,7 @@ export const RegisterPage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
 
@@ -118,12 +144,13 @@ export const RegisterPage: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
 
           <button
             type="submit"
-            className="btn btn-primary btn-block btn-lg mt-4"
+            className="btn btn-primary btn-block btn-lg mt-6"
             disabled={submitting || loading}
           >
             <UserPlus size={18} />
@@ -141,4 +168,3 @@ export const RegisterPage: React.FC = () => {
     </div>
   );
 };
-

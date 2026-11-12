@@ -170,3 +170,4 @@ export const PrintableCertificate: React.FC<PrintableCertificateProps> = ({
     </div>
   );
 };
+

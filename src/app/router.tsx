@@ -23,6 +23,7 @@ import { RecoveryPortalPage } from '@/features/recovery/RecoveryPortalPage';
 import { ExpensesPage } from '@/features/expenses/ExpensesPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
 import { StaffPage } from '@/features/staff/StaffPage';
+import { ArchivesPage } from '@/features/archives/ArchivesPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -158,7 +159,7 @@ export const router = createHashRouter([
       },
       {
         path: 'archives',
-        element: <ModulePlaceholder title="Data Portability, Backups & JSON (Phase 4)" />,
+        element: <ArchivesPage />,
       },
       {
         path: 'settings',

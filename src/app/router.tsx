@@ -128,7 +128,7 @@ export const router = createHashRouter([
       {
         path: 'dashboard',
         element: (
-          <RequireRole roles={['owner', 'manager', 'accountant', 'super_admin']}>
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
             <DashboardPage />
           </RequireRole>
         ),
@@ -192,7 +192,7 @@ export const router = createHashRouter([
       {
         path: 'installments/due',
         element: (
-          <RequireRole roles={['owner', 'manager', 'accountant', 'super_admin']}>
+          <RequireRole roles={['owner', 'manager', 'accountant']}>
             <DueInstallmentsPage />
           </RequireRole>
         ),
@@ -208,7 +208,7 @@ export const router = createHashRouter([
       {
         path: 'recovery',
         element: (
-          <RequireRole roles={['owner', 'manager', 'recovery', 'super_admin']}>
+          <RequireRole roles={['owner', 'manager', 'recovery']}>
             <RecoveryPortalPage />
           </RequireRole>
         ),

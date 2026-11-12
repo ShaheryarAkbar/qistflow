@@ -1,5 +1,5 @@
 // ============================================================================
-// Main Application Layout Shell with Role-Based Navigation & Demo Switcher
+// Main Application Layout Shell with Mobile App Experience & High Contrast Switcher
 // ============================================================================
 
 import React, { useState } from 'react';
@@ -29,10 +29,6 @@ import {
   Calculator,
   ShieldAlert,
   Smartphone,
-  Crown,
-  Briefcase,
-  Layers,
-  HelpCircle,
   Sparkles,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
@@ -43,7 +39,7 @@ import { QuickCalculatorModal } from '@/components/shared/QuickCalculatorModal';
 
 export const AppLayout: React.FC = () => {
   const { t, language, toggleLanguage } = useI18n();
-  const { currentUser, logout, isDemoUser, enableDemoMode, currentDemoRole } = useAuth();
+  const { currentUser, logout, isDemoUser, enableDemoMode } = useAuth();
   const {
     activeTenant,
     currentRole,
@@ -57,7 +53,6 @@ export const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -77,7 +72,7 @@ export const AppLayout: React.FC = () => {
 
   // Build role-tailored navigation items
   const getNavItems = () => {
-    // 1. Recovery Employee View (STRICTLY RESTRICTED)
+    // 1. Recovery Employee View (STRICTLY RESTRICTED TO FIELD RECOVERY)
     if (isRecovery) {
       return [
         {
@@ -99,7 +94,7 @@ export const AppLayout: React.FC = () => {
       ];
     }
 
-    // 2. Platform Super-Admin View
+    // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES)
     if (isSuperAdmin) {
       return [
         {
@@ -107,21 +102,6 @@ export const AppLayout: React.FC = () => {
           label: language === 'ur' ? 'پلیٹ فارم ایڈمن پورٹل' : 'Platform Super-Admin',
           icon: ShieldAlert,
           highlight: true,
-        },
-        {
-          to: '/dashboard',
-          label: t('nav.dashboard'),
-          icon: LayoutDashboard,
-        },
-        {
-          to: '/installments/due',
-          label: t('nav.installments'),
-          icon: CalendarClock,
-        },
-        {
-          to: '/recovery',
-          label: t('nav.recovery'),
-          icon: Coins,
         },
         {
           to: '/calculator',
@@ -135,7 +115,7 @@ export const AppLayout: React.FC = () => {
         },
         {
           to: '/settings',
-          label: t('nav.settings'),
+          label: language === 'ur' ? 'پلیٹ فارم سیٹنگز' : 'Platform Settings',
           icon: Settings,
         },
       ];
@@ -218,6 +198,108 @@ export const AppLayout: React.FC = () => {
       default:
         return currentRole;
     }
+  };
+
+  // Render Mobile Bottom Bar (App-like navigation)
+  const renderMobileBottomBar = () => {
+    if (isRecovery) {
+      return (
+        <nav className="mobile-app-nav" aria-label="Mobile Navigation">
+          <NavLink to="/recovery" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Coins size={19} />
+            <span>{language === 'ur' ? 'ریکوری' : 'Recovery'}</span>
+          </NavLink>
+          <NavLink to="/calculator" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Calculator size={19} />
+            <span>{language === 'ur' ? 'کیلکولیٹر' : 'Calculator'}</span>
+          </NavLink>
+          <NavLink to="/portal" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Smartphone size={19} />
+            <span>{language === 'ur' ? 'پاس بک' : 'Passbook'}</span>
+          </NavLink>
+          <button onClick={handleLogout} className="mobile-nav-btn text-danger">
+            <LogOut size={19} />
+            <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
+          </button>
+        </nav>
+      );
+    }
+
+    if (isSuperAdmin) {
+      return (
+        <nav className="mobile-app-nav" aria-label="Mobile Navigation">
+          <NavLink to="/admin" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <ShieldAlert size={19} />
+            <span>{language === 'ur' ? 'ایڈمن' : 'Admin'}</span>
+          </NavLink>
+          <NavLink to="/calculator" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Calculator size={19} />
+            <span>{language === 'ur' ? 'کیلکولیٹر' : 'Calculator'}</span>
+          </NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Settings size={19} />
+            <span>{language === 'ur' ? 'سیٹنگز' : 'Settings'}</span>
+          </NavLink>
+          <button onClick={() => setSidebarOpen(true)} className="mobile-nav-btn">
+            <Menu size={19} />
+            <span>{language === 'ur' ? 'مینیو' : 'Menu'}</span>
+          </button>
+        </nav>
+      );
+    }
+
+    if (isAccountant) {
+      return (
+        <nav className="mobile-app-nav" aria-label="Mobile Navigation">
+          <NavLink to="/dashboard" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <LayoutDashboard size={19} />
+            <span>{language === 'ur' ? 'ڈیش بورڈ' : 'Dashboard'}</span>
+          </NavLink>
+          <NavLink to="/installments/due" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <CalendarClock size={19} />
+            <span>{language === 'ur' ? 'اقساط' : 'Dues'}</span>
+          </NavLink>
+          <NavLink to="/payments" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <Receipt size={19} />
+            <span>{language === 'ur' ? 'وصولیاں' : 'Payments'}</span>
+          </NavLink>
+          <NavLink to="/expenses" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+            <CreditCard size={19} />
+            <span>{language === 'ur' ? 'اخراجات' : 'Expenses'}</span>
+          </NavLink>
+          <button onClick={() => setSidebarOpen(true)} className="mobile-nav-btn">
+            <Menu size={19} />
+            <span>{language === 'ur' ? 'مینیو' : 'Menu'}</span>
+          </button>
+        </nav>
+      );
+    }
+
+    // Owner and Manager
+    return (
+      <nav className="mobile-app-nav" aria-label="Mobile Navigation">
+        <NavLink to="/dashboard" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+          <LayoutDashboard size={19} />
+          <span>{language === 'ur' ? 'ڈیش بورڈ' : 'Home'}</span>
+        </NavLink>
+        <NavLink to="/sales/new" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+          <PlusCircle size={19} />
+          <span>{language === 'ur' ? 'نئی سیل' : 'Sale'}</span>
+        </NavLink>
+        <NavLink to="/installments/due" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+          <CalendarClock size={19} />
+          <span>{language === 'ur' ? 'اقساط' : 'Dues'}</span>
+        </NavLink>
+        <NavLink to="/payments" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
+          <Receipt size={19} />
+          <span>{language === 'ur' ? 'وصولیاں' : 'Collect'}</span>
+        </NavLink>
+        <button onClick={() => setSidebarOpen(true)} className="mobile-nav-btn">
+          <Menu size={19} />
+          <span>{language === 'ur' ? 'مینیو' : 'Menu'}</span>
+        </button>
+      </nav>
+    );
   };
 
   return (
@@ -358,64 +440,78 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Container */}
       <div className="app-main">
-        {/* Top Demo Role Switcher Strip (Crucial for Demo Evaluation) */}
+        {/* High-Contrast, Clean, Highly Legible Demo Role Switcher Strip */}
         {isDemoUser && (
           <div
             style={{
-              background: '#0f172a',
-              color: '#ffffff',
-              padding: '0.5rem 1rem',
+              background: '#ffffff',
+              borderBottom: '2px solid #e2e8f0',
+              padding: '0.625rem 1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '0.5rem',
-              fontSize: '0.75rem',
+              gap: '0.625rem',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Sparkles size={14} className="text-warning" />
-              <span style={{ fontWeight: 600 }}>
-                {language === 'ur' ? 'کردار تبدیل کریں (Role Simulation):' : 'Demo Role Switcher:'}
-              </span>
+              <div
+                style={{
+                  background: '#ecfdf5',
+                  color: '#065f46',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.375rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  border: '1px solid #a7f3d0',
+                }}
+              >
+                <Sparkles size={15} className="text-success" />
+                <span>
+                  {language === 'ur' ? 'کردار منتخب کریں (Role Switcher):' : 'Active Role (Demo Switcher):'}
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => handleDemoRoleSwitch('owner')}
-                className={`btn btn-xs ${currentRole === 'owner' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-              >
-                👑 {language === 'ur' ? 'دکان دار (Owner)' : 'Owner'}
-              </button>
-              <button
-                onClick={() => handleDemoRoleSwitch('manager')}
-                className={`btn btn-xs ${currentRole === 'manager' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-              >
-                👔 {language === 'ur' ? 'مینیجر (Manager)' : 'Manager'}
-              </button>
-              <button
-                onClick={() => handleDemoRoleSwitch('accountant')}
-                className={`btn btn-xs ${currentRole === 'accountant' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-              >
-                🧮 {language === 'ur' ? 'اکاؤنٹنٹ (Finance)' : 'Accountant'}
-              </button>
-              <button
-                onClick={() => handleDemoRoleSwitch('recovery')}
-                className={`btn btn-xs ${currentRole === 'recovery' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-              >
-                🛵 {language === 'ur' ? 'ریکوری عملہ (Mobile)' : 'Recovery'}
-              </button>
-              <button
-                onClick={() => handleDemoRoleSwitch('super_admin')}
-                className={`btn btn-xs ${currentRole === 'super_admin' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-              >
-                🛡️ {language === 'ur' ? 'سپر ایڈمن (Admin)' : 'Super-Admin'}
-              </button>
+              {[
+                { role: 'owner', labelUr: 'دکان دار (Owner)', labelEn: 'Shop Owner', icon: '👑' },
+                { role: 'manager', labelUr: 'مینیجر (Manager)', labelEn: 'Shop Manager', icon: '👔' },
+                { role: 'accountant', labelUr: 'اکاؤنٹنٹ (Finance)', labelEn: 'Accountant', icon: '🧮' },
+                { role: 'recovery', labelUr: 'ریکوری عملہ (Field)', labelEn: 'Recovery Officer', icon: '🛵' },
+                { role: 'super_admin', labelUr: 'سپر ایڈمن (Admin)', labelEn: 'Super-Admin', icon: '🛡️' },
+              ].map((item) => {
+                const isActive = currentRole === item.role;
+                return (
+                  <button
+                    key={item.role}
+                    type="button"
+                    onClick={() => handleDemoRoleSwitch(item.role as UserRole)}
+                    style={{
+                      background: isActive ? '#059669' : '#f8fafc',
+                      color: isActive ? '#ffffff' : '#0f172a',
+                      border: isActive ? '1px solid #047857' : '1px solid #cbd5e1',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '0.5rem',
+                      fontWeight: isActive ? 700 : 600,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      boxShadow: isActive ? '0 2px 5px rgba(5, 150, 105, 0.25)' : 'none',
+                      transition: 'all 0.15s ease-in-out',
+                    }}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{language === 'ur' ? item.labelUr : item.labelEn}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -456,7 +552,7 @@ export const AppLayout: React.FC = () => {
             >
               <Calculator size={15} />
               <span className="hidden sm:inline">
-                {language === 'ur' ? 'حساب کتاب (Calculator)' : 'Calculator'}
+                {language === 'ur' ? 'حساب کتاب' : 'Calculator'}
               </span>
             </button>
 
@@ -477,7 +573,7 @@ export const AppLayout: React.FC = () => {
                 className="btn btn-sm btn-primary"
               >
                 <PlusCircle size={15} />
-                <span>{t('dashboard.newSale')}</span>
+                <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
               </button>
             )}
           </div>
@@ -487,6 +583,9 @@ export const AppLayout: React.FC = () => {
         <main className="app-content">
           <Outlet />
         </main>
+
+        {/* Native Mobile Bottom Navigation Bar (Visible on mobile/tablets) */}
+        {renderMobileBottomBar()}
       </div>
     </div>
   );

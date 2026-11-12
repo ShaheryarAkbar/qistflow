@@ -43,3 +43,4 @@ export const QuickCalculatorModal: React.FC<QuickCalculatorModalProps> = ({ isOp
     </div>
   );
 };
+

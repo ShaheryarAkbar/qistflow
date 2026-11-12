@@ -398,3 +398,4 @@ export const RecoveryPortalPage: React.FC = () => {
     </div>
   );
 };
+

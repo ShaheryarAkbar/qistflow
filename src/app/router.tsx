@@ -1,5 +1,5 @@
 // ============================================================================
-// Application Router: Connected Phase 1 & Phase 2 Routes
+// Application Router: Connected Phase 1, Phase 2 & Phase 3 Routes
 // ============================================================================
 
 import React from 'react';
@@ -20,6 +20,9 @@ import { ContractsPage } from '@/features/contracts/ContractsPage';
 import { PaymentsPage } from '@/features/payments/PaymentsPage';
 import { DueInstallmentsPage } from '@/features/installments/DueInstallmentsPage';
 import { RecoveryPortalPage } from '@/features/recovery/RecoveryPortalPage';
+import { ExpensesPage } from '@/features/expenses/ExpensesPage';
+import { ReportsPage } from '@/features/reports/ReportsPage';
+import { StaffPage } from '@/features/staff/StaffPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -59,7 +62,7 @@ const ModulePlaceholder: React.FC<{ title: string }> = ({ title }) => (
     </div>
     <div className="card-body text-center" style={{ padding: '3rem 1rem' }}>
       <p className="text-muted mb-4">
-        This module is scheduled for implementation in Phase 3 / Phase 4.
+        This module is scheduled for implementation in Phase 4.
       </p>
       <span className="badge badge-info">Next Phase</span>
     </div>
@@ -143,19 +146,19 @@ export const router = createHashRouter([
       },
       {
         path: 'expenses',
-        element: <ModulePlaceholder title="Shop Operating Expenses (Phase 3)" />,
+        element: <ExpensesPage />,
       },
       {
         path: 'reports',
-        element: <ModulePlaceholder title="Financial & Collection Reports (Phase 3)" />,
+        element: <ReportsPage />,
+      },
+      {
+        path: 'staff',
+        element: <StaffPage />,
       },
       {
         path: 'archives',
         element: <ModulePlaceholder title="Data Portability, Backups & JSON (Phase 4)" />,
-      },
-      {
-        path: 'staff',
-        element: <ModulePlaceholder title="Staff & Roles Management (Phase 3)" />,
       },
       {
         path: 'settings',

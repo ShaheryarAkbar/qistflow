@@ -17,11 +17,14 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { useAuth } from '@/app/providers/AuthContext';
-import { Contract, ScheduleEntry, Customer } from '@/types';
+import { Contract, ScheduleEntry, Customer, ClearanceCertificate } from '@/types';
 import { SaleRepository } from '@/repositories/sale.repository';
 import { CustomerRepository } from '@/repositories/customer.repository';
+import { CertificateRepository } from '@/repositories/certificate.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PrintableCertificate } from '@/components/shared/PrintableCertificate';
+import { Award } from 'lucide-react';
 
 export const ContractsPage: React.FC = () => {
   const { t, language } = useI18n();
@@ -38,6 +41,13 @@ export const ContractsPage: React.FC = () => {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  // Clearance Certificate Modal State
+  const [activeCertData, setActiveCertData] = useState<{
+    cert: ClearanceCertificate;
+    contract: Contract;
+    customer?: Customer;
+  } | null>(null);
 
   const loadData = async () => {
     if (!activeTenant) return;
@@ -71,6 +81,23 @@ export const ContractsPage: React.FC = () => {
       setScheduleEntries(entries);
     } finally {
       setLoadingSchedule(false);
+    }
+  };
+
+  const handleIssueCertificate = async (contract: Contract) => {
+    if (!activeTenant) return;
+    try {
+      const cert = await CertificateRepository.issueCertificate({
+        tenantId: activeTenant.tenantId,
+        userId: 'owner',
+        contract,
+        isDemo: isDemoUser,
+      });
+
+      const customer = customers.find((c) => c.customerId === contract.customerId);
+      setActiveCertData({ cert, contract, customer });
+    } catch (err: any) {
+      alert(err?.message || 'Failed to issue clearance certificate.');
     }
   };
 
@@ -194,13 +221,26 @@ export const ContractsPage: React.FC = () => {
                         <StatusBadge status={c.status} />
                       </td>
                       <td>
-                        <button
-                          onClick={() => viewSchedule(c)}
-                          className="btn btn-sm btn-outline"
-                        >
-                          <Calendar size={13} />
-                          <span>View Schedule</span>
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.375rem' }}>
+                          <button
+                            onClick={() => viewSchedule(c)}
+                            className="btn btn-sm btn-outline"
+                          >
+                            <Calendar size={13} />
+                            <span>Schedule</span>
+                          </button>
+
+                          {(c.outstandingPaisa === 0 || c.status === 'fully_paid') && (
+                            <button
+                              onClick={() => handleIssueCertificate(c)}
+                              className="btn btn-sm btn-primary"
+                              title="Issue Clearance Certificate"
+                            >
+                              <Award size={13} />
+                              <span>Clearance</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -286,6 +326,16 @@ export const ContractsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Clearance Certificate Modal */}
+      {activeCertData && (
+        <PrintableCertificate
+          certificate={activeCertData.cert}
+          contract={activeCertData.contract}
+          customer={activeCertData.customer}
+          onClose={() => setActiveCertData(null)}
+        />
       )}
     </div>
   );

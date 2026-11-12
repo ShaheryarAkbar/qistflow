@@ -143,3 +143,4 @@ export const PrintableReceipt: React.FC<PrintableReceiptProps> = ({
     </div>
   );
 };
+

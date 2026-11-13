@@ -90,6 +90,19 @@ export type RecoveryVisitOutcome =
   | 'rescheduled'
   | 'other';
 
+export type StaffPermission =
+  | 'manage_products'
+  | 'manage_inventory'
+  | 'view_reports'
+  | 'assign_recovery'
+  | 'can_manage_staff'
+  | 'grant_discounts'
+  | 'view_financial_reports'
+  | 'record_expenses'
+  | 'request_reversals'
+  | 'view_contracts'
+  | 'view_customers';
+
 // --- Entities ---
 
 export interface UserProfile {
@@ -434,6 +447,15 @@ export interface RecoveryVisit {
   note?: string;
   nextFollowUpAt?: any;
   paymentId?: string;
+  // Free Proof-of-Visit fields (HTML5 Geolocation & Camera Snap)
+  locationGeo?: {
+    latitude: number;
+    longitude: number;
+    accuracyMeters?: number;
+    capturedAt: string;
+  };
+  photoProofUrl?: string; // Client-side compressed base64 data URL
+  isVerifiedVisit?: boolean;
   createdAt: any;
   createdBy: string;
 }

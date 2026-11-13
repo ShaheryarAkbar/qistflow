@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase/app';
 import { useAuth } from './AuthContext';
-import { Tenant, Membership, UserRole } from '@/types';
+import { Tenant, Membership, UserRole, StaffPermission } from '@/types';
 
 interface TenantContextType {
   activeTenant: Tenant | null;
@@ -33,6 +33,9 @@ interface TenantContextType {
   canAccessFinancials: boolean;
   canAccessInventory: boolean;
   canAccessSales: boolean;
+  canViewReports: boolean;
+  hasPermission: (permission: StaffPermission | string) => boolean;
+  reloadMembership: () => Promise<void>;
   switchTenant: (tenantId: string) => Promise<void>;
   createTenant: (params: {
     businessName: string;
@@ -91,11 +94,50 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ? 'manager'
         : 'owner';
 
+      // Load permissions from stored demo staff if available
+      let rolePermissions: string[] = ['all'];
+      if (role === 'manager') {
+        const stored = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
+        if (stored) {
+          const list = JSON.parse(stored);
+          const found = list.find((s: any) => s.role === 'manager');
+          if (found?.permissions) rolePermissions = found.permissions;
+        } else {
+          rolePermissions = [
+            'manage_products',
+            'manage_inventory',
+            'view_reports',
+            'assign_recovery',
+            'can_manage_staff',
+            'grant_discounts',
+          ];
+        }
+      } else if (role === 'accountant') {
+        const stored = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
+        if (stored) {
+          const list = JSON.parse(stored);
+          const found = list.find((s: any) => s.role === 'accountant');
+          if (found?.permissions) rolePermissions = found.permissions;
+        } else {
+          rolePermissions = [
+            'view_financial_reports',
+            'record_expenses',
+            'request_reversals',
+            'view_contracts',
+            'view_customers',
+          ];
+        }
+      } else if (role === 'recovery') {
+        rolePermissions = ['assigned_collections'];
+      } else if (role === 'super_admin') {
+        rolePermissions = ['platform_admin'];
+      }
+
       const demoMembership: Membership = {
         userId: currentUser.uid,
         tenantId: demoTenant.tenantId,
         role,
-        permissions: ['all'],
+        permissions: rolePermissions,
         membershipStatus: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -217,6 +259,22 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return tenantId;
   };
 
+  const reloadMembership = async () => {
+    if (isDemoUser && activeTenant) {
+      const stored = localStorage.getItem(`qistflow_demo_staff_${activeTenant.tenantId}`);
+      if (stored && activeMembership) {
+        const list = JSON.parse(stored);
+        const found = list.find((s: any) => s.role === activeMembership.role);
+        if (found?.permissions) {
+          setActiveMembership({
+            ...activeMembership,
+            permissions: found.permissions,
+          });
+        }
+      }
+    }
+  };
+
   const currentRole: UserRole = activeMembership?.role || 'owner';
   const isSuperAdmin = currentRole === 'super_admin';
   const isOwner = currentRole === 'owner' || isSuperAdmin;
@@ -224,11 +282,19 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAccountant = currentRole === 'accountant';
   const isRecovery = currentRole === 'recovery';
 
-  const canManageStaff = isOwner || isManager;
+  const hasPermission = (permission: StaffPermission | string): boolean => {
+    if (currentRole === 'owner') return true;
+    if (currentRole === 'super_admin') return false;
+    if (activeMembership?.permissions?.includes('all')) return true;
+    return activeMembership?.permissions?.includes(permission) ?? false;
+  };
+
+  const canManageStaff = isOwner || (isManager && hasPermission('can_manage_staff'));
   const canManageSettings = isOwner;
-  const canAccessFinancials = isOwner || isManager || isAccountant;
-  const canAccessInventory = isOwner || isManager;
+  const canAccessFinancials = isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('record_expenses'))) || (isManager && hasPermission('view_reports'));
+  const canAccessInventory = isOwner || (isManager && hasPermission('manage_inventory'));
   const canAccessSales = isOwner || isManager;
+  const canViewReports = isOwner || (isManager && hasPermission('view_reports')) || (isAccountant && hasPermission('view_financial_reports'));
 
   return (
     <TenantContext.Provider
@@ -248,6 +314,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         canAccessFinancials,
         canAccessInventory,
         canAccessSales,
+        canViewReports,
+        hasPermission,
+        reloadMembership,
         switchTenant,
         createTenant,
       }}

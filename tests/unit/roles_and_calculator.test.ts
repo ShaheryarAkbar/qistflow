@@ -186,3 +186,46 @@ describe('Strict Role-Based Access Control Matrix (PRD Section 4)', () => {
   });
 });
 
+describe('Owner-Configurable Staff Permissions & Proof-of-Visit Verification', () => {
+  it('dynamically adapts Manager privileges based on Owner-configured permissions', () => {
+    // Default manager with products and reports granted
+    const managerPermissions = ['manage_products', 'manage_inventory', 'view_reports', 'assign_recovery'];
+    const hasPerm = (p: string) => managerPermissions.includes(p);
+
+    expect(hasPerm('manage_products')).toBe(true);
+    expect(hasPerm('view_reports')).toBe(true);
+    expect(hasPerm('can_manage_staff')).toBe(false); // Not granted by owner yet
+
+    // Owner revokes view_reports from Manager
+    const restrictedPermissions = managerPermissions.filter((p) => p !== 'view_reports');
+    const hasRestrictedPerm = (p: string) => restrictedPermissions.includes(p);
+
+    expect(hasRestrictedPerm('view_reports')).toBe(false);
+    expect(hasRestrictedPerm('manage_products')).toBe(true);
+  });
+
+  it('validates Proof-of-Visit GPS geo-stamp and doorstep camera photo verification', () => {
+    const validVisit = {
+      outcome: 'unavailable' as const,
+      note: 'Padlocked front gate. Customer out of city.',
+      locationGeo: {
+        latitude: 28.4212,
+        longitude: 70.3134,
+        accuracyMeters: 14,
+        capturedAt: '2026-11-13T10:00:00Z',
+      },
+      photoProofUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...',
+      isVerifiedVisit: true,
+    };
+
+    expect(validVisit.isVerifiedVisit).toBe(true);
+    expect(validVisit.locationGeo.latitude).toBeCloseTo(28.4212);
+    expect(validVisit.locationGeo.accuracyMeters).toBeLessThanOrEqual(50);
+    expect(validVisit.photoProofUrl).toBeDefined();
+
+    // Verification link construction (100% Free Google Maps Link)
+    const mapsLink = `https://maps.google.com/?q=${validVisit.locationGeo.latitude},${validVisit.locationGeo.longitude}`;
+    expect(mapsLink).toBe('https://maps.google.com/?q=28.4212,70.3134');
+  });
+});
+

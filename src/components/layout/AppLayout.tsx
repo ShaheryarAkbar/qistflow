@@ -48,6 +48,7 @@ export const AppLayout: React.FC = () => {
     isAccountant,
     isRecovery,
     isSuperAdmin,
+    hasPermission,
   } = useTenant();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -116,41 +117,77 @@ export const AppLayout: React.FC = () => {
       ];
     }
 
-    // 3. Accountant View (FINANCIAL ONLY)
+    // 3. Accountant View (FINANCIAL ONLY & OWNER-CONFIGURABLE)
     if (isAccountant) {
-      return [
+      const items = [
         { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
         { to: '/installments/due', label: t('nav.installments'), icon: CalendarClock, highlight: true },
         { to: '/payments', label: t('nav.payments'), icon: Receipt },
-        { to: '/contracts', label: t('nav.contracts'), icon: FileText },
-        { to: '/customers', label: t('nav.customers'), icon: Users },
-        { to: '/expenses', label: t('nav.expenses'), icon: CreditCard },
-        { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
-        { to: '/calculator', label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator', icon: Calculator },
-        { to: '/portal', label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook', icon: Smartphone },
       ];
+      if (hasPermission('view_contracts')) {
+        items.push({ to: '/contracts', label: t('nav.contracts'), icon: FileText });
+      }
+      if (hasPermission('view_customers')) {
+        items.push({ to: '/customers', label: t('nav.customers'), icon: Users });
+      }
+      if (hasPermission('record_expenses')) {
+        items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
+      }
+      if (hasPermission('view_financial_reports')) {
+        items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
+      }
+      items.push({
+        to: '/calculator',
+        label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
+        icon: Calculator,
+      });
+      items.push({
+        to: '/portal',
+        label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
+        icon: Smartphone,
+      });
+      return items;
     }
 
-    // 4. Manager / Admin View
+    // 4. Manager / Admin View (OPERATIONAL ACCESS & OWNER-CONFIGURABLE)
     if (isManager) {
-      return [
+      const items = [
         { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
         { to: '/sales/new', label: t('nav.pos'), icon: PlusCircle, highlight: true },
         { to: '/customers', label: t('nav.customers'), icon: Users },
         { to: '/contracts', label: t('nav.contracts'), icon: FileText },
         { to: '/installments/due', label: t('nav.installments'), icon: CalendarClock },
         { to: '/payments', label: t('nav.payments'), icon: Receipt },
-        { to: '/products', label: t('nav.products'), icon: Package },
-        { to: '/inventory', label: t('nav.inventory'), icon: Boxes },
-        { to: '/suppliers', label: t('nav.suppliers'), icon: Truck },
-        { to: '/purchases', label: t('nav.purchases'), icon: ShoppingCart },
-        { to: '/expenses', label: t('nav.expenses'), icon: CreditCard },
-        { to: '/recovery', label: t('nav.recovery'), icon: Coins },
-        { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
-        { to: '/staff', label: t('nav.staff'), icon: UserCheck },
-        { to: '/calculator', label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator', icon: Calculator },
-        { to: '/portal', label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook', icon: Smartphone },
       ];
+      if (hasPermission('manage_products')) {
+        items.push({ to: '/products', label: t('nav.products'), icon: Package });
+      }
+      if (hasPermission('manage_inventory')) {
+        items.push({ to: '/inventory', label: t('nav.inventory'), icon: Boxes });
+        items.push({ to: '/suppliers', label: t('nav.suppliers'), icon: Truck });
+        items.push({ to: '/purchases', label: t('nav.purchases'), icon: ShoppingCart });
+      }
+      items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
+      if (hasPermission('assign_recovery')) {
+        items.push({ to: '/recovery', label: t('nav.recovery'), icon: Coins });
+      }
+      if (hasPermission('view_reports')) {
+        items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
+      }
+      if (hasPermission('can_manage_staff')) {
+        items.push({ to: '/staff', label: t('nav.staff'), icon: UserCheck });
+      }
+      items.push({
+        to: '/calculator',
+        label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
+        icon: Calculator,
+      });
+      items.push({
+        to: '/portal',
+        label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
+        icon: Smartphone,
+      });
+      return items;
     }
 
     // 5. Business Owner View (FULL UNRESTRICTED ACCESS)

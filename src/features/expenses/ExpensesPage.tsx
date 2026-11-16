@@ -141,34 +141,31 @@ export const ExpensesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="card" style={{ gridColumn: 'span 2' }}>
-          <div className="card-body" style={{ padding: '0.875rem 1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '180px' }}>
-              <Search size={16} className="text-muted" />
-              <input
-                type="text"
-                className="form-input"
-                style={{ border: 'none', padding: '0.25rem 0', boxShadow: 'none' }}
-                placeholder="Search description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+        <div style={{ gridColumn: 'span 2', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="search-box" style={{ flex: 1, minWidth: '200px' }}>
+            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Tag size={16} className="text-muted" />
-              <select
-                className="form-select"
-                style={{ width: 'auto', padding: '0.25rem 0.75rem' }}
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Tag size={16} className="text-muted" />
+            <select
+              className="form-select"
+              style={{ width: 'auto', minWidth: '160px' }}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="all">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

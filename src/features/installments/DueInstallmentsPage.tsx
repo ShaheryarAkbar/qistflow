@@ -165,40 +165,37 @@ export const DueInstallmentsPage: React.FC = () => {
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="card mb-6">
-        <div className="card-body" style={{ padding: '0.75rem 1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setFilterType('today')}
-              className={`btn btn-sm ${filterType === 'today' ? 'btn-primary' : 'btn-outline'}`}
-            >
-              Due Today ({dueItems.filter((i) => i.entry.dueDateKey === todayKey).length})
-            </button>
-            <button
-              onClick={() => setFilterType('overdue')}
-              className={`btn btn-sm ${filterType === 'overdue' ? 'btn-danger' : 'btn-outline'}`}
-            >
-              Overdue ({dueItems.filter((i) => i.entry.dueDateKey < todayKey).length})
-            </button>
-            <button
-              onClick={() => setFilterType('all')}
-              className={`btn btn-sm ${filterType === 'all' ? 'btn-secondary' : 'btn-outline'}`}
-            >
-              All Unpaid ({dueItems.length})
-            </button>
-          </div>
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setFilterType('today')}
+            className={`btn btn-sm ${filterType === 'today' ? 'btn-primary' : 'btn-outline'}`}
+          >
+            Due Today ({dueItems.filter((i) => i.entry.dueDateKey === todayKey).length})
+          </button>
+          <button
+            onClick={() => setFilterType('overdue')}
+            className={`btn btn-sm ${filterType === 'overdue' ? 'btn-danger' : 'btn-outline'}`}
+          >
+            Overdue ({dueItems.filter((i) => i.entry.dueDateKey < todayKey).length})
+          </button>
+          <button
+            onClick={() => setFilterType('all')}
+            className={`btn btn-sm ${filterType === 'all' ? 'btn-secondary' : 'btn-outline'}`}
+          >
+            All Unpaid ({dueItems.length})
+          </button>
+        </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '220px' }}>
-            <Search size={16} className="text-muted" />
-            <input
-              type="text"
-              className="form-input"
-              style={{ border: 'none', padding: '0.25rem 0', boxShadow: 'none' }}
-              placeholder="Search by customer name, phone, area or contract code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="search-box" style={{ flex: 1, minWidth: '240px' }}>
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search by customer name, phone, area or contract code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 

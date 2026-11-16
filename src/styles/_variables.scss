@@ -35,8 +35,13 @@ $slate-950: #020617;
 $color-bg: $slate-50;
 $color-surface: #ffffff;
 $color-border: $slate-200;
+$color-input-border: $slate-300;
+$color-input-border-hover: $slate-400;
+$color-input-focus: $brand-600;
+$color-input-bg: #ffffff;
 $color-text: $slate-900;
 $color-text-muted: $slate-500;
+$radius-input: 0.625rem;
 
 // Semantic Feedback Colors
 $color-success: #16a34a;

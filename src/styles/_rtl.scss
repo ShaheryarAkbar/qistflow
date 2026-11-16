@@ -67,5 +67,39 @@
   .modal-box .modal-footer {
     justify-content: flex-start;
   }
+
+  // Form controls in RTL
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .form-control,
+  input,
+  select,
+  textarea {
+    text-align: right;
+  }
+
+  .form-select,
+  select {
+    padding-right: 1rem;
+    padding-left: 2.75rem;
+    background-position: left 1rem center;
+  }
+
+  .form-group .form-label .required {
+    margin-left: 0;
+    margin-right: 0.25rem;
+  }
+
+  .search-box,
+  .search-bar {
+    direction: rtl;
+    text-align: right;
+
+    input,
+    .form-input {
+      text-align: right;
+    }
+  }
 }
 

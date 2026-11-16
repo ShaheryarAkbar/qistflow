@@ -208,20 +208,15 @@ export const PaymentsPage: React.FC = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="card mb-6">
-        <div className="card-body" style={{ padding: '0.75rem 1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Search size={18} className="text-muted" />
-            <input
-              type="text"
-              className="form-input"
-              style={{ border: 'none', padding: '0.25rem 0', boxShadow: 'none' }}
-              placeholder="Search by customer name, mobile or transaction reference..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
+      <div className="search-box mb-6">
+        <Search size={18} className="search-icon" />
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Search by customer name, mobile or transaction reference..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Payments Table */}

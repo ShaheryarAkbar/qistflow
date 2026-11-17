@@ -31,12 +31,19 @@ import {
   CheckCircle2,
   Edit2,
   Building2,
+  Smartphone,
+  Laptop,
+  Tablet,
+  Radio,
+  Globe,
+  RefreshCw,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { useAuth } from '@/app/providers/AuthContext';
 import { UserRole, StaffPayrollRecord, PaymentMethod } from '@/types';
 import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
+import { SessionTrackerService, ActiveSessionRecord } from '@/services/sessionTracker.service';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { rupeesToPaisa } from '@/domain/money/paisa';
@@ -110,6 +117,43 @@ export const StaffPage: React.FC = () => {
   const [shareHandoverMember, setShareHandoverMember] = useState<StaffMemberRecord | null>(null);
   const [handoverCopied, setHandoverCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Active Concurrent Device Sessions State
+  const [activeSessions, setActiveSessions] = useState<ActiveSessionRecord[]>([]);
+  const [inspectingStaffSessions, setInspectingStaffSessions] = useState<{
+    member: StaffMemberRecord;
+    sessions: ActiveSessionRecord[];
+  } | null>(null);
+
+  useEffect(() => {
+    setActiveSessions(SessionTrackerService.getAllSessions());
+    const unsub = SessionTrackerService.subscribe((sessions) => {
+      setActiveSessions(sessions);
+      setInspectingStaffSessions((prev) => {
+        if (!prev) return null;
+        return {
+          member: prev.member,
+          sessions: sessions.filter((s) => s.userId === prev.member.userId),
+        };
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  const handleTerminateSession = (sessionId: string) => {
+    SessionTrackerService.terminateSession(sessionId);
+    showToast(language === 'ur' ? 'ڈیوائس سیشن لاگ آؤٹ / منقطع کر دیا گیا!' : 'Device session terminated successfully!');
+  };
+
+  const handleSimulateAddDevice = (userId: string) => {
+    SessionTrackerService.simulateAddDeviceSession(userId);
+    showToast(language === 'ur' ? 'نیا فیلڈ موبائل لاگ ان کامیابی سے شامل ہوا!' : 'New field mobile login simulated!');
+  };
+
+  const handleTerminateAllStaffSessions = (userId: string) => {
+    SessionTrackerService.terminateAllUserSessions(userId);
+    showToast(language === 'ur' ? 'تمام ریموٹ ڈیوائسز لاگ آؤٹ کر دی گئیں!' : 'All remote sessions terminated!');
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -584,9 +628,15 @@ export const StaffPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                Full Business Control (کامل اختیارات)
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span className="badge badge-success" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Smartphone size={11} />
+                  <span>{language === 'ur' ? '1 ایکٹو ڈیوائس (آن لائن)' : '1 Active Device'}</span>
+                </span>
+                <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                  Full Business Control (کامل اختیارات)
+                </span>
+              </div>
             </div>
           )}
 
@@ -601,6 +651,7 @@ export const StaffPage: React.FC = () => {
                     <th>Monthly Salary</th>
                     <th>Permissions & Scope</th>
                     <th>Login Email & Password</th>
+                    <th>{language === 'ur' ? 'ایکٹو ڈیوائسز / لاگ انز' : 'Active Devices / Logins'}</th>
                     <th>Phone</th>
                     <th>Joined Date</th>
                     <th>{t('common.status')}</th>
@@ -610,13 +661,13 @@ export const StaffPage: React.FC = () => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} className="text-center" style={{ padding: '2rem' }}>
+                      <td colSpan={11} className="text-center" style={{ padding: '2rem' }}>
                         {t('common.loading')}
                       </td>
                     </tr>
                   ) : displayedStaff.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="text-center text-muted" style={{ padding: '2rem' }}>
+                      <td colSpan={11} className="text-center text-muted" style={{ padding: '2rem' }}>
                         {language === 'ur' ? 'کوئی ملازم ریکارڈ موجود نہیں' : 'No staff members found'}
                       </td>
                     </tr>
@@ -724,6 +775,50 @@ export const StaffPage: React.FC = () => {
                               )}
                             </div>
                           </div>
+                        </td>
+                        <td>
+                          {(() => {
+                            const memberSessions = activeSessions.filter((s) => s.userId === member.userId);
+                            const count = memberSessions.length;
+                            if (count === 0) {
+                              return (
+                                <span
+                                  className="badge badge-outline text-muted"
+                                  style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }}></span>
+                                  <span>{language === 'ur' ? 'آف لائن (0)' : 'Offline'}</span>
+                                </span>
+                              );
+                            }
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setInspectingStaffSessions({ member, sessions: memberSessions })}
+                                className={`badge ${count > 1 ? 'badge-primary' : 'badge-success'}`}
+                                style={{
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  border: count > 1 ? '1px solid #86efac' : 'none',
+                                  background: count > 1 ? '#f0fdf4' : undefined,
+                                  color: count > 1 ? '#15803d' : undefined,
+                                  fontSize: '0.75rem',
+                                  padding: '0.25rem 0.5rem',
+                                  fontWeight: 600,
+                                }}
+                                title={language === 'ur' ? 'ایکٹو ڈیوائسز اور لاگ انز کی تفصیل دیکھیں' : 'View active device logins'}
+                              >
+                                <Smartphone size={12} />
+                                <span>
+                                  {count === 1
+                                    ? (language === 'ur' ? '1 ڈیوائس (آن لائن)' : '1 Active Device')
+                                    : (language === 'ur' ? `${count} ڈیوائسز (آن لائن)` : `${count} Active Devices`)}
+                                </span>
+                              </button>
+                            );
+                          })()}
                         </td>
                         <td>
                           <div style={{ fontSize: '0.8125rem' }}>
@@ -1749,6 +1844,173 @@ export const StaffPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShareHandoverMember(null)}
+                className="btn btn-secondary"
+              >
+                {t('common.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Inspect Staff Active Device Sessions Modal */}
+      {inspectingStaffSessions && (
+        <div className="modal-overlay" style={{ zIndex: 70 }}>
+          <div className="modal-box" style={{ maxWidth: '560px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Smartphone size={20} className="text-primary" />
+                <div>
+                  <h3 className="modal-title" style={{ margin: 0, fontSize: '1.0625rem' }}>
+                    {language === 'ur'
+                      ? `${inspectingStaffSessions.member.displayName} کے ایکٹو ڈیوائس لاگ انز`
+                      : `Active Device Logins for ${inspectingStaffSessions.member.displayName}`}
+                  </h3>
+                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                    {inspectingStaffSessions.member.role.toUpperCase()} • {inspectingStaffSessions.member.email}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingStaffSessions(null)}
+                className="btn btn-icon btn-outline btn-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Summary Banner */}
+              <div
+                style={{
+                  background: inspectingStaffSessions.sessions.length > 1 ? '#ecfdf5' : '#f8fafc',
+                  border: `1px solid ${inspectingStaffSessions.sessions.length > 1 ? '#a7f3d0' : '#e2e8f0'}`,
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: inspectingStaffSessions.sessions.length > 1 ? '#065f46' : '#0f172a' }}>
+                    {language === 'ur'
+                      ? `کل ایکٹو لاگ ان ڈیوائسز: ${inspectingStaffSessions.sessions.length}`
+                      : `Total Concurrent Device Sessions: ${inspectingStaffSessions.sessions.length}`}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: inspectingStaffSessions.sessions.length > 1 ? '#047857' : '#64748b' }}>
+                    {language === 'ur'
+                      ? 'ملازم اپنے موبائل یا دوسرے ڈیوائس پر آزادانہ کام کر سکتا ہے۔ مینیجر اور مالک یہاں سے ریئل ٹائم مانیٹرنگ کر سکتے ہیں۔'
+                      : 'Staff can operate simultaneously on field phones and tablets without session conflicts.'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateAddDevice(inspectingStaffSessions.member.userId)}
+                  className="btn btn-sm btn-outline text-success"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', borderColor: '#86efac', background: '#ffffff' }}
+                  title={language === 'ur' ? 'دوسرا موبائل لاگ ان ٹیسٹ کریں' : 'Simulate another active device login'}
+                >
+                  <Smartphone size={13} />
+                  <span>{language === 'ur' ? '+ ٹیسٹ نیا لاگ ان' : '+ Simulate Login'}</span>
+                </button>
+              </div>
+
+              {/* Sessions List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', maxHeight: '360px', overflowY: 'auto' }}>
+                {inspectingStaffSessions.sessions.length === 0 ? (
+                  <div className="text-center text-muted" style={{ padding: '2rem' }}>
+                    {language === 'ur' ? 'اس وقت کوئی ڈیوائس ایکٹو نہیں ہے (آف لائن)' : 'No active sessions found (Offline)'}
+                  </div>
+                ) : (
+                  inspectingStaffSessions.sessions.map((sess) => (
+                    <div
+                      key={sess.sessionId}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        padding: '0.75rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '8px',
+                            background: sess.deviceType === 'desktop' ? '#eff6ff' : '#f0fdf4',
+                            color: sess.deviceType === 'desktop' ? '#2563eb' : '#16a34a',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {sess.deviceType === 'desktop' ? <Laptop size={18} /> : sess.deviceType === 'tablet' ? <Tablet size={18} /> : <Smartphone size={18} />}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
+                              {sess.deviceName}
+                            </span>
+                            {sess.isCurrentTab && (
+                              <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>
+                                {language === 'ur' ? 'یہ ٹیب' : 'This Tab'}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                            <span>{sess.browser}</span> • <span dir="ltr">{sess.ipAddress}</span> • <span>{sess.location}</span>
+                          </div>
+                          <div style={{ fontSize: '0.6875rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+                            {language === 'ur' ? 'لاگ ان وقت: ' : 'Logged in: '}
+                            {new Date(sess.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • 
+                            <span className="text-success" style={{ fontWeight: 600 }}> 🟢 {language === 'ur' ? 'آن لائن' : 'Active'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {canManageStaff && (
+                        <button
+                          type="button"
+                          onClick={() => handleTerminateSession(sess.sessionId)}
+                          className="btn btn-sm btn-outline text-danger"
+                          style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          title={language === 'ur' ? 'اس ڈیوائس کو لاگ آؤٹ کریں' : 'Terminate this device session'}
+                        >
+                          <X size={13} />
+                          <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Terminate'}</span>
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {canManageStaff && inspectingStaffSessions.sessions.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => handleTerminateAllStaffSessions(inspectingStaffSessions.member.userId)}
+                  className="btn btn-sm btn-outline text-danger"
+                >
+                  {language === 'ur' ? 'تمام ریموٹ ڈیوائسز لاگ آؤٹ کریں' : 'Terminate All Remote Devices'}
+                </button>
+              ) : (
+                <div></div>
+              )}
+              <button
+                type="button"
+                onClick={() => setInspectingStaffSessions(null)}
                 className="btn btn-secondary"
               >
                 {t('common.confirm')}

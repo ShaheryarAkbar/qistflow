@@ -14,6 +14,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/services/firebase/app';
 import { UserProfile, UserRole } from '@/types';
+import { SessionTrackerService } from '@/services/sessionTracker.service';
 
 interface SwitchStaffParam {
   userId?: string;
@@ -50,8 +51,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sync Firebase Auth state
   useEffect(() => {
-    // Check if demo user was saved
-    const demoStored = localStorage.getItem('qistflow_demo_user');
+    // 1. Check tab-isolated sessionStorage first (allows Tab 1 Manager & Tab 2 Recovery to run concurrently!)
+    const tabStored = sessionStorage.getItem('qistflow_demo_user');
+    const demoStored = tabStored || localStorage.getItem('qistflow_demo_user');
     if (demoStored) {
       try {
         const parsed = JSON.parse(demoStored);
@@ -59,9 +61,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(parsed.profile);
         setIsDemoUser(true);
         if (parsed.role) setCurrentDemoRole(parsed.role);
+
+        // Ensure this tab has its own isolated sessionStorage copy
+        if (!tabStored) {
+          sessionStorage.setItem('qistflow_demo_user', demoStored);
+        }
+
+        // Register this tab session with the real-time session tracker
+        SessionTrackerService.registerCurrentTabSession({
+          userId: parsed.user?.uid,
+          email: parsed.user?.email || '',
+          displayName: parsed.user?.displayName || 'Staff Member',
+          role: parsed.role || 'owner',
+        });
+
         setLoading(false);
         return;
       } catch (e) {
+        sessionStorage.removeItem('qistflow_demo_user');
         localStorage.removeItem('qistflow_demo_user');
       }
     }
@@ -99,7 +116,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Cleanup tab session on page unload
+    const handleUnload = () => {
+      SessionTrackerService.unregisterCurrentTabSession();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, pass: string) => {
@@ -133,7 +159,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    // Unregister this tab's session
+    SessionTrackerService.unregisterCurrentTabSession();
+
     if (isDemoUser) {
+      sessionStorage.removeItem('qistflow_demo_user');
+      sessionStorage.removeItem('qistflow_demo_tenant');
       localStorage.removeItem('qistflow_demo_user');
       localStorage.removeItem('qistflow_demo_tenant');
       setIsDemoUser(false);
@@ -186,10 +217,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString(),
     };
 
-    localStorage.setItem(
-      'qistflow_demo_user',
-      JSON.stringify({ user: demoUser, profile: demoProfile, role: assignedRole })
-    );
+    const sessionPayload = JSON.stringify({ user: demoUser, profile: demoProfile, role: assignedRole });
+
+    // Tab-isolated storage: This tab gets its own identity so Manager in Tab 1 and Recovery in Tab 2 run in parallel!
+    sessionStorage.setItem('qistflow_demo_user', sessionPayload);
+    localStorage.setItem('qistflow_demo_user', sessionPayload);
+
+    // Register active concurrent session in the tracker
+    SessionTrackerService.registerCurrentTabSession({
+      userId: demoUser.uid,
+      email: demoUser.email,
+      displayName: demoUser.displayName,
+      role: assignedRole,
+    });
 
     setCurrentUser(demoUser);
     setUserProfile(demoProfile);

@@ -84,7 +84,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: currentUser.uid,
       };
 
-      const savedCustomTenant = localStorage.getItem('qistflow_demo_tenant');
+      const savedCustomTenant =
+        sessionStorage.getItem('qistflow_demo_tenant') || localStorage.getItem('qistflow_demo_tenant');
       if (savedCustomTenant) {
         try {
           const parsed = JSON.parse(savedCustomTenant);
@@ -108,7 +109,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       if (!currentDemoRole && !foundStaffMember) {
-        const demoStored = localStorage.getItem('qistflow_demo_user');
+        const demoStored =
+          sessionStorage.getItem('qistflow_demo_user') || localStorage.getItem('qistflow_demo_user');
         if (demoStored) {
           try {
             const parsed = JSON.parse(demoStored);

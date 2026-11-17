@@ -31,6 +31,8 @@ import {
   Edit3,
   UserPlus,
   ArrowRightLeft,
+  Smartphone,
+  Laptop,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -48,6 +50,7 @@ import { SaleRepository } from '@/repositories/sale.repository';
 import { PaymentRepository } from '@/repositories/payment.repository';
 import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
+import { SessionTrackerService } from '@/services/sessionTracker.service';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PrintableReceipt } from '@/components/shared/PrintableReceipt';
 import { rupeesToPaisa } from '@/domain/money/paisa';
@@ -488,8 +491,14 @@ export const RecoveryPortalPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', padding: '0.2rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
-            ID: {currentUser?.uid}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <Smartphone size={11} />
+              <span>{language === 'ur' ? 'سیشن فعال (آن لائن)' : 'Field Session Active'}</span>
+            </span>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', padding: '0.2rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
+              ID: {currentUser?.uid}
+            </div>
           </div>
         </div>
       )}
@@ -642,9 +651,16 @@ export const RecoveryPortalPage: React.FC = () => {
                   </option>
                   {recoveryStaff.map((officer) => {
                     const count = cards.filter((c) => c.assignment.employeeId === officer.userId).length;
+                    const sessCount = SessionTrackerService.getUserSessionCount(officer.userId);
+                    const sessStatus =
+                      sessCount === 0
+                        ? (language === 'ur' ? 'آف لائن' : 'Offline')
+                        : sessCount === 1
+                        ? (language === 'ur' ? '1 ڈیوائس فعال' : '1 Device Online')
+                        : (language === 'ur' ? `${sessCount} ڈیوائسز ایکٹو` : `${sessCount} Devices Online`);
                     return (
                       <option key={officer.userId} value={officer.userId}>
-                        {officer.displayName} ({count} {language === 'ur' ? 'گاہک' : 'accounts'})
+                        {officer.displayName} ({count} {language === 'ur' ? 'گاہک' : 'accounts'}) • {sessStatus}
                       </option>
                     );
                   })}
@@ -1250,6 +1266,35 @@ export const RecoveryPortalPage: React.FC = () => {
                         <div className="text-muted" style={{ fontSize: '0.8125rem', marginTop: '0.125rem' }}>
                           {item.officer.phone || item.officer.email} • {item.officer.designation || 'Recovery Officer'}
                         </div>
+                        {(() => {
+                          const sessCount = SessionTrackerService.getUserSessionCount(item.officer.userId);
+                          return (
+                            <div style={{ marginTop: '0.35rem' }}>
+                              <span
+                                className={`badge ${sessCount > 1 ? 'badge-primary' : sessCount === 1 ? 'badge-success' : 'badge-outline text-muted'}`}
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  background: sessCount > 1 ? '#ecfdf5' : undefined,
+                                  color: sessCount > 1 ? '#047857' : undefined,
+                                  border: sessCount > 1 ? '1px solid #86efac' : undefined,
+                                  padding: '0.15rem 0.45rem',
+                                }}
+                              >
+                                <Smartphone size={11} />
+                                <span>
+                                  {sessCount === 0
+                                    ? (language === 'ur' ? 'آف لائن (0 ڈیوائسز)' : '0 Active Devices')
+                                    : sessCount === 1
+                                    ? (language === 'ur' ? '1 ایکٹو ڈیوائس لاگ ان' : '1 Active Device')
+                                    : (language === 'ur' ? `${sessCount} ڈیوائسز پر آن لائن لاگ ان` : `${sessCount} Concurrent Active Devices`)}
+                                </span>
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

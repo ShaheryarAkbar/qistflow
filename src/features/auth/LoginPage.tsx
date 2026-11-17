@@ -186,27 +186,26 @@ export const LoginPage: React.FC = () => {
           return;
         }
 
-        // Set active tenant to this shop
-        localStorage.setItem(
-          'qistflow_demo_tenant',
-          JSON.stringify({
-            tenantId: matchedOtherShop.tenantId,
-            schemaVersion: 1,
-            businessName: matchedOtherShop.businessName,
-            businessNameUr: matchedOtherShop.businessNameUr,
-            phone: matchedOtherShop.phone,
-            city: matchedOtherShop.city,
-            address: matchedOtherShop.city,
-            currency: 'PKR',
-            timezone: 'Asia/Karachi',
-            defaultLanguage: 'ur',
-            subscriptionStatus: 'active',
-            createdAt: '2026-09-15',
-            createdBy: matchedOtherShop.tenantId + '_owner',
-            updatedAt: '2026-09-15',
-            updatedBy: matchedOtherShop.tenantId + '_owner',
-          })
-        );
+        // Set active tenant to this shop (isolated per tab)
+        const tenantPayload = JSON.stringify({
+          tenantId: matchedOtherShop.tenantId,
+          schemaVersion: 1,
+          businessName: matchedOtherShop.businessName,
+          businessNameUr: matchedOtherShop.businessNameUr,
+          phone: matchedOtherShop.phone,
+          city: matchedOtherShop.city,
+          address: matchedOtherShop.city,
+          currency: 'PKR',
+          timezone: 'Asia/Karachi',
+          defaultLanguage: 'ur',
+          subscriptionStatus: 'active',
+          createdAt: '2026-09-15',
+          createdBy: matchedOtherShop.tenantId + '_owner',
+          updatedAt: '2026-09-15',
+          updatedBy: matchedOtherShop.tenantId + '_owner',
+        });
+        sessionStorage.setItem('qistflow_demo_tenant', tenantPayload);
+        localStorage.setItem('qistflow_demo_tenant', tenantPayload);
 
         enableDemoMode('owner', {
           userId: matchedOtherShop.tenantId + '_owner',
@@ -267,6 +266,7 @@ export const LoginPage: React.FC = () => {
         }
 
         // Set tenant context to main shop
+        sessionStorage.removeItem('qistflow_demo_tenant');
         localStorage.removeItem('qistflow_demo_tenant'); // defaults to Malik Electronics
 
         enableDemoMode(matchedStaff.role, matchedStaff);

@@ -337,7 +337,7 @@ export const PlatformAdminPage: React.FC = () => {
 شہر: ${t.city}
 لاگ ان ای میل (Gmail): ${t.ownerEmail}
 پاس ورڈ (Password): ${t.ownerPassword}
-سافٹ ویئر لنک: https://qistflow.app/#/login
+سافٹ ویئر لنک: https://qistflow.app/login
 سیکیورٹی نوٹ: اپنا پاس ورڈ محفوظ رکھیں اور صرف اپنے پاس رکھیں۔ ملازمین کے لاگ ان اکاؤنٹس آپ دکان کے اندر Staff پیج سے خود بنائیں گے۔`;
   };
 
@@ -348,6 +348,27 @@ export const PlatformAdminPage: React.FC = () => {
   };
 
   const handleTestLoginAsOwner = (t: any) => {
+    localStorage.setItem(
+      'qistflow_demo_tenant',
+      JSON.stringify({
+        tenantId: t.tenantId,
+        schemaVersion: 1,
+        businessName: t.businessName,
+        businessNameUr: t.businessNameUr || t.businessName,
+        phone: t.phone || '',
+        city: t.city || 'Rahim Yar Khan',
+        address: t.city || '',
+        currency: 'PKR',
+        timezone: 'Asia/Karachi',
+        defaultLanguage: 'ur',
+        subscriptionStatus: t.status || 'active',
+        createdAt: t.createdAt || new Date().toISOString(),
+        createdBy: t.tenantId + '_owner',
+        updatedAt: new Date().toISOString(),
+        updatedBy: t.tenantId + '_owner',
+      })
+    );
+
     enableDemoMode('owner', {
       userId: t.tenantId + '_owner',
       displayName: t.ownerName,
@@ -611,105 +632,175 @@ export const PlatformAdminPage: React.FC = () => {
       )}
 
       {/* ================= TAB 2: SHOP SAAS SUBSCRIPTION DUES ================= */}
-      {activeTab === 'dues' && (
-        <div className="card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h3 className="card-title">
-                {language === 'ur' ? 'دکانوں کی ماہانہ فیس اور تجدید (Shop SaaS Subscription Dues)' : 'Shop SaaS Subscription Dues & Renewals'}
-              </h3>
-              <p className="card-subtitle">
-                {language === 'ur'
-                  ? 'دکان داروں کی طرف سے قسط فلو سوفٹ ویئر کی واجب الادا ماہانہ فیس اور تجدید کی تاریخیں'
-                  : 'Track and collect SaaS subscription fees from shop owners. (Not customer product installments).'}
-              </p>
+      {activeTab === 'dues' && (() => {
+        const totalMonthlyFee = shopSubscriptions.reduce((acc, s) => acc + s.monthlyFeePKR, 0);
+        const totalAnnualProjected = totalMonthlyFee * 12;
+        const lifetimeShopsCount = shopSubscriptions.filter((s) => s.status === 'lifetime').length;
+        const activeMonthlyShops = shopSubscriptions.filter((s) => s.monthlyFeePKR > 0).length;
+
+        return (
+        <div>
+          {/* Executive SaaS Revenue Summary KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)', color: '#fff' }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                {language === 'ur' ? 'ماہانہ سبسکرپشن فیس (MRR)' : 'Monthly Recurring (MRR)'}
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem' }}>
+                Rs. {totalMonthlyFee.toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.6875rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                {activeMonthlyShops} {language === 'ur' ? 'ماہانہ پیکج والی دکانیں' : 'monthly subscription shops'}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)', color: '#fff' }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                {language === 'ur' ? 'سالانہ متوقع فیس (Annual Projected)' : 'Annual Projected (ARR)'}
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem' }}>
+                Rs. {totalAnnualProjected.toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.6875rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                {language === 'ur' ? '12 ماہ کے حساب سے سالانہ کل آمدنی' : 'Calculated over 12 months'}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem', background: 'linear-gradient(135deg, #6b21a8 0%, #7e22ce 100%)', color: '#fff' }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                {language === 'ur' ? 'لائف ٹائم لائسنس وصولی' : 'Lifetime Licenses Revenue'}
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '0.25rem' }}>
+                Rs. 34,999
+              </div>
+              <div style={{ fontSize: '0.6875rem', opacity: 0.8, marginTop: '0.25rem' }}>
+                {lifetimeShopsCount} {language === 'ur' ? 'دکان (یکمشت مکمل ادا شدہ)' : 'shop (one-time paid)'}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                {language === 'ur' ? 'مجموعی پلیٹ فارم پورٹ فولیو' : 'Total SaaS Portfolio'}
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', marginTop: '0.25rem' }}>
+                Rs. {(totalAnnualProjected + 34999).toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600, marginTop: '0.25rem' }}>
+                {shopSubscriptions.length} {language === 'ur' ? 'رجسٹرڈ دکانیں آن بورڈ' : 'registered shops onboard'}
+              </div>
             </div>
           </div>
 
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{language === 'ur' ? 'دکان اور مالک' : 'Shop & Owner'}</th>
-                  <th>{language === 'ur' ? 'پیکج / فیس' : 'Plan & Monthly Fee'}</th>
-                  <th>{language === 'ur' ? 'تجدید تاریخ' : 'Renewal Due Date'}</th>
-                  <th>{language === 'ur' ? 'بلنگ اسٹیٹس' : 'Billing Status'}</th>
-                  <th>{language === 'ur' ? 'یاددہانی و وصولی' : 'Collection Action'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shopSubscriptions.map((sub) => {
-                  const reminderMessage = `السلام علیکم ${sub.ownerName}! ${sub.businessName} کے قسط فلو سوفٹ ویئر کی ماہانہ فیس مبلغ Rs. ${sub.monthlyFeePKR.toLocaleString()} واجب الادا ہے۔ تجدید کے لیے رابطہ کریں۔ شکریہ`;
+          <div className="card">
+            <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <h3 className="card-title">
+                  {language === 'ur' ? 'دکانوں کی ماہانہ فیس اور سالانہ حساب کتاب' : 'Shop SaaS Subscription Dues & Annual Billing'}
+                </h3>
+                <p className="card-subtitle">
+                  {language === 'ur'
+                    ? 'دکان داروں کی طرف سے قسط فلو سوفٹ ویئر کی واجب الادا ماہانہ و سالانہ فیس اور تجدید کی تاریخیں'
+                    : 'Track monthly & annual equivalent SaaS subscription fees per shop tenant.'}
+                </p>
+              </div>
+            </div>
 
-                  return (
-                    <tr key={sub.subId}>
-                      <td>
-                        <div className="font-semibold">{sub.businessName}</div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                          {sub.ownerName} • <span dir="ltr">{sub.phone}</span> ({sub.city})
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{sub.planName}</div>
-                        <div className="text-success font-semibold" style={{ fontSize: '0.8125rem' }}>
-                          {sub.monthlyFeePKR > 0 ? `Rs. ${sub.monthlyFeePKR.toLocaleString()} / mo` : 'Paid in Full (Lifetime)'}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="font-semibold">{sub.dueDate}</div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>Last Paid: {sub.lastPaidDate}</div>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            sub.status === 'paid' || sub.status === 'lifetime'
-                              ? 'badge-success'
-                              : sub.status === 'due'
-                              ? 'badge-warning'
-                              : 'badge-danger'
-                          }`}
-                        >
-                          {sub.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          {sub.status !== 'paid' && sub.status !== 'lifetime' ? (
-                            <>
-                              <button
-                                onClick={() => handleMarkSubscriptionPaid(sub.subId)}
-                                className="btn btn-sm btn-primary"
-                                title="Mark fee as received"
-                              >
-                                <CheckCircle2 size={14} />
-                                <span>{language === 'ur' ? 'فیس وصول' : 'Collect Fee'}</span>
-                              </button>
-                              <a
-                                href={`https://wa.me/?text=${encodeURIComponent(reminderMessage)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn btn-sm btn-outline text-success"
-                                title="Send WhatsApp fee reminder"
-                              >
-                                <MessageCircle size={14} />
-                                <span>WhatsApp</span>
-                              </a>
-                            </>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                              {language === 'ur' ? 'کھاتہ اپ ٹو ڈیٹ ہے' : 'Up-to-date'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>{language === 'ur' ? 'دکان اور مالک' : 'Shop & Owner'}</th>
+                    <th>{language === 'ur' ? 'ماہانہ فیس (Monthly)' : 'Monthly Fee'}</th>
+                    <th>{language === 'ur' ? 'سالانہ تخمینہ (Annual)' : 'Annual Equivalent'}</th>
+                    <th>{language === 'ur' ? 'تجدید تاریخ' : 'Renewal Due Date'}</th>
+                    <th>{language === 'ur' ? 'بلنگ اسٹیٹس' : 'Billing Status'}</th>
+                    <th>{language === 'ur' ? 'یاددہانی و وصولی' : 'Collection Action'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shopSubscriptions.map((sub) => {
+                    const reminderMessage = `السلام علیکم ${sub.ownerName}! ${sub.businessName} کے قسط فلو سوفٹ ویئر کی ماہانہ فیس مبلغ Rs. ${sub.monthlyFeePKR.toLocaleString()} واجب الادا ہے۔ تجدید کے لیے رابطہ کریں۔ شکریہ`;
+                    const annualFee = sub.monthlyFeePKR * 12;
+
+                    return (
+                      <tr key={sub.subId}>
+                        <td>
+                          <div className="font-semibold">{sub.businessName}</div>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            {sub.ownerName} • <span dir="ltr">{sub.phone}</span> ({sub.city})
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{sub.planName}</div>
+                          <div className="text-success font-semibold" style={{ fontSize: '0.8125rem' }}>
+                            {sub.monthlyFeePKR > 0 ? `Rs. ${sub.monthlyFeePKR.toLocaleString()} / mo` : 'Paid in Full (Lifetime)'}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '0.875rem' }}>
+                            {sub.monthlyFeePKR > 0 ? `Rs. ${annualFee.toLocaleString()} / yr` : 'Rs. 34,999 (Lifetime)'}
+                          </div>
+                          <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                            {sub.monthlyFeePKR > 0 ? `12 × Rs. ${sub.monthlyFeePKR.toLocaleString()}` : 'One-time Payment'}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="font-semibold">{sub.dueDate}</div>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>Last Paid: {sub.lastPaidDate}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              sub.status === 'paid' || sub.status === 'lifetime'
+                                ? 'badge-success'
+                                : sub.status === 'due'
+                                ? 'badge-warning'
+                                : 'badge-danger'
+                            }`}
+                          >
+                            {sub.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                            {sub.status !== 'paid' && sub.status !== 'lifetime' ? (
+                              <>
+                                <button
+                                  onClick={() => handleMarkSubscriptionPaid(sub.subId)}
+                                  className="btn btn-sm btn-primary"
+                                  title="Mark fee as received"
+                                >
+                                  <CheckCircle2 size={14} />
+                                  <span>{language === 'ur' ? 'فیس وصول' : 'Collect Fee'}</span>
+                                </button>
+                                <a
+                                  href={`https://wa.me/?text=${encodeURIComponent(reminderMessage)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-sm btn-outline text-success"
+                                  title="Send WhatsApp fee reminder"
+                                >
+                                  <MessageCircle size={14} />
+                                  <span>WhatsApp</span>
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                {language === 'ur' ? 'کھاتہ اپ ٹو ڈیٹ ہے' : 'Up-to-date'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ================= TAB 3: PLANS & PRICING ================= */}
       {activeTab === 'plans' && (

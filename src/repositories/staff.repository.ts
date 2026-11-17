@@ -36,7 +36,30 @@ export const StaffRepository = {
   async getStaffMembers(tenantId: string, isDemo = false): Promise<StaffMemberRecord[]> {
     if (isDemo) {
       const stored = localStorage.getItem(`${DEMO_STAFF_KEY}_${tenantId}`);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        try {
+          const parsed: StaffMemberRecord[] = JSON.parse(stored);
+          // If Tariq Mehmood is missing from older cached storage, add him
+          const hasTariq = parsed.some((s) => s.email === 'tariq.recovery@qistflow-demo.pk' || s.userId === 'demo-recovery-103');
+          if (!hasTariq) {
+            parsed.push({
+              userId: 'demo-recovery-103',
+              displayName: 'Tariq Mehmood',
+              email: 'tariq.recovery@qistflow-demo.pk',
+              phone: '0305-5544332',
+              role: 'recovery',
+              status: 'active',
+              permissions: ['assigned_collections'],
+              designation: 'Field Recovery Officer (Zone C)',
+              monthlySalaryPaisa: 2600000, // Rs. 26,000
+              joinedAt: '2026-06-15',
+              password: 'Pak@12345',
+            });
+            localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(parsed));
+          }
+          return parsed;
+        } catch (e) {}
+      }
 
       const initialStaff: StaffMemberRecord[] = [
         {
@@ -94,7 +117,7 @@ export const StaffRepository = {
         {
           userId: 'demo-recovery-101',
           displayName: 'Kamran Ali',
-          email: 'recovery@qistflow-demo.pk',
+          email: 'kamran.recovery@qistflow-demo.pk',
           phone: '0302-9988776',
           role: 'recovery',
           status: 'active',
@@ -118,10 +141,23 @@ export const StaffRepository = {
           password: 'Pak@12345',
         },
         {
+          userId: 'demo-recovery-103',
+          displayName: 'Tariq Mehmood',
+          email: 'tariq.recovery@qistflow-demo.pk',
+          phone: '0305-5544332',
+          role: 'recovery',
+          status: 'active',
+          permissions: ['assigned_collections'],
+          designation: 'Field Recovery Officer (Zone C)',
+          monthlySalaryPaisa: 2600000, // Rs. 26,000
+          joinedAt: '2026-06-15',
+          password: 'Pak@12345',
+        },
+        {
           userId: 'demo-support-104',
           displayName: 'Muhammad Aslam',
           email: 'aslam.support@qistflow-demo.pk',
-          phone: '0305-9911223',
+          phone: '0306-9911223',
           role: 'recovery', // uses base operational role with support designation
           status: 'active',
           permissions: [],

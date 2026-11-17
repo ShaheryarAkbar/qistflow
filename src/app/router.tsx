@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React from 'react';
-import { createHashRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { useAuth } from './providers/AuthContext';
 import { useTenant } from './providers/TenantContext';
 import { UserRole } from '@/types';
@@ -95,7 +95,7 @@ const RoleLandingRedirect: React.FC = () => {
   return <Navigate to="/dashboard" replace />;
 };
 
-export const router = createHashRouter([
+export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,

@@ -83,7 +83,7 @@ export const AppLayout: React.FC = () => {
       ];
     }
 
-    // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES/CALCULATOR)
+    // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES/CALCULATOR/PASSBOOK)
     if (isSuperAdmin) {
       return [
         {
@@ -91,11 +91,6 @@ export const AppLayout: React.FC = () => {
           label: language === 'ur' ? 'پلیٹ فارم ایڈمن پورٹل' : 'Platform Super-Admin',
           icon: ShieldAlert,
           highlight: true,
-        },
-        {
-          to: '/portal',
-          label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
-          icon: Smartphone,
         },
         {
           to: '/settings',
@@ -253,17 +248,13 @@ export const AppLayout: React.FC = () => {
             <ShieldAlert size={19} />
             <span>{language === 'ur' ? 'ایڈمن' : 'Admin'}</span>
           </NavLink>
-          <NavLink to="/portal" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
-            <Smartphone size={19} />
-            <span>{language === 'ur' ? 'پاس بک' : 'Passbook'}</span>
-          </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `mobile-nav-btn ${isActive ? 'active' : ''}`}>
             <Settings size={19} />
             <span>{language === 'ur' ? 'سیٹنگز' : 'Settings'}</span>
           </NavLink>
-          <button onClick={() => setSidebarOpen(true)} className="mobile-nav-btn">
-            <Menu size={19} />
-            <span>{language === 'ur' ? 'مینیو' : 'Menu'}</span>
+          <button onClick={handleLogout} className="mobile-nav-btn text-danger">
+            <LogOut size={19} />
+            <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
           </button>
         </nav>
       );

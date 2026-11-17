@@ -31,7 +31,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>('owner');
-  const [email, setEmail] = useState('owner@qistflow-demo.pk');
+  const [loginIdentifier, setLoginIdentifier] = useState('owner@qistflow-demo.pk');
   const [password, setPassword] = useState('Pak@12345');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,6 @@ export const LoginPage: React.FC = () => {
         const staffList = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
         setAvailableStaff(staffList);
       } catch (e) {
-        // Fallback to localStorage if any
         const stored = localStorage.getItem('qistflow_demo_staff_tenant-demo-ryk-01');
         if (stored) {
           try {
@@ -58,17 +57,21 @@ export const LoginPage: React.FC = () => {
     loadStaff();
   }, []);
 
-  const handleFillCredentials = (role: UserRole, userEmail: string, pass: string = 'Pak@12345') => {
+  const handleFillCredentials = (role: UserRole, identifier: string, pass: string = 'Pak@12345') => {
     setSelectedRole(role);
-    setEmail(userEmail);
+    setLoginIdentifier(identifier);
     setPassword(pass);
     setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError(language === 'ur' ? 'برائے مہربانی ای میل اور پاس ورڈ دونوں درج کریں۔' : 'Please enter both email and password.');
+    if (!loginIdentifier || !password) {
+      setError(
+        language === 'ur'
+          ? 'برائے مہربانی شناختی ای میل/فون/صارف نام اور پاس ورڈ دونوں درج کریں۔'
+          : 'Please enter both login identifier and password.'
+      );
       return;
     }
 
@@ -76,13 +79,28 @@ export const LoginPage: React.FC = () => {
     setSubmitting(true);
 
     try {
-      const cleanEmail = email.toLowerCase().trim();
+      const rawInput = loginIdentifier.toLowerCase().trim();
+      const inputDigits = rawInput.replace(/[^0-9]/g, '');
+
+      // Helper matcher function for a user or staff record
+      const matchesIdentifier = (user: { email?: string; phone?: string; displayName?: string; userId?: string }) => {
+        if (user.email && user.email.toLowerCase().trim() === rawInput) return true;
+        if (user.userId && user.userId.toLowerCase().trim() === rawInput) return true;
+        if (user.displayName && user.displayName.toLowerCase().replace(/\s+/g, '') === rawInput.replace(/\s+/g, '')) return true;
+        if (user.phone && inputDigits.length >= 7) {
+          const userDigits = user.phone.replace(/[^0-9]/g, '');
+          if (userDigits.includes(inputDigits) || inputDigits.includes(userDigits)) return true;
+        }
+        return false;
+      };
 
       // 1. Super-Admin credential check
       if (
         selectedRole === 'super_admin' ||
-        cleanEmail === 'superadmin@qistflow.pk' ||
-        cleanEmail === 'admin@qistflow.pk'
+        rawInput === 'superadmin@qistflow.pk' ||
+        rawInput === 'admin@qistflow.pk' ||
+        rawInput === 'superadmin' ||
+        rawInput === 'admin'
       ) {
         if (password !== 'Pak@12345' && password !== 'admin123' && password !== 'Admin@12345') {
           setError(language === 'ur' ? 'غلط پاس ورڈ! سپر ایڈمن کا درست پاس ورڈ درج کریں۔' : 'Incorrect password for Super-Admin.');
@@ -93,80 +111,115 @@ export const LoginPage: React.FC = () => {
         enableDemoMode('super_admin', {
           userId: 'super_admin_01',
           displayName: 'Platform Super-Admin',
-          email: cleanEmail,
+          email: rawInput.includes('@') ? rawInput : 'superadmin@qistflow.pk',
           role: 'super_admin',
         });
         navigate('/admin');
         return;
       }
 
-      // 2. Check Staff & Shop Accounts from Repository / LocalStorage
-      let matchedStaff = availableStaff.find(
-        (s) => s.email.toLowerCase().trim() === cleanEmail
+      // 2. Check other registered shops' owners (multi-shop isolation)
+      const otherShopOwners = [
+        {
+          tenantId: 'tenant-sqb-03',
+          businessName: 'Sadiqabad Fans & Home Appliances',
+          businessNameUr: 'صادق آباد فینز اینڈ ہوم اپلائنسز',
+          ownerName: 'Zahid Hussain',
+          email: 'zahid.fans@sadiqabad.pk',
+          phone: '0302-3344556',
+          password: 'Pak@12345',
+          city: 'Sadiqabad',
+        },
+        {
+          tenantId: 'tenant-kp-02',
+          businessName: 'Khanpur Solar & Electric Mart',
+          businessNameUr: 'خانپور سولر اینڈ الیکٹرک مارٹ',
+          ownerName: 'Chaudhry Nadeem',
+          email: 'nadeem.solar@khanpur.pk',
+          phone: '0301-9876543',
+          password: 'Pak@12345',
+          city: 'Khanpur',
+        },
+        {
+          tenantId: 'tenant-ryk-04',
+          businessName: 'Al-Madina Motorbike Center',
+          businessNameUr: 'المدینہ موٹر بائیک سینٹر',
+          ownerName: 'Muhammad Arshad',
+          email: 'arshad.motors@ryk.pk',
+          phone: '0303-7788990',
+          password: 'Pak@12345',
+          city: 'Rahim Yar Khan',
+        },
+      ];
+
+      const matchedOtherShop = otherShopOwners.find((shop) =>
+        matchesIdentifier({ email: shop.email, phone: shop.phone, displayName: shop.ownerName })
       );
 
-      // If not in state, check localStorage directly
-      if (!matchedStaff) {
-        const stored = localStorage.getItem('qistflow_demo_staff_tenant-demo-ryk-01');
-        if (stored) {
-          try {
-            const list: StaffMemberRecord[] = JSON.parse(stored);
-            matchedStaff = list.find((s) => s.email.toLowerCase().trim() === cleanEmail);
-          } catch (e) {}
+      if (matchedOtherShop) {
+        if (password !== matchedOtherShop.password) {
+          setError(language === 'ur' ? 'غلط پاس ورڈ درج کیا گیا ہے۔' : 'Invalid password.');
+          setSubmitting(false);
+          return;
         }
+
+        // Set active tenant to this shop
+        localStorage.setItem(
+          'qistflow_demo_tenant',
+          JSON.stringify({
+            tenantId: matchedOtherShop.tenantId,
+            schemaVersion: 1,
+            businessName: matchedOtherShop.businessName,
+            businessNameUr: matchedOtherShop.businessNameUr,
+            phone: matchedOtherShop.phone,
+            city: matchedOtherShop.city,
+            address: matchedOtherShop.city,
+            currency: 'PKR',
+            timezone: 'Asia/Karachi',
+            defaultLanguage: 'ur',
+            subscriptionStatus: 'active',
+            createdAt: '2026-09-15',
+            createdBy: matchedOtherShop.tenantId + '_owner',
+            updatedAt: '2026-09-15',
+            updatedBy: matchedOtherShop.tenantId + '_owner',
+          })
+        );
+
+        enableDemoMode('owner', {
+          userId: matchedOtherShop.tenantId + '_owner',
+          displayName: matchedOtherShop.ownerName,
+          email: matchedOtherShop.email,
+          role: 'owner',
+          phone: matchedOtherShop.phone,
+        });
+        navigate('/dashboard');
+        return;
       }
 
-      // Predefined fallbacks if repository hasn't loaded yet
+      // 3. Default Shop: Malik Electronics & Installments (tenant-demo-ryk-01)
+      let currentStaffList = availableStaff;
+      if (currentStaffList.length === 0) {
+        currentStaffList = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
+      }
+
+      let matchedStaff = currentStaffList.find((s) => matchesIdentifier(s));
+
+      // Username shortcuts for convenience
       if (!matchedStaff) {
-        if (cleanEmail === 'owner@qistflow-demo.pk') {
-          matchedStaff = {
-            userId: 'usr_owner_01',
-            email: 'owner@qistflow-demo.pk',
-            displayName: 'Haji Abdul Malik',
-            role: 'owner',
-            password: 'Pak@12345',
-            status: 'active',
-            joinedAt: '2026-10-01',
-            permissions: [],
-          };
-        } else if (cleanEmail === 'manager@qistflow-demo.pk') {
-          matchedStaff = {
-            userId: 'usr_mgr_01',
-            email: 'manager@qistflow-demo.pk',
-            displayName: 'Usman Ghani',
-            role: 'manager',
-            password: 'Pak@12345',
-            status: 'active',
-            joinedAt: '2026-10-05',
-            permissions: [],
-          };
-        } else if (cleanEmail === 'accountant@qistflow-demo.pk') {
-          matchedStaff = {
-            userId: 'usr_acc_01',
-            email: 'accountant@qistflow-demo.pk',
-            displayName: 'Farhan Zaidi',
-            role: 'accountant',
-            password: 'Pak@12345',
-            status: 'active',
-            joinedAt: '2026-10-10',
-            permissions: [],
-          };
-        } else if (cleanEmail.includes('recovery')) {
-          matchedStaff = {
-            userId: 'usr_rec_01',
-            email: cleanEmail,
-            displayName: 'Tariq Mehmood',
-            role: 'recovery',
-            password: 'Pak@12345',
-            status: 'active',
-            joinedAt: '2026-10-15',
-            permissions: [],
-          };
+        if (rawInput === 'owner' || rawInput === 'haji' || rawInput === 'malik') {
+          matchedStaff = currentStaffList.find((s) => s.role === 'owner');
+        } else if (rawInput === 'manager' || rawInput === 'tariq') {
+          matchedStaff = currentStaffList.find((s) => s.role === 'manager');
+        } else if (rawInput === 'accountant' || rawInput === 'rashid') {
+          matchedStaff = currentStaffList.find((s) => s.role === 'accountant');
+        } else if (rawInput === 'kamran' || rawInput === 'recovery') {
+          matchedStaff = currentStaffList.find((s) => s.role === 'recovery' && s.displayName.includes('Kamran'));
+        } else if (rawInput === 'bilal') {
+          matchedStaff = currentStaffList.find((s) => s.role === 'recovery' && s.displayName.includes('Bilal'));
         }
       }
 
       if (matchedStaff) {
-        // Validate password
         const expectedPassword = matchedStaff.password || 'Pak@12345';
         if (password !== expectedPassword && password !== 'Pak@12345') {
           setError(
@@ -178,7 +231,9 @@ export const LoginPage: React.FC = () => {
           return;
         }
 
-        // Enforce role isolation matching
+        // Set tenant context to main shop
+        localStorage.removeItem('qistflow_demo_tenant'); // defaults to Malik Electronics
+
         enableDemoMode(matchedStaff.role, matchedStaff);
 
         if (matchedStaff.role === 'recovery') {
@@ -189,15 +244,15 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      // 3. Fallback to Firebase authentication
+      // 4. Fallback to Firebase authentication
       try {
-        await signIn(email, password);
+        await signIn(loginIdentifier, password);
         if (selectedRole === 'recovery') navigate('/recovery');
         else navigate('/dashboard');
       } catch (authErr: any) {
         setError(
           language === 'ur'
-            ? 'لاگ ان نا کام ہوا۔ برائے مہربانی چیک کریں کہ ای میل اور پاس ورڈ درست ہیں۔ ملازمین اپنے دکان کے مالک سے لاگ ان حاصل کریں۔'
+            ? 'لاگ ان نا کام ہوا۔ چیک کریں کہ ای میل/فون اور پاس ورڈ درست ہیں۔ ملازمین اپنے دکان دار سے لاگ ان حاصل کریں۔'
             : 'Login failed. Please verify your credentials or contact your shop owner.'
         );
       }
@@ -291,15 +346,15 @@ export const LoginPage: React.FC = () => {
                 const newRole = e.target.value as UserRole;
                 setSelectedRole(newRole);
                 if (newRole === 'owner') {
-                  setEmail('owner@qistflow-demo.pk');
+                  setLoginIdentifier('owner@qistflow-demo.pk');
                 } else if (newRole === 'manager') {
-                  setEmail('manager@qistflow-demo.pk');
+                  setLoginIdentifier('manager@qistflow-demo.pk');
                 } else if (newRole === 'accountant') {
-                  setEmail('accountant@qistflow-demo.pk');
+                  setLoginIdentifier('accountant@qistflow-demo.pk');
                 } else if (newRole === 'recovery') {
-                  setEmail('tariq.recovery@qistflow-demo.pk');
+                  setLoginIdentifier('kamran.recovery@qistflow-demo.pk');
                 } else if (newRole === 'super_admin') {
-                  setEmail('superadmin@qistflow.pk');
+                  setLoginIdentifier('superadmin@qistflow.pk');
                 }
               }}
               style={{ fontWeight: 600 }}
@@ -312,17 +367,19 @@ export const LoginPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Email input */}
+          {/* Email / Phone / Username input */}
           <div className="form-group mb-3">
             <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-              {language === 'ur' ? 'لاگ ان ای میل (Gmail / Email)' : 'Login Email / Gmail'}
+              {language === 'ur'
+                ? 'شناختی ای میل، فون نمبر یا نام (Gmail, Mobile Number, or Username)'
+                : 'Gmail, Mobile Number, or Username'}
             </label>
             <input
-              type="email"
+              type="text"
               className="form-input"
-              placeholder="user@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder={language === 'ur' ? 'مثال: 0300-1234567 یا user@gmail.com یا نام' : 'e.g. 0300-1234567, email@gmail.com, or username'}
+              value={loginIdentifier}
+              onChange={(e) => setLoginIdentifier(e.target.value)}
               required
             />
           </div>
@@ -448,7 +505,7 @@ export const LoginPage: React.FC = () => {
                 <div>
                   <span className="badge badge-success" style={{ fontSize: '0.6875rem' }}>👑 Owner</span>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>owner@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>Haji Abdul Malik • Pass: Pak@12345</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>حاجی عبد المالک • 0300-1234567 • Pass: Pak@12345</div>
                 </div>
                 <button
                   type="button"
@@ -464,7 +521,7 @@ export const LoginPage: React.FC = () => {
                 <div>
                   <span className="badge badge-info" style={{ fontSize: '0.6875rem' }}>👔 Manager</span>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>manager@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>Usman Ghani • Pass: Pak@12345</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>محمد طارق • 0301-7654321 • Pass: Pak@12345</div>
                 </div>
                 <button
                   type="button"
@@ -480,7 +537,7 @@ export const LoginPage: React.FC = () => {
                 <div>
                   <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>🧮 Accountant</span>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>accountant@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>Farhan Zaidi • Pass: Pak@12345</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>راشد محمود • 0303-4455667 • Pass: Pak@12345</div>
                 </div>
                 <button
                   type="button"
@@ -494,9 +551,41 @@ export const LoginPage: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
                 <div>
-                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Tariq)</span>
+                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Kamran Ali)</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>kamran.recovery@qistflow-demo.pk</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>کامران علی (Zone A) • 0302-9988776 • Pass: Pak@12345</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleFillCredentials('recovery', 'kamran.recovery@qistflow-demo.pk', 'Pak@12345')}
+                  className="btn btn-sm btn-outline"
+                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
+                >
+                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
+                <div>
+                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Bilal Ahmed)</span>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>bilal.recovery@qistflow-demo.pk</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>بلال احمد (Zone B) • 0304-1122334 • Pass: Pak@12345</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleFillCredentials('recovery', 'bilal.recovery@qistflow-demo.pk', 'Pak@12345')}
+                  className="btn btn-sm btn-outline"
+                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
+                >
+                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
+                <div>
+                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Tariq Mehmood)</span>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>tariq.recovery@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>Tariq Mehmood • Pass: Pak@12345</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>طارق محمود (Zone C) • 0305-5544332 • Pass: Pak@12345</div>
                 </div>
                 <button
                   type="button"
@@ -509,13 +598,20 @@ export const LoginPage: React.FC = () => {
               </div>
 
               {availableStaff
-                .filter((s) => s.role === 'recovery' && s.email !== 'tariq.recovery@qistflow-demo.pk')
+                .filter(
+                  (s) =>
+                    s.role === 'recovery' &&
+                    s.email !== 'kamran.recovery@qistflow-demo.pk' &&
+                    s.email !== 'recovery@qistflow-demo.pk' &&
+                    s.email !== 'bilal.recovery@qistflow-demo.pk' &&
+                    s.email !== 'tariq.recovery@qistflow-demo.pk'
+                )
                 .map((officer) => (
                   <div key={officer.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
                     <div>
                       <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery ({officer.displayName})</span>
                       <div style={{ fontWeight: 600, color: '#0f172a' }}>{officer.email}</div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{officer.displayName} • Pass: {officer.password || 'Pak@12345'}</div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{officer.displayName} • {officer.phone || ''} • Pass: {officer.password || 'Pak@12345'}</div>
                     </div>
                     <button
                       type="button"

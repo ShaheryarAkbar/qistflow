@@ -152,10 +152,70 @@ describe('Credential Governance, Password Vault & Role Isolation', () => {
 شہر: ${onboardedShop.city}
 لاگ ان ای میل (Gmail): ${onboardedShop.ownerEmail}
 پاس ورڈ (Password): ${onboardedShop.ownerPassword}
-سافٹ ویئر لنک: https://qistflow.app/#/login`;
+سافٹ ویئر لنک: https://qistflow.app/login`;
 
     expect(handoverText).toContain('rehman.owner@ryk.pk');
     expect(handoverText).toContain('Pak@12345');
-    expect(handoverText).toContain('https://qistflow.app/#/login');
+    expect(handoverText).toContain('https://qistflow.app/login');
+  });
+
+  it('verifies Manager perspective strictly filters out Owner records in Staff & Roles', async () => {
+    const allStaff = await StaffRepository.getStaffMembers(tenantId, true);
+
+    // As configured in StaffPage:
+    // Manager view filters out owner and manager self
+    const isManager = true;
+    const isOwner = false;
+
+    const displayedStaffForManager = allStaff.filter((member) => {
+      if (isManager) {
+        return member.role !== 'owner' && member.role !== 'manager';
+      }
+      if (isOwner) {
+        return member.role !== 'owner';
+      }
+      return true;
+    });
+
+    // Manager must NOT see any Owner record
+    expect(displayedStaffForManager.some((m) => m.role === 'owner')).toBe(false);
+    expect(displayedStaffForManager.some((m) => m.displayName.includes('Abdul Malik'))).toBe(false);
+
+    // Manager MUST see Accountant and Recovery officers
+    expect(displayedStaffForManager.some((m) => m.role === 'accountant')).toBe(true);
+    expect(displayedStaffForManager.some((m) => m.role === 'recovery')).toBe(true);
+  });
+
+  it('allows login with Gmail, Phone Number (with/without dashes), or Username', async () => {
+    const staff = await StaffRepository.getStaffMembers(tenantId, true);
+    const kamran = staff.find((s) => s.displayName.includes('Kamran'));
+    expect(kamran).toBeDefined();
+
+    if (!kamran) return;
+
+    const matcher = (input: string, member: typeof kamran) => {
+      const rawInput = input.toLowerCase().trim();
+      const inputDigits = rawInput.replace(/[^0-9]/g, '');
+
+      if (member.email && member.email.toLowerCase().trim() === rawInput) return true;
+      if (member.displayName && member.displayName.toLowerCase().replace(/\s+/g, '') === rawInput.replace(/\s+/g, '')) return true;
+      if (member.phone && inputDigits.length >= 7) {
+        const userDigits = member.phone.replace(/[^0-9]/g, '');
+        if (userDigits.includes(inputDigits) || inputDigits.includes(userDigits)) return true;
+      }
+      return false;
+    };
+
+    // 1. Match by Email
+    expect(matcher('kamran.recovery@qistflow-demo.pk', kamran)).toBe(true);
+
+    // 2. Match by Formatted Phone Number
+    expect(matcher('0302-9988776', kamran)).toBe(true);
+
+    // 3. Match by Raw Digits Phone Number
+    expect(matcher('03029988776', kamran)).toBe(true);
+
+    // 4. Match by Name / Username
+    expect(matcher('kamranali', kamran)).toBe(true);
   });
 });

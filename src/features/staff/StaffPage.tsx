@@ -42,7 +42,7 @@ import { rupeesToPaisa } from '@/domain/money/paisa';
 
 export const StaffPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant, isOwner, canManageStaff, reloadMembership } = useTenant();
+  const { activeTenant, isOwner, isManager, canManageStaff, reloadMembership } = useTenant();
   const { currentUser, isDemoUser, switchDemoStaff } = useAuth();
   const navigate = useNavigate();
 
@@ -152,7 +152,7 @@ export const StaffPage: React.FC = () => {
 عہدہ: ${member.designation || member.role}
 لاگ ان ای میل (Gmail): ${member.email}
 پاس ورڈ (Password): ${member.password || 'Pak@12345'}
-سافٹ ویئر لاگ ان لنک: https://qistflow.app/#/login
+سافٹ ویئر لاگ ان لنک: https://qistflow.app/login
 نوٹ: اپنا پاس ورڈ محفوظ رکھیں اور صرف اپنی ڈیوائس پر لاگ ان کریں۔`;
   };
 
@@ -500,7 +500,15 @@ export const StaffPage: React.FC = () => {
       </div>
 
       {/* TAB 1: Staff Members & Roles */}
-      {activeTab === 'members' && (
+      {activeTab === 'members' && (() => {
+        const ownerMember = staff.find((m) => m.role === 'owner');
+        const displayedStaff = isManager
+          ? staff.filter((m) => m.role !== 'owner' && m.role !== 'manager')
+          : isOwner
+          ? staff.filter((m) => m.role !== 'owner')
+          : staff;
+
+        return (
         <div>
           {/* Staff Credentials & Passwords Vault Info Card */}
           <div
@@ -523,12 +531,47 @@ export const StaffPage: React.FC = () => {
                 </h4>
                 <p style={{ fontSize: '0.8125rem', color: '#475569', margin: 0 }}>
                   {language === 'ur'
-                    ? 'دکان کا مالک اور مینیجر تمام ملازمین (اکاؤنٹنٹ، ریکوری افسران) کے لاگ ان ای میلز اور پاس ورڈز یہاں سے دیکھ سکتے ہیں، تبدیل کر سکتے ہیں اور براہ راست ملازم کو واٹس ایپ پر بھیج سکتے ہیں۔ ملازمین کو اپنے دیے گئے لاگ ان سے سائن ان کرنا ہوگا۔'
-                    : 'Shop leadership has full visibility over all staff login emails and passwords. You can view, reset, and hand over credentials directly to employees via WhatsApp/SMS.'}
+                    ? isOwner
+                      ? 'دکان کا مالک مینیجر، اکاؤنٹنٹ، اور تمام ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے دیکھ سکتے ہیں، تبدیل کر سکتے ہیں اور براہ راست ملازم کو واٹس ایپ پر بھیج سکتے ہیں۔'
+                      : 'دکان کا مینیجر اکاؤنٹنٹ اور فیلڈ ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے منظم کر سکتا ہے اور واٹس ایپ پر بھیج سکتا ہے۔'
+                    : 'Shop leadership has visibility over subordinate staff credentials. You can view, reset, and hand over credentials directly via WhatsApp/SMS.'}
                 </p>
               </div>
             </div>
           </div>
+
+          {/* Owner Business Identity Banner (Visible strictly to Owner, hidden from Manager) */}
+          {isOwner && ownerMember && (
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                padding: '0.75rem 1rem',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>👑</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#166534' }}>
+                    {language === 'ur' ? 'دکان دار و چیف ایڈمنسٹریٹر (Shop Owner & Founder)' : 'Shop Owner & Founder'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
+                    {ownerMember.displayName} • {ownerMember.email} • <span dir="ltr">{ownerMember.phone || '0300-1234567'}</span>
+                  </div>
+                </div>
+              </div>
+              <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                Full Business Control (کامل اختیارات)
+              </span>
+            </div>
+          )}
 
           <div className="card">
             <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
@@ -554,7 +597,13 @@ export const StaffPage: React.FC = () => {
                         {t('common.loading')}
                       </td>
                     </tr>
-                  ) : staff.map((member) => {
+                  ) : displayedStaff.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="text-center text-muted" style={{ padding: '2rem' }}>
+                        {language === 'ur' ? 'کوئی ملازم ریکارڈ موجود نہیں' : 'No staff members found'}
+                      </td>
+                    </tr>
+                  ) : displayedStaff.map((member) => {
                     const roleBadge = getRoleBadge(member.role);
                     const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
 
@@ -736,7 +785,8 @@ export const StaffPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* TAB 2: Salaries & Payroll Register */}
       {activeTab === 'payroll' && (
@@ -818,14 +868,22 @@ export const StaffPage: React.FC = () => {
                         {t('common.loading')}
                       </td>
                     </tr>
-                  ) : payrollRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
-                        {language === 'ur' ? 'اس ماہ کا کوئی پے رول ریکارڈ موجود نہیں' : 'No payroll records found for this month'}
-                      </td>
-                    </tr>
-                  ) : (
-                    payrollRecords.map((r) => (
+                  ) : (() => {
+                    const displayedPayroll = isManager
+                      ? payrollRecords.filter((r) => r.role !== 'owner' && r.role !== 'manager')
+                      : payrollRecords.filter((r) => r.role !== 'owner');
+
+                    if (displayedPayroll.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
+                            {language === 'ur' ? 'اس ماہ کا کوئی پے رول ریکارڈ موجود نہیں' : 'No payroll records found for this month'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return displayedPayroll.map((r) => (
                       <tr key={r.payrollId}>
                         <td>
                           <div className="font-semibold">{r.employeeName}</div>
@@ -869,20 +927,21 @@ export const StaffPage: React.FC = () => {
                                 <span>{language === 'ur' ? 'تنخواہ ادا کریں' : 'Pay Salary'}</span>
                               </button>
                             )}
-
-                            <button
-                              onClick={() => setActiveSlipRecord(r)}
-                              className="btn btn-sm btn-outline"
-                              title={language === 'ur' ? 'تنخواہ کی پرچی دیکھیں' : 'Print Salary Slip'}
-                            >
-                              <Printer size={13} />
-                              <span>{language === 'ur' ? 'پرچی' : 'Slip'}</span>
-                            </button>
+                            {r.status === 'paid' && (
+                              <button
+                                onClick={() => setActiveSlipRecord(r)}
+                                className="btn btn-sm btn-outline text-primary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                              >
+                                <Printer size={13} />
+                                <span>{language === 'ur' ? 'پرچی' : 'Slip'}</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>

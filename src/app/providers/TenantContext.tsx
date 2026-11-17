@@ -66,7 +66,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Demo Mode Tenant handling
     if (isDemoUser) {
-      const demoTenant: Tenant = {
+      let demoTenant: Tenant = {
         tenantId: 'tenant-demo-ryk-01',
         schemaVersion: 1,
         businessName: 'Malik Electronics & Installments',
@@ -83,6 +83,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser.uid,
       };
+
+      const savedCustomTenant = localStorage.getItem('qistflow_demo_tenant');
+      if (savedCustomTenant) {
+        try {
+          const parsed = JSON.parse(savedCustomTenant);
+          if (parsed && parsed.tenantId) {
+            demoTenant = { ...demoTenant, ...parsed };
+          }
+        } catch (e) {}
+      }
 
       let role: UserRole = currentDemoRole || 'owner';
       const storedStaff = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);

@@ -474,7 +474,7 @@ export const RecoveryPortalPage: React.FC = () => {
                 fontSize: '1.125rem',
               }}
             >
-              🛵
+              <Navigation size={18} className="text-emerald-700" />
             </div>
             <div>
               <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#064e3b' }}>
@@ -1197,27 +1197,27 @@ export const RecoveryPortalPage: React.FC = () => {
               if (rank === 1) {
                 rankBadge = {
                   icon: <Trophy size={22} style={{ color: '#eab308' }} />,
-                  label: '1st 🥇',
+                  label: 'Rank #1',
                   badgeClass: 'badge-warning',
-                  perfText: language === 'ur' ? 'ٹاپ پرفارمر 🏆 (سب سے آگے)' : 'Top Performer 🏆',
+                  perfText: language === 'ur' ? 'ٹاپ پرفارمر (سب سے آگے)' : 'Top Performer',
                   bg: '#fffbeb',
                   border: '#fde68a',
                 };
               } else if (rank === 2) {
                 rankBadge = {
                   icon: <Medal size={22} style={{ color: '#94a3b8' }} />,
-                  label: '2nd 🥈',
+                  label: 'Rank #2',
                   badgeClass: 'badge-info',
-                  perfText: language === 'ur' ? 'بہترین کارکردگی 👍' : 'Good Performance 👍',
+                  perfText: language === 'ur' ? 'بہترین کارکردگی' : 'Good Performance',
                   bg: '#f8fafc',
                   border: '#cbd5e1',
                 };
               } else if (rank === 3) {
                 rankBadge = {
                   icon: <Award size={22} style={{ color: '#b45309' }} />,
-                  label: '3rd 🥉',
+                  label: 'Rank #3',
                   badgeClass: 'badge-warning',
-                  perfText: language === 'ur' ? 'معمولی کارکردگی ⚠️' : 'Average ⚠️',
+                  perfText: language === 'ur' ? 'معقول کارکردگی' : 'Standard Performance',
                   bg: '#fffdf5',
                   border: '#fef08a',
                 };

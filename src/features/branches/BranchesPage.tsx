@@ -189,9 +189,9 @@ export const BranchesPage: React.FC = () => {
               {branches.length} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#64748b' }}>Branches</span>
             </div>
             <div style={{ fontSize: '0.75rem', marginTop: '0.375rem', display: 'flex', gap: '0.5rem' }}>
-              <span className="text-success font-semibold">{profitBranchesCount} Profit 🟢</span>
-              <span className="text-warning font-semibold">{averageBranchesCount} Avg 🟡</span>
-              <span className="text-danger font-semibold">{lossBranchesCount} Loss 🔴</span>
+              <span className="badge badge-success" style={{ fontSize: '0.6875rem' }}>{profitBranchesCount} Profit</span>
+              <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>{averageBranchesCount} Avg</span>
+              <span className="badge badge-danger" style={{ fontSize: '0.6875rem' }}>{lossBranchesCount} Loss</span>
             </div>
           </div>
         </div>
@@ -258,7 +258,7 @@ export const BranchesPage: React.FC = () => {
           branches.map((b) => {
             const rating = b.metrics?.performanceRating || 'average';
             let ratingBadge = {
-              label: language === 'ur' ? 'نفع بخش (Profit 🟢)' : 'Profitable 🟢',
+              label: language === 'ur' ? 'نفع بخش (Profitable)' : 'Profitable',
               badgeClass: 'badge-success',
               borderColor: '#10b981',
               bgHeader: '#ecfdf5',
@@ -266,14 +266,14 @@ export const BranchesPage: React.FC = () => {
 
             if (rating === 'average') {
               ratingBadge = {
-                label: language === 'ur' ? 'معمولی (Average 🟡)' : 'Average 🟡',
+                label: language === 'ur' ? 'معمولی (Average)' : 'Average',
                 badgeClass: 'badge-warning',
                 borderColor: '#f59e0b',
                 bgHeader: '#fffbeb',
               };
             } else if (rating === 'loss') {
               ratingBadge = {
-                label: language === 'ur' ? 'نقصان میں (Loss 🔴)' : 'In Loss 🔴',
+                label: language === 'ur' ? 'نقصان میں (In Loss)' : 'In Loss',
                 badgeClass: 'badge-danger',
                 borderColor: '#ef4444',
                 bgHeader: '#fef2f2',

@@ -264,6 +264,46 @@ export const StaffRepository = {
     return newMember;
   },
 
+  async updateStaffDetails(
+    tenantId: string,
+    userId: string,
+    updates: {
+      displayName?: string;
+      email?: string;
+      phone?: string;
+      designation?: string;
+      password?: string;
+    },
+    isDemo = false
+  ): Promise<StaffMemberRecord | undefined> {
+    if (isDemo) {
+      const staff = await this.getStaffMembers(tenantId, true);
+      const target = staff.find((s) => s.userId === userId);
+      if (target) {
+        if (updates.displayName !== undefined) target.displayName = updates.displayName;
+        if (updates.email !== undefined) target.email = updates.email;
+        if (updates.phone !== undefined) target.phone = updates.phone;
+        if (updates.designation !== undefined) target.designation = updates.designation;
+        if (updates.password !== undefined) target.password = updates.password;
+        localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(staff));
+        return target;
+      }
+      return undefined;
+    }
+
+    const docUpdates: any = {
+      updatedAt: serverTimestamp(),
+    };
+    if (updates.displayName !== undefined) docUpdates.displayName = updates.displayName;
+    if (updates.email !== undefined) docUpdates.email = updates.email;
+    if (updates.phone !== undefined) docUpdates.phone = updates.phone;
+    if (updates.designation !== undefined) docUpdates.designation = updates.designation;
+    if (updates.password !== undefined) docUpdates.password = updates.password;
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'memberships', userId), docUpdates);
+    return undefined;
+  },
+
   async updateStaffPassword(
     tenantId: string,
     userId: string,

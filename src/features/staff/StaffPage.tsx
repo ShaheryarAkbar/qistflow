@@ -30,6 +30,7 @@ import {
   Calendar,
   CheckCircle2,
   Edit2,
+  Building2,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -98,9 +99,14 @@ export const StaffPage: React.FC = () => {
 
   // Password Vault States
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
-  const [editingPasswordMember, setEditingPasswordMember] = useState<StaffMemberRecord | null>(null);
-  const [newMemberPassword, setNewMemberPassword] = useState('');
-  const [savingNewPassword, setSavingNewPassword] = useState(false);
+  const [editingStaffMember, setEditingStaffMember] = useState<StaffMemberRecord | null>(null);
+  const [editStaffName, setEditStaffName] = useState('');
+  const [editStaffPhone, setEditStaffPhone] = useState('');
+  const [editStaffEmail, setEditStaffEmail] = useState('');
+  const [editStaffDesignation, setEditStaffDesignation] = useState('');
+  const [editStaffPassword, setEditStaffPassword] = useState('');
+  const [showEditStaffPass, setShowEditStaffPass] = useState(false);
+  const [savingStaffDetails, setSavingStaffDetails] = useState(false);
   const [shareHandoverMember, setShareHandoverMember] = useState<StaffMemberRecord | null>(null);
   const [handoverCopied, setHandoverCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -114,29 +120,40 @@ export const StaffPage: React.FC = () => {
     setShowPasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
   };
 
-  const handleOpenEditPassword = (member: StaffMemberRecord) => {
-    setEditingPasswordMember(member);
-    setNewMemberPassword(member.password || 'Pak@12345');
+  const handleOpenEditStaff = (member: StaffMemberRecord) => {
+    setEditingStaffMember(member);
+    setEditStaffName(member.displayName);
+    setEditStaffPhone(member.phone || '');
+    setEditStaffEmail(member.email);
+    setEditStaffDesignation(member.designation || member.role.toUpperCase());
+    setEditStaffPassword(member.password || 'Pak@12345');
+    setShowEditStaffPass(false);
   };
 
-  const handleSaveNewPassword = async (e: React.FormEvent) => {
+  const handleSaveStaffDetails = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeTenant || !editingPasswordMember || !newMemberPassword) return;
-    setSavingNewPassword(true);
+    if (!activeTenant || !editingStaffMember || !editStaffName || !editStaffEmail || !editStaffPassword) return;
+    setSavingStaffDetails(true);
     try {
-      await StaffRepository.updateStaffPassword(
+      await StaffRepository.updateStaffDetails(
         activeTenant.tenantId,
-        editingPasswordMember.userId,
-        newMemberPassword,
+        editingStaffMember.userId,
+        {
+          displayName: editStaffName,
+          email: editStaffEmail,
+          phone: editStaffPhone,
+          designation: editStaffDesignation,
+          password: editStaffPassword,
+        },
         isDemoUser
       );
-      setEditingPasswordMember(null);
+      setEditingStaffMember(null);
       await loadStaff();
-      showToast(language === 'ur' ? 'پاس ورڈ کامیابی سے تبدیل ہو گیا!' : 'Password updated successfully!');
+      showToast(language === 'ur' ? 'ملازم کی تفصیلات و پاس ورڈ کامیابی سے تبدیل ہو گئے!' : 'Staff credentials updated successfully!');
     } catch (err: any) {
-      alert(err?.message || 'Failed to update password');
+      alert(err?.message || 'Failed to update credentials');
     } finally {
-      setSavingNewPassword(false);
+      setSavingStaffDetails(false);
     }
   };
 
@@ -557,7 +574,7 @@ export const StaffPage: React.FC = () => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>👑</span>
+                <Building2 size={22} className="text-success" />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#166534' }}>
                     {language === 'ur' ? 'دکان دار و چیف ایڈمنسٹریٹر (Shop Owner & Founder)' : 'Shop Owner & Founder'}
@@ -697,10 +714,10 @@ export const StaffPage: React.FC = () => {
                               {canManageStaff && (
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenEditPassword(member)}
+                                  onClick={() => handleOpenEditStaff(member)}
                                   className="btn btn-icon btn-sm btn-outline text-primary"
                                   style={{ padding: '0.1rem', width: '20px', height: '20px' }}
-                                  title={language === 'ur' ? 'پاس ورڈ تبدیل کریں' : 'Change password'}
+                                  title={language === 'ur' ? 'ملازم کی تفصیلات و پاس ورڈ تبدیل کریں' : 'Edit staff credentials & password'}
                                 >
                                   <Edit2 size={11} />
                                 </button>
@@ -1542,52 +1559,118 @@ export const StaffPage: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Password Modal */}
-      {editingPasswordMember && (
+      {/* Edit Staff Credentials & Details Modal */}
+      {editingStaffMember && (
         <div className="modal-overlay" style={{ zIndex: 65 }}>
-          <div className="modal-box" style={{ maxWidth: '420px' }}>
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <KeyRound size={18} className="text-primary" />
                 <h3 className="modal-title">
-                  {language === 'ur' ? 'ملازم کا لاگ ان پاس ورڈ تبدیل کریں' : 'Change Employee Password'}
+                  {language === 'ur' ? 'ملازم کی تفصیلات و لاگ ان کریڈنشلز میں ترمیم' : 'Edit Staff Credentials & Details'}
                 </h3>
               </div>
-              <button onClick={() => setEditingPasswordMember(null)} className="btn btn-icon btn-outline">
+              <button onClick={() => setEditingStaffMember(null)} className="btn btn-icon btn-outline">
                 <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewPassword}>
-              <div className="modal-body">
-                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '0.8125rem' }}>
-                  <div><strong>{editingPasswordMember.displayName}</strong> ({editingPasswordMember.role.toUpperCase()})</div>
-                  <div className="text-muted">{editingPasswordMember.email}</div>
+            <form onSubmit={handleSaveStaffDetails}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>{editingStaffMember.displayName}</strong>
+                    <span className="badge badge-primary">{editingStaffMember.role.toUpperCase()}</span>
+                  </div>
+                  <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                    {language === 'ur' ? 'کردار (Role) فکسڈ ہے، نام، فون، جی میل اور پاس ورڈ تبدیل کیا جا سکتا ہے۔' : 'Role is fixed; Name, Phone, Email, and Password can be modified.'}
+                  </div>
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">{language === 'ur' ? 'نیا پاس ورڈ' : 'New Password'}</label>
+                  <label className="form-label">{language === 'ur' ? 'ملازم کا مکمل نام' : 'Full Name *'}</label>
                   <input
                     type="text"
                     className="form-input"
-                    value={newMemberPassword}
-                    onChange={(e) => setNewMemberPassword(e.target.value)}
+                    value={editStaffName}
+                    onChange={(e) => setEditStaffName(e.target.value)}
                     required
-                    minLength={6}
-                    placeholder="Enter new password"
                   />
-                  <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    {language === 'ur' ? 'تبدیل کرنے کے بعد یہ پاس ورڈ ملازم کو بھیج دیں۔' : 'Employee will use this password to sign in.'}
-                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'عہدہ (Designation)' : 'Designation'}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editStaffDesignation}
+                      onChange={(e) => setEditStaffDesignation(e.target.value)}
+                      placeholder="e.g. Senior Cashier"
+                    />
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'موبائل نمبر (WhatsApp)' : 'Mobile Phone'}</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={editStaffPhone}
+                      onChange={(e) => setEditStaffPhone(e.target.value)}
+                      placeholder="0300-1234567"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'لاگ ان ای میل / جی میل' : 'Login Email / Gmail *'}</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editStaffEmail}
+                    onChange={(e) => setEditStaffEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'لاگ ان پاس ورڈ' : 'Login Password *'}</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showEditStaffPass ? 'text' : 'password'}
+                      className="form-input font-mono"
+                      value={editStaffPassword}
+                      onChange={(e) => setEditStaffPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      style={{ paddingRight: '2.5rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditStaffPass(!showEditStaffPass)}
+                      style={{
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {showEditStaffPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button type="button" onClick={() => setEditingPasswordMember(null)} className="btn btn-secondary">
+                <button type="button" onClick={() => setEditingStaffMember(null)} className="btn btn-secondary">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={savingNewPassword}>
-                  {savingNewPassword ? t('common.loading') : language === 'ur' ? 'پاس ورڈ محفوظ کریں' : 'Save Password'}
+                <button type="submit" className="btn btn-primary" disabled={savingStaffDetails}>
+                  {savingStaffDetails ? t('common.loading') : language === 'ur' ? 'کریڈنشلز محفوظ کریں' : 'Save Credentials'}
                 </button>
               </div>
             </form>

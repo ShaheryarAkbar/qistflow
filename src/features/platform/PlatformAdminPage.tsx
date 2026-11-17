@@ -3,7 +3,7 @@
 // Platform Super-Admin: Manage Tenants, SaaS Subscription Dues, Plans & Spark
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
@@ -23,6 +23,7 @@ import {
   HardDrive,
   Activity,
   Edit,
+  Edit2,
   Save,
   X,
   CreditCard,
@@ -43,6 +44,7 @@ import { useAuth } from '@/app/providers/AuthContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PlatformPlan, PlatformLicence } from '@/types';
+import { StaffRepository } from '@/repositories/staff.repository';
 
 export const PlatformAdminPage: React.FC = () => {
   const { t, language } = useI18n();
@@ -59,6 +61,15 @@ export const PlatformAdminPage: React.FC = () => {
   const [isOnboardShopModalOpen, setIsOnboardShopModalOpen] = useState(false);
   const [shareTenantHandover, setShareTenantHandover] = useState<any | null>(null);
   const [tenantHandoverCopied, setTenantHandoverCopied] = useState(false);
+
+  // Edit Owner Credentials State
+  const [editingTenantOwner, setEditingTenantOwner] = useState<any | null>(null);
+  const [editOwnerName, setEditOwnerName] = useState('');
+  const [editOwnerEmail, setEditOwnerEmail] = useState('');
+  const [editOwnerPhone, setEditOwnerPhone] = useState('');
+  const [editOwnerPassword, setEditOwnerPassword] = useState('');
+  const [showEditOwnerPass, setShowEditOwnerPass] = useState(false);
+  const [savingOwnerDetails, setSavingOwnerDetails] = useState(false);
 
   // New Shop Form State
   const [newShopName, setNewShopName] = useState('');
@@ -275,17 +286,83 @@ export const PlatformAdminPage: React.FC = () => {
     setNotesInput(t.supportNotes);
   };
 
+  useEffect(() => {
+    const saved = localStorage.getItem('qistflow_registered_shops');
+    if (saved) {
+      try {
+        setTenants(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleOpenEditOwnerCredentials = (tenant: any) => {
+    setEditingTenantOwner(tenant);
+    setEditOwnerName(tenant.ownerName);
+    setEditOwnerEmail(tenant.ownerEmail);
+    setEditOwnerPhone(tenant.phone || '');
+    setEditOwnerPassword(tenant.ownerPassword || 'Pak@12345');
+    setShowEditOwnerPass(false);
+  };
+
+  const handleSaveOwnerCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTenantOwner || !editOwnerName || !editOwnerEmail || !editOwnerPassword) return;
+    setSavingOwnerDetails(true);
+    try {
+      const updatedTenants = tenants.map((t) => {
+        if (t.tenantId === editingTenantOwner.tenantId) {
+          return {
+            ...t,
+            ownerName: editOwnerName,
+            ownerEmail: editOwnerEmail,
+            phone: editOwnerPhone,
+            ownerPassword: editOwnerPassword,
+          };
+        }
+        return t;
+      });
+      setTenants(updatedTenants);
+      localStorage.setItem('qistflow_registered_shops', JSON.stringify(updatedTenants));
+
+      if (editingTenantOwner.tenantId === 'tenant-demo-ryk-01') {
+        await StaffRepository.updateStaffDetails(
+          'tenant-demo-ryk-01',
+          'demo-owner-01',
+          {
+            displayName: editOwnerName,
+            email: editOwnerEmail,
+            phone: editOwnerPhone,
+            password: editOwnerPassword,
+          },
+          true
+        );
+      }
+
+      setEditingTenantOwner(null);
+      setActionSuccess(
+        language === 'ur'
+          ? `دکان (${editingTenantOwner.businessName}) کے مالک کے لاگ ان کریڈنشلز کامیابی سے اپڈیٹ ہو گئے!`
+          : 'Owner credentials updated successfully!'
+      );
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save owner credentials');
+    } finally {
+      setSavingOwnerDetails(false);
+    }
+  };
+
   const handleSaveTenantStatus = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTenant) return;
 
-    setTenants((prev) =>
-      prev.map((t) =>
-        t.tenantId === selectedTenant.tenantId
-          ? { ...t, status: editStatus, supportNotes: notesInput }
-          : t
-      )
+    const updated = tenants.map((t) =>
+      t.tenantId === selectedTenant.tenantId
+        ? { ...t, status: editStatus, supportNotes: notesInput }
+        : t
     );
+    setTenants(updated);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
     setSelectedTenant(null);
     setActionSuccess('Shop status updated successfully!');
     setTimeout(() => setActionSuccess(null), 3000);
@@ -317,7 +394,9 @@ export const PlatformAdminPage: React.FC = () => {
       supportNotes: 'Newly onboarded shop by Super-Admin.',
     };
 
-    setTenants((prev) => [newTenant, ...prev]);
+    const updated = [newTenant, ...tenants];
+    setTenants(updated);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
     setIsOnboardShopModalOpen(false);
     setShareTenantHandover(newTenant);
     setActionSuccess(language === 'ur' ? 'نئی دکان رجسٹر ہو گئی اور مالک کے لاگ ان کریڈنشلز تیار ہیں!' : 'Shop onboarded successfully!');
@@ -501,7 +580,7 @@ export const PlatformAdminPage: React.FC = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
               >
                 <PlusCircle size={15} />
-                <span>{language === 'ur' ? '+ نئی دکان آن بورڈ کریں' : '+ Onboard New Shop'}</span>
+                <span>{language === 'ur' ? 'نئی دکان آن بورڈ کریں' : 'Onboard New Shop'}</span>
               </button>
               <div style={{ width: '100%', maxWidth: '220px' }}>
                 <input
@@ -567,6 +646,14 @@ export const PlatformAdminPage: React.FC = () => {
                               title="Copy password"
                             >
                               <Copy size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditOwnerCredentials(t)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#059669' }}
+                              title={language === 'ur' ? 'مالک کی تفصیلات و پاس ورڈ تبدیل کریں' : 'Edit owner credentials'}
+                            >
+                              <Edit2 size={13} />
                             </button>
                           </div>
                         </div>
@@ -1011,13 +1098,13 @@ export const PlatformAdminPage: React.FC = () => {
       {/* Onboard New Shop & Owner Login Modal */}
       {isOnboardShopModalOpen && (
         <div className="modal-overlay" style={{ zIndex: 60 }}>
-          <div className="card" style={{ width: '92%', maxWidth: '580px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="modal-box" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
               <div>
-                <h3 className="card-title" style={{ margin: 0 }}>
+                <h3 className="modal-title" style={{ margin: 0 }}>
                   {language === 'ur' ? 'نئی دکان اور مالک کا لاگ ان رجسٹر کریں' : 'Onboard New Shop & Owner Login'}
                 </h3>
-                <p className="card-subtitle" style={{ margin: 0 }}>
+                <p className="card-subtitle" style={{ margin: '0.2rem 0 0', fontSize: '0.75rem' }}>
                   {language === 'ur' ? 'سپر ایڈمن دکان کا کھاتہ بنائے گا اور مالک کا جی میل / پاس ورڈ جاری کرے گا' : 'Super-Admin provisions tenancy and issues owner Gmail and initial password.'}
                 </p>
               </div>
@@ -1030,116 +1117,118 @@ export const PlatformAdminPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleOnboardShop}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'دکان کا نام (English)' : 'Shop Name (English) *'}</label>
-                  <input
-                    type="text"
-                    required
-                    className="form-input"
-                    value={newShopName}
-                    onChange={(e) => setNewShopName(e.target.value)}
-                    placeholder="e.g. Al-Rehman Electronics"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'دکان کا نام (اردو)' : 'Shop Name (Urdu)'}</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={newShopNameUr}
-                    onChange={(e) => setNewShopNameUr(e.target.value)}
-                    placeholder="مثال: الرحمٰن الیکٹرانکس اینڈ انسٹالمنٹ"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'شہر' : 'City *'}</label>
-                  <select
-                    className="form-input"
-                    value={newShopCity}
-                    onChange={(e) => setNewShopCity(e.target.value)}
-                  >
-                    <option value="Rahim Yar Khan">Rahim Yar Khan (رحیم یار خان)</option>
-                    <option value="Khanpur">Khanpur (خانپور)</option>
-                    <option value="Sadiqabad">Sadiqabad (صادق آباد)</option>
-                    <option value="Liaquatpur">Liaquatpur (لیاقت پور)</option>
-                    <option value="Bahawalpur">Bahawalpur (بہاولپور)</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'مالک کا نام' : 'Owner Name *'}</label>
-                  <input
-                    type="text"
-                    required
-                    className="form-input"
-                    value={newOwnerName}
-                    onChange={(e) => setNewOwnerName(e.target.value)}
-                    placeholder="e.g. Tariq Mehmood"
-                  />
-                </div>
-              </div>
-
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.85rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#166534', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <KeyRound size={15} />
-                  <span>{language === 'ur' ? 'مالک کے لاگ ان کریڈنشلز (Owner Login Credentials)' : 'Owner Login Credentials (Gmail & Password)'}</span>
-                </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کی جی میل (Gmail) *' : 'Owner Gmail *'}</label>
-                    <input
-                      type="email"
-                      required
-                      className="form-input"
-                      value={newOwnerEmail}
-                      onChange={(e) => setNewOwnerEmail(e.target.value)}
-                      placeholder="owner@gmail.com"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کا پاس ورڈ *' : 'Initial Password *'}</label>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'دکان کا نام (English)' : 'Shop Name (English) *'}</label>
                     <input
                       type="text"
                       required
-                      className="form-input font-mono"
-                      value={newOwnerPassword}
-                      onChange={(e) => setNewOwnerPassword(e.target.value)}
+                      className="form-input"
+                      value={newShopName}
+                      onChange={(e) => setNewShopName(e.target.value)}
+                      placeholder="e.g. Al-Rehman Electronics"
                     />
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'دکان کا نام (اردو)' : 'Shop Name (Urdu)'}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={newShopNameUr}
+                      onChange={(e) => setNewShopNameUr(e.target.value)}
+                      placeholder="مثال: الرحمٰن الیکٹرانکس اینڈ انسٹالمنٹ"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'شہر' : 'City *'}</label>
+                    <select
+                      className="form-input"
+                      value={newShopCity}
+                      onChange={(e) => setNewShopCity(e.target.value)}
+                    >
+                      <option value="Rahim Yar Khan">Rahim Yar Khan (رحیم یار خان)</option>
+                      <option value="Khanpur">Khanpur (خانپور)</option>
+                      <option value="Sadiqabad">Sadiqabad (صادق آباد)</option>
+                      <option value="Liaquatpur">Liaquatpur (لیاقت پور)</option>
+                      <option value="Bahawalpur">Bahawalpur (بہاولپور)</option>
+                    </select>
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'مالک کا نام' : 'Owner Name *'}</label>
+                    <input
+                      type="text"
+                      required
+                      className="form-input"
+                      value={newOwnerName}
+                      onChange={(e) => setNewOwnerName(e.target.value)}
+                      placeholder="e.g. Tariq Mehmood"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.875rem', borderRadius: '0.5rem' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#166534', marginBottom: '0.625rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <KeyRound size={15} />
+                    <span>{language === 'ur' ? 'مالک کے لاگ ان کریڈنشلز (Owner Login Credentials)' : 'Owner Login Credentials (Gmail & Password)'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="form-group mb-0">
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کی جی میل (Gmail) *' : 'Owner Gmail *'}</label>
+                      <input
+                        type="email"
+                        required
+                        className="form-input"
+                        value={newOwnerEmail}
+                        onChange={(e) => setNewOwnerEmail(e.target.value)}
+                        placeholder="owner@gmail.com"
+                      />
+                    </div>
+                    <div className="form-group mb-0">
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کا پاس ورڈ *' : 'Initial Password *'}</label>
+                      <input
+                        type="text"
+                        required
+                        className="form-input font-mono"
+                        value={newOwnerPassword}
+                        onChange={(e) => setNewOwnerPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'مالک کا موبائل نمبر' : 'Owner Phone *'}</label>
+                    <input
+                      type="tel"
+                      required
+                      className="form-input"
+                      value={newShopPhone}
+                      onChange={(e) => setNewShopPhone(e.target.value)}
+                      placeholder="0300-1234567"
+                    />
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'سبسکرپشن پلان' : 'Subscription Plan'}</label>
+                    <select
+                      className="form-input"
+                      value={newShopPlan}
+                      onChange={(e) => setNewShopPlan(e.target.value)}
+                    >
+                      <option value="Professional Monthly (Rs. 3,499)">Professional Monthly (Rs. 3,499)</option>
+                      <option value="Standard Monthly (Rs. 1,999)">Standard Monthly (Rs. 1,999)</option>
+                      <option value="Starter Monthly (Rs. 999)">Starter Monthly (Rs. 999)</option>
+                      <option value="Standard Lifetime (Rs. 34,999)">Standard Lifetime (Rs. 34,999)</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'مالک کا موبائل نمبر' : 'Owner Phone *'}</label>
-                  <input
-                    type="tel"
-                    required
-                    className="form-input"
-                    value={newShopPhone}
-                    onChange={(e) => setNewShopPhone(e.target.value)}
-                    placeholder="0300-1234567"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{language === 'ur' ? 'سبسکرپشن پلان' : 'Subscription Plan'}</label>
-                  <select
-                    className="form-input"
-                    value={newShopPlan}
-                    onChange={(e) => setNewShopPlan(e.target.value)}
-                  >
-                    <option value="Professional Monthly (Rs. 3,499)">Professional Monthly (Rs. 3,499)</option>
-                    <option value="Standard Monthly (Rs. 1,999)">Standard Monthly (Rs. 1,999)</option>
-                    <option value="Starter Monthly (Rs. 999)">Starter Monthly (Rs. 999)</option>
-                    <option value="Standard Lifetime (Rs. 34,999)">Standard Lifetime (Rs. 34,999)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setIsOnboardShopModalOpen(false)}
@@ -1150,6 +1239,109 @@ export const PlatformAdminPage: React.FC = () => {
                 <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <CheckCircle size={16} />
                   <span>{language === 'ur' ? 'دکان آن بورڈ کریں و کریڈنشلز جاری کریں' : 'Onboard & Issue Credentials'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Owner Credentials Modal */}
+      {editingTenantOwner && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <KeyRound size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'دکان دار کے لاگ ان کریڈنشلز میں ترمیم' : 'Edit Shop Owner Credentials'}
+                </h3>
+              </div>
+              <button onClick={() => setEditingTenantOwner(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOwnerCredentials}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0', fontSize: '0.8125rem' }}>
+                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{editingTenantOwner.businessName}</div>
+                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>{editingTenantOwner.city} • ID: {editingTenantOwner.tenantId}</div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'دکان دار کا مکمل نام' : 'Owner Full Name *'}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editOwnerName}
+                    onChange={(e) => setEditOwnerName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'موبائل نمبر (WhatsApp)' : 'Mobile Phone *'}</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={editOwnerPhone}
+                      onChange={(e) => setEditOwnerPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'لاگ ان پاس ورڈ' : 'Login Password *'}</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showEditOwnerPass ? 'text' : 'password'}
+                        className="form-input font-mono"
+                        value={editOwnerPassword}
+                        onChange={(e) => setEditOwnerPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        style={{ paddingRight: '2.5rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEditOwnerPass(!showEditOwnerPass)}
+                        style={{
+                          position: 'absolute',
+                          right: '0.75rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        {showEditOwnerPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'لاگ ان ای میل / جی میل' : 'Login Email / Gmail *'}</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={editOwnerEmail}
+                    onChange={(e) => setEditOwnerEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setEditingTenantOwner(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingOwnerDetails}>
+                  {savingOwnerDetails ? t('common.loading') : language === 'ur' ? 'کریڈنشلز محفوظ کریں' : 'Save Credentials'}
                 </button>
               </div>
             </form>

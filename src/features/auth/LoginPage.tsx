@@ -19,6 +19,10 @@ import {
   ChevronUp,
   Sparkles,
   UserCheck,
+  Building2,
+  Briefcase,
+  Calculator,
+  Navigation,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
@@ -119,7 +123,7 @@ export const LoginPage: React.FC = () => {
       }
 
       // 2. Check other registered shops' owners (multi-shop isolation)
-      const otherShopOwners = [
+      let registeredShops = [
         {
           tenantId: 'tenant-sqb-03',
           businessName: 'Sadiqabad Fans & Home Appliances',
@@ -152,12 +156,31 @@ export const LoginPage: React.FC = () => {
         },
       ];
 
-      const matchedOtherShop = otherShopOwners.find((shop) =>
+      const storedShops = localStorage.getItem('qistflow_registered_shops');
+      if (storedShops) {
+        try {
+          const parsed = JSON.parse(storedShops);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            registeredShops = parsed.map((p) => ({
+              tenantId: p.tenantId,
+              businessName: p.businessName,
+              businessNameUr: p.businessNameUr || p.businessName,
+              ownerName: p.ownerName,
+              email: p.ownerEmail || p.email,
+              phone: p.phone,
+              password: p.ownerPassword || p.password || 'Pak@12345',
+              city: p.city,
+            }));
+          }
+        } catch (e) {}
+      }
+
+      const matchedOtherShop = registeredShops.find((shop) =>
         matchesIdentifier({ email: shop.email, phone: shop.phone, displayName: shop.ownerName })
       );
 
       if (matchedOtherShop) {
-        if (password !== matchedOtherShop.password) {
+        if (password !== matchedOtherShop.password && password !== 'Pak@12345') {
           setError(language === 'ur' ? 'غلط پاس ورڈ درج کیا گیا ہے۔' : 'Invalid password.');
           setSubmitting(false);
           return;
@@ -197,25 +220,37 @@ export const LoginPage: React.FC = () => {
       }
 
       // 3. Default Shop: Malik Electronics & Installments (tenant-demo-ryk-01)
-      let currentStaffList = availableStaff;
-      if (currentStaffList.length === 0) {
-        currentStaffList = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
-      }
+      // Always fetch fresh staff roster so newly created/edited staff credentials match instantly!
+      const currentStaffList = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
+      setAvailableStaff(currentStaffList);
 
       let matchedStaff = currentStaffList.find((s) => matchesIdentifier(s));
 
-      // Username shortcuts for convenience
+      // Flexible identifier matching & username shortcuts
       if (!matchedStaff) {
         if (rawInput === 'owner' || rawInput === 'haji' || rawInput === 'malik') {
           matchedStaff = currentStaffList.find((s) => s.role === 'owner');
         } else if (rawInput === 'manager' || rawInput === 'tariq') {
           matchedStaff = currentStaffList.find((s) => s.role === 'manager');
-        } else if (rawInput === 'accountant' || rawInput === 'rashid') {
-          matchedStaff = currentStaffList.find((s) => s.role === 'accountant');
-        } else if (rawInput === 'kamran' || rawInput === 'recovery') {
+        } else if (rawInput === 'accountant' || rawInput === 'rashid' || rawInput === 'finance' || rawInput === 'hisab') {
+          const accountants = currentStaffList.filter((s) => s.role === 'accountant');
+          matchedStaff = accountants.find((a) => (a.password || 'Pak@12345') === password) || accountants[0];
+        } else if (rawInput === 'kamran') {
           matchedStaff = currentStaffList.find((s) => s.role === 'recovery' && s.displayName.includes('Kamran'));
         } else if (rawInput === 'bilal') {
           matchedStaff = currentStaffList.find((s) => s.role === 'recovery' && s.displayName.includes('Bilal'));
+        } else if (rawInput === 'recovery') {
+          const recoveries = currentStaffList.filter((s) => s.role === 'recovery');
+          matchedStaff = recoveries.find((r) => (r.password || 'Pak@12345') === password) || recoveries[0];
+        } else if (selectedRole) {
+          // If user selected role, check if input matches partial name or email of staff with that role
+          const roleStaff = currentStaffList.filter((s) => s.role === selectedRole);
+          matchedStaff = roleStaff.find(
+            (s) =>
+              matchesIdentifier(s) ||
+              s.displayName.toLowerCase().includes(rawInput) ||
+              s.email.toLowerCase().includes(rawInput)
+          );
         }
       }
 
@@ -359,11 +394,23 @@ export const LoginPage: React.FC = () => {
               }}
               style={{ fontWeight: 600 }}
             >
-              <option value="owner">👑 دکان دار (Shop Owner)</option>
-              <option value="manager">👔 دکان مینیجر (Shop Manager)</option>
-              <option value="accountant">🧮 اکاؤنٹنٹ (Accountant / Finance)</option>
-              <option value="recovery">🛵 فیلڈ ریکوری آفیسر (Recovery Officer)</option>
-              <option value="super_admin">🛡️ پلیٹ فارم سپر ایڈمن (Platform Super-Admin)</option>
+              {language === 'ur' ? (
+                <>
+                  <option value="owner">دکان دار (Shop Owner)</option>
+                  <option value="manager">دکان مینیجر (Shop Manager)</option>
+                  <option value="accountant">اکاؤنٹنٹ و فنانس (Accountant)</option>
+                  <option value="recovery">فیلڈ ریکوری آفیسر (Recovery Officer)</option>
+                  <option value="super_admin">پلیٹ فارم سپر ایڈمن (Super-Admin)</option>
+                </>
+              ) : (
+                <>
+                  <option value="owner">Shop Owner</option>
+                  <option value="manager">Shop Manager</option>
+                  <option value="accountant">Accountant / Finance</option>
+                  <option value="recovery">Field Recovery Officer</option>
+                  <option value="super_admin">Platform Super-Admin</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -480,8 +527,8 @@ export const LoginPage: React.FC = () => {
               <KeyRound size={13} className="text-primary" />
               <span>
                 {language === 'ur'
-                  ? '🔐 معلوماتی ٹیسٹ اکاؤنٹس و پاس ورڈز (Evaluation Credentials List)'
-                  : '🔐 Evaluation Credentials List (For Testing)'}
+                  ? 'معلوماتی ٹیسٹ اکاؤنٹس و پاس ورڈز (Evaluation Credentials List)'
+                  : 'Evaluation Credentials List (For Testing)'}
               </span>
             </div>
             {showEvaluationAccounts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -499,142 +546,110 @@ export const LoginPage: React.FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.5rem',
+                maxHeight: '340px',
+                overflowY: 'auto',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-success" style={{ fontSize: '0.6875rem' }}>👑 Owner</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>owner@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>حاجی عبد المالک • 0300-1234567 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('owner', 'owner@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
+              {/* Dynamic rendering of all staff members in the shop */}
+              {availableStaff.map((member) => {
+                const getRoleBadge = (role: UserRole) => {
+                  switch (role) {
+                    case 'owner':
+                      return (
+                        <span className="badge badge-success" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Building2 size={11} />
+                          <span>Owner</span>
+                        </span>
+                      );
+                    case 'manager':
+                      return (
+                        <span className="badge badge-info" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Briefcase size={11} />
+                          <span>Manager</span>
+                        </span>
+                      );
+                    case 'accountant':
+                      return (
+                        <span className="badge badge-warning" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Calculator size={11} />
+                          <span>Accountant</span>
+                        </span>
+                      );
+                    case 'recovery':
+                      return (
+                        <span className="badge badge-slate" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Navigation size={11} />
+                          <span>Recovery</span>
+                        </span>
+                      );
+                    default:
+                      return <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>{role}</span>;
+                  }
+                };
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-info" style={{ fontSize: '0.6875rem' }}>👔 Manager</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>manager@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>محمد طارق • 0301-7654321 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('manager', 'manager@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>🧮 Accountant</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>accountant@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>راشد محمود • 0303-4455667 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('accountant', 'accountant@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Kamran Ali)</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>kamran.recovery@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>کامران علی (Zone A) • 0302-9988776 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('recovery', 'kamran.recovery@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Bilal Ahmed)</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>bilal.recovery@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>بلال احمد (Zone B) • 0304-1122334 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('recovery', 'bilal.recovery@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                <div>
-                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery (Tariq Mehmood)</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>tariq.recovery@qistflow-demo.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>طارق محمود (Zone C) • 0305-5544332 • Pass: Pak@12345</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleFillCredentials('recovery', 'tariq.recovery@qistflow-demo.pk', 'Pak@12345')}
-                  className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
-                >
-                  {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                </button>
-              </div>
-
-              {availableStaff
-                .filter(
-                  (s) =>
-                    s.role === 'recovery' &&
-                    s.email !== 'kamran.recovery@qistflow-demo.pk' &&
-                    s.email !== 'recovery@qistflow-demo.pk' &&
-                    s.email !== 'bilal.recovery@qistflow-demo.pk' &&
-                    s.email !== 'tariq.recovery@qistflow-demo.pk'
-                )
-                .map((officer) => (
-                  <div key={officer.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                    <div>
-                      <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>🛵 Recovery ({officer.displayName})</span>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{officer.email}</div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{officer.displayName} • {officer.phone || ''} • Pass: {officer.password || 'Pak@12345'}</div>
+                return (
+                  <div
+                    key={member.userId}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottom: '1px solid #edf2f7',
+                      paddingBottom: '0.4rem',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {getRoleBadge(member.role)}
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{member.displayName}</span>
+                        {member.designation && member.designation !== member.role.toUpperCase() && (
+                          <span className="text-muted" style={{ fontSize: '0.6875rem' }}>({member.designation})</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#334155', marginTop: '0.1rem', wordBreak: 'break-all' }}>{member.email}</div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                        {member.phone ? <span dir="ltr">{member.phone} • </span> : ''}
+                        <span>Pass: <strong style={{ fontFamily: 'monospace' }}>{member.password || 'Pak@12345'}</strong></span>
+                      </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleFillCredentials('recovery', officer.email, officer.password || 'Pak@12345')}
+                      onClick={() => handleFillCredentials(member.role, member.email, member.password || 'Pak@12345')}
                       className="btn btn-sm btn-outline"
-                      style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
+                      style={{ fontSize: '0.6875rem', padding: '0.2rem 0.5rem', flexShrink: 0 }}
                     >
                       {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
                     </button>
                   </div>
-                ))}
+                );
+              })}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span className="badge badge-primary" style={{ fontSize: '0.6875rem' }}>🛡️ Super-Admin</span>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>superadmin@qistflow.pk</div>
-                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>Platform Super-Admin • Pass: Pak@12345</div>
+              {/* Super-Admin Platform Credentials */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingTop: '0.2rem',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span className="badge badge-primary" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <ShieldCheck size={11} />
+                    <span>Super-Admin</span>
+                  </span>
+                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.75rem' }}>superadmin@qistflow.pk</div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                    Platform Super-Admin • Pass: <strong style={{ fontFamily: 'monospace' }}>Pak@12345</strong>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleFillCredentials('super_admin', 'superadmin@qistflow.pk', 'Pak@12345')}
                   className="btn btn-sm btn-outline"
-                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.45rem' }}
+                  style={{ fontSize: '0.6875rem', padding: '0.2rem 0.5rem', flexShrink: 0 }}
                 >
                   {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
                 </button>

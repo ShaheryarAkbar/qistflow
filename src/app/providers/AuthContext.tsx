@@ -15,6 +15,15 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/services/firebase/app';
 import { UserProfile, UserRole } from '@/types';
 
+interface SwitchStaffParam {
+  userId?: string;
+  uid?: string;
+  displayName: string;
+  email: string;
+  role: UserRole;
+  phone?: string;
+}
+
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
@@ -24,7 +33,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   isDemoUser: boolean;
-  enableDemoMode: (role?: UserRole) => void;
+  enableDemoMode: (role?: UserRole, customStaff?: SwitchStaffParam) => void;
+  switchDemoStaff: (staff: SwitchStaffParam) => void;
   currentDemoRole?: UserRole;
 }
 
@@ -139,16 +149,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Immediate 1-click Demo Mode for instant local testing without Firebase setup
-  const enableDemoMode = (role: UserRole = 'owner') => {
-    let displayName = 'Haji Abdul Malik (Owner)';
-    if (role === 'manager') displayName = 'Tariq Mehmood (Shop Manager)';
-    else if (role === 'accountant') displayName = 'Muhammad Zafar (Accountant)';
-    else if (role === 'recovery') displayName = 'Bilal Ahmed (Field Recovery Officer)';
-    else if (role === 'super_admin') displayName = 'QistFlow Platform Super-Admin';
+  const enableDemoMode = (role: UserRole = 'owner', customStaff?: SwitchStaffParam) => {
+    const assignedRole = customStaff?.role || role;
+    let displayName = customStaff?.displayName;
+    let email = customStaff?.email;
+    const uid = customStaff?.userId || customStaff?.uid || `demo-${assignedRole}-101`;
+
+    if (!displayName) {
+      if (assignedRole === 'owner') displayName = 'Haji Abdul Malik (Owner)';
+      else if (assignedRole === 'manager') displayName = 'Tariq Mehmood (Shop Manager)';
+      else if (assignedRole === 'accountant') displayName = 'Muhammad Zafar (Accountant)';
+      else if (assignedRole === 'recovery') displayName = 'Bilal Ahmed (Field Recovery Officer)';
+      else if (assignedRole === 'super_admin') displayName = 'QistFlow Platform Super-Admin';
+      else displayName = 'Demo User';
+    }
+
+    if (!email) {
+      email = `${assignedRole}@qistflow-demo.pk`;
+    }
 
     const demoUser = {
-      uid: `demo-${role}-101`,
-      email: `${role}@qistflow-demo.pk`,
+      uid,
+      email,
       displayName,
       emailVerified: true,
     } as any;
@@ -166,14 +188,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     localStorage.setItem(
       'qistflow_demo_user',
-      JSON.stringify({ user: demoUser, profile: demoProfile, role })
+      JSON.stringify({ user: demoUser, profile: demoProfile, role: assignedRole })
     );
 
     setCurrentUser(demoUser);
     setUserProfile(demoProfile);
-    setCurrentDemoRole(role);
+    setCurrentDemoRole(assignedRole);
     setIsDemoUser(true);
     setLoading(false);
+  };
+
+  const switchDemoStaff = (staff: SwitchStaffParam) => {
+    enableDemoMode(staff.role, staff);
   };
 
   return (
@@ -188,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         isDemoUser,
         enableDemoMode,
+        switchDemoStaff,
         currentDemoRole,
       }}
     >

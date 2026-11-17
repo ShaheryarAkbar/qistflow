@@ -49,7 +49,7 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, isDemoUser } = useAuth();
+  const { currentUser, isDemoUser, currentDemoRole } = useAuth();
   const [activeTenant, setActiveTenant] = useState<Tenant | null>(null);
   const [activeMembership, setActiveMembership] = useState<Membership | null>(null);
   const [userTenants, setUserTenants] = useState<{ tenant: Tenant; membership: Membership }[]>([]);
@@ -84,49 +84,62 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedBy: currentUser.uid,
       };
 
-      const role: UserRole = currentUser.uid.includes('super_admin')
-        ? 'super_admin'
-        : currentUser.uid.includes('recovery')
-        ? 'recovery'
-        : currentUser.uid.includes('accountant')
-        ? 'accountant'
-        : currentUser.uid.includes('manager')
-        ? 'manager'
-        : 'owner';
+      let role: UserRole = currentDemoRole || 'owner';
+      const storedStaff = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
+      let foundStaffMember: any = null;
+      if (storedStaff) {
+        try {
+          const list = JSON.parse(storedStaff);
+          foundStaffMember = list.find((s: any) => s.userId === currentUser.uid || s.email === currentUser.email);
+          if (foundStaffMember?.role) {
+            role = foundStaffMember.role;
+          }
+        } catch (e) {}
+      }
+
+      if (!currentDemoRole && !foundStaffMember) {
+        const demoStored = localStorage.getItem('qistflow_demo_user');
+        if (demoStored) {
+          try {
+            const parsed = JSON.parse(demoStored);
+            if (parsed.role) role = parsed.role;
+          } catch (e) {}
+        }
+      }
+
+      if (!role) {
+        role = currentUser.uid.includes('super_admin')
+          ? 'super_admin'
+          : currentUser.uid.includes('recovery')
+          ? 'recovery'
+          : currentUser.uid.includes('accountant')
+          ? 'accountant'
+          : currentUser.uid.includes('manager')
+          ? 'manager'
+          : 'owner';
+      }
 
       // Load permissions from stored demo staff if available
       let rolePermissions: string[] = ['all'];
-      if (role === 'manager') {
-        const stored = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
-        if (stored) {
-          const list = JSON.parse(stored);
-          const found = list.find((s: any) => s.role === 'manager');
-          if (found?.permissions) rolePermissions = found.permissions;
-        } else {
-          rolePermissions = [
-            'manage_products',
-            'manage_inventory',
-            'view_reports',
-            'assign_recovery',
-            'can_manage_staff',
-            'grant_discounts',
-          ];
-        }
+      if (foundStaffMember?.permissions && foundStaffMember.permissions.length > 0) {
+        rolePermissions = foundStaffMember.permissions;
+      } else if (role === 'manager') {
+        rolePermissions = [
+          'manage_products',
+          'manage_inventory',
+          'view_reports',
+          'assign_recovery',
+          'can_manage_staff',
+          'grant_discounts',
+        ];
       } else if (role === 'accountant') {
-        const stored = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
-        if (stored) {
-          const list = JSON.parse(stored);
-          const found = list.find((s: any) => s.role === 'accountant');
-          if (found?.permissions) rolePermissions = found.permissions;
-        } else {
-          rolePermissions = [
-            'view_financial_reports',
-            'record_expenses',
-            'request_reversals',
-            'view_contracts',
-            'view_customers',
-          ];
-        }
+        rolePermissions = [
+          'view_financial_reports',
+          'record_expenses',
+          'request_reversals',
+          'view_contracts',
+          'view_customers',
+        ];
       } else if (role === 'recovery') {
         rolePermissions = ['assigned_collections'];
       } else if (role === 'super_admin') {

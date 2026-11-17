@@ -311,25 +311,28 @@ export const RecoveryRepository = {
     assignmentId: string;
     newEmployeeId: string;
     isDemo?: boolean;
-  }): Promise<void> {
+  }): Promise<RecoveryAssignment | null> {
     const { tenantId, assignmentId, newEmployeeId, isDemo = false } = params;
 
     if (isDemo) {
       const stored = localStorage.getItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`);
-      if (!stored) return;
+      if (!stored) return null;
       const list: RecoveryAssignment[] = JSON.parse(stored);
       const target = list.find((a) => a.assignmentId === assignmentId);
       if (target) {
         target.employeeId = newEmployeeId;
         localStorage.setItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`, JSON.stringify(list));
+        return target;
       }
-      return;
+      return null;
     }
 
     await updateDoc(doc(db, 'tenants', tenantId, 'recoveryAssignments', assignmentId), {
       employeeId: newEmployeeId,
       updatedAt: serverTimestamp(),
     });
+    const assignments = await this.getAssignments(tenantId, undefined, false);
+    return assignments.find((a) => a.assignmentId === assignmentId) || null;
   },
 };
 

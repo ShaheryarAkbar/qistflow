@@ -2,7 +2,7 @@
 // Main Application Layout Shell with Mobile App Experience & High Contrast Switcher
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -36,10 +36,11 @@ import { useAuth } from '@/app/providers/AuthContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { UserRole } from '@/types';
 import { QuickCalculatorModal } from '@/components/shared/QuickCalculatorModal';
+import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
 
 export const AppLayout: React.FC = () => {
   const { t, language, toggleLanguage } = useI18n();
-  const { currentUser, logout, isDemoUser, enableDemoMode } = useAuth();
+  const { currentUser, logout, isDemoUser, enableDemoMode, switchDemoStaff } = useAuth();
   const {
     activeTenant,
     currentRole,
@@ -53,7 +54,17 @@ export const AppLayout: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [demoRecoveryOfficers, setDemoRecoveryOfficers] = useState<StaffMemberRecord[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isDemoUser && activeTenant) {
+      StaffRepository.getStaffMembers(activeTenant.tenantId, true).then((members) => {
+        const rec = members.filter((m) => m.role === 'recovery');
+        setDemoRecoveryOfficers(rec);
+      });
+    }
+  }, [isDemoUser, activeTenant, currentRole]);
 
   const handleLogout = async () => {
     await logout();
@@ -488,7 +499,7 @@ export const AppLayout: React.FC = () => {
               boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <div
                 style={{
                   background: '#ecfdf5',
@@ -508,6 +519,49 @@ export const AppLayout: React.FC = () => {
                   {language === 'ur' ? 'کردار منتخب کریں (Role Switcher):' : 'Active Role (Demo Switcher):'}
                 </span>
               </div>
+
+              {isRecovery && demoRecoveryOfficers.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: '#fef3c7',
+                    border: '1px solid #fde68a',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '0.375rem',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
+                    {language === 'ur' ? 'آفیسر منتخب کریں:' : 'Officer:'}
+                  </span>
+                  <select
+                    value={currentUser?.uid}
+                    onChange={(e) => {
+                      const selected = demoRecoveryOfficers.find((s) => s.userId === e.target.value);
+                      if (selected) {
+                        switchDemoStaff(selected);
+                        navigate('/recovery');
+                      }
+                    }}
+                    className="form-input"
+                    style={{
+                      padding: '0.15rem 0.4rem',
+                      fontSize: '0.75rem',
+                      height: 'auto',
+                      fontWeight: 700,
+                      background: '#fff',
+                      color: '#0f172a',
+                    }}
+                  >
+                    {demoRecoveryOfficers.map((officer) => (
+                      <option key={officer.userId} value={officer.userId}>
+                        {officer.displayName} ({officer.designation || 'Field'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>

@@ -60,11 +60,12 @@ interface RecoveryCardData {
 
 export const RecoveryPortalPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant, isOwner, isManager } = useTenant();
-  const { currentUser, isDemoUser } = useAuth();
+  const { activeTenant, isOwner, isManager, isRecovery } = useTenant();
+  const { currentUser, isDemoUser, switchDemoStaff } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'assigned' | 'visits' | 'audit' | 'leaderboard'>('assigned');
   const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'completed'>('all');
+  const [selectedOfficerFilter, setSelectedOfficerFilter] = useState<string>('all');
   const [cards, setCards] = useState<RecoveryCardData[]>([]);
   const [visits, setVisits] = useState<RecoveryVisit[]>([]);
   const [customersList, setCustomersList] = useState<Customer[]>([]);
@@ -367,21 +368,40 @@ export const RecoveryPortalPage: React.FC = () => {
     }
   };
 
-  // Calculate daily target statistics
+  // Recovery Staff List
+  const recoveryStaff = staffMembers.filter((s) => s.role === 'recovery');
+
+  // Scoped cards based on role & active officer filter
+  // If isRecovery: strictly scoped to currentUser.uid
+  // If Owner/Manager: scoped to selectedOfficerFilter ('all' or specific officer)
+  const scopedCards = isRecovery
+    ? cards.filter((c) => c.assignment.employeeId === currentUser?.uid)
+    : selectedOfficerFilter === 'all'
+    ? cards
+    : cards.filter((c) => c.assignment.employeeId === selectedOfficerFilter);
+
+  // Scoped visits
+  const scopedVisits = isRecovery
+    ? visits.filter((v) => v.employeeId === currentUser?.uid)
+    : selectedOfficerFilter === 'all'
+    ? visits
+    : visits.filter((v) => v.employeeId === selectedOfficerFilter);
+
+  // Calculate daily target statistics on scoped cards & visits
   const todayStr = new Date().toISOString().split('T')[0];
-  const visitsToday = visits.filter((v) => {
+  const visitsToday = scopedVisits.filter((v) => {
     const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
     return vDate === todayStr || v.visitedAt === 'Today';
   });
 
   const visitedAssignmentIds = new Set(visitsToday.map((v) => v.assignmentId));
-  const completedTargetsCount = cards.filter((c) => visitedAssignmentIds.has(c.assignment.assignmentId)).length;
-  const totalTargetsCount = cards.length;
+  const completedTargetsCount = scopedCards.filter((c) => visitedAssignmentIds.has(c.assignment.assignmentId)).length;
+  const totalTargetsCount = scopedCards.length;
   const pendingTargetsCount = Math.max(0, totalTargetsCount - completedTargetsCount);
   const completionPercentage = totalTargetsCount > 0 ? Math.round((completedTargetsCount / totalTargetsCount) * 100) : 0;
 
   // Filter cards based on target state
-  const displayedCards = cards.filter((c) => {
+  const displayedCards = scopedCards.filter((c) => {
     const isCompleted = visitedAssignmentIds.has(c.assignment.assignmentId);
     if (filterMode === 'pending') return !isCompleted;
     if (filterMode === 'completed') return isCompleted;
@@ -389,7 +409,6 @@ export const RecoveryPortalPage: React.FC = () => {
   });
 
   // Recovery Officers Performance Leaderboard calculation
-  const recoveryStaff = staffMembers.filter((s) => s.role === 'recovery');
   const targetStaffForLeaderboard = recoveryStaff.length > 0 ? recoveryStaff : staffMembers;
 
   const leaderboardStats = targetStaffForLeaderboard
@@ -425,6 +444,85 @@ export const RecoveryPortalPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '3rem' }}>
+      {/* Active Recovery Officer Banner & Quick Switcher for Testing */}
+      {isRecovery && (
+        <div
+          className="card mb-4"
+          style={{
+            background: '#eff6ff',
+            border: '1px solid #93c5fd',
+            padding: '0.875rem 1rem',
+            borderRadius: '0.75rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div
+              style={{
+                background: '#2563eb',
+                color: '#fff',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.125rem',
+              }}
+            >
+              🛵
+            </div>
+            <div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e3a8a' }}>
+                {language === 'ur'
+                  ? 'ریکوری فیلڈ موبائل پورٹل (محدود موبائل ویو)'
+                  : 'Recovery Mobile Field View (Restricted)'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>
+                {language === 'ur' ? 'فعال آفیسر:' : 'Active Officer:'}{' '}
+                <strong style={{ color: '#1e40af' }}>{currentUser?.displayName}</strong> ({currentUser?.email})
+              </div>
+            </div>
+          </div>
+
+          {isDemoUser && recoveryStaff.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e40af' }}>
+                {language === 'ur' ? 'دوسرا آفیسر منتخب کریں:' : 'Switch Officer:'}
+              </span>
+              <select
+                value={currentUser?.uid}
+                onChange={(e) => {
+                  const off = recoveryStaff.find((s) => s.userId === e.target.value);
+                  if (off) {
+                    switchDemoStaff(off);
+                  }
+                }}
+                className="form-input"
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.8125rem',
+                  height: 'auto',
+                  fontWeight: 700,
+                  background: '#ffffff',
+                  minWidth: '170px',
+                }}
+              >
+                {recoveryStaff.map((officer) => (
+                  <option key={officer.userId} value={officer.userId}>
+                    {officer.displayName} ({officer.designation || 'Field'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
@@ -443,13 +541,13 @@ export const RecoveryPortalPage: React.FC = () => {
             onClick={() => setActiveTab('assigned')}
             className={`btn btn-sm ${activeTab === 'assigned' ? 'btn-primary' : 'btn-outline'}`}
           >
-            {language === 'ur' ? 'اہداف و گاہک' : 'Targets'} ({cards.length})
+            {language === 'ur' ? 'اہداف و گاہک' : 'Targets'} ({scopedCards.length})
           </button>
           <button
             onClick={() => setActiveTab('visits')}
             className={`btn btn-sm ${activeTab === 'visits' ? 'btn-primary' : 'btn-outline'}`}
           >
-            {language === 'ur' ? 'دورے' : 'Visits'} ({visits.length})
+            {language === 'ur' ? 'دورے' : 'Visits'} ({scopedVisits.length})
           </button>
           {(isOwner || isManager) && (
             <>
@@ -535,6 +633,84 @@ export const RecoveryPortalPage: React.FC = () => {
       {/* TAB 1: Assigned Accounts & Daily Targets */}
       {activeTab === 'assigned' && (
         <div>
+          {/* Owner/Manager Officer Filter & 1-Click Mobile Preview */}
+          {(isOwner || isManager) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <UserCheck size={16} className="text-primary" />
+                  {language === 'ur' ? 'آفیسر کی بنیاد پر فہرست دیکھیں:' : 'Filter by Officer:'}
+                </span>
+                <select
+                  value={selectedOfficerFilter}
+                  onChange={(e) => setSelectedOfficerFilter(e.target.value)}
+                  className="form-input"
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    fontSize: '0.8125rem',
+                    height: 'auto',
+                    minWidth: '200px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <option value="all">
+                    {language === 'ur' ? 'تمام ریکوری افسران (All Officers)' : 'All Recovery Officers'} ({cards.length})
+                  </option>
+                  {recoveryStaff.map((officer) => {
+                    const count = cards.filter((c) => c.assignment.employeeId === officer.userId).length;
+                    return (
+                      <option key={officer.userId} value={officer.userId}>
+                        {officer.displayName} ({count} {language === 'ur' ? 'گاہک' : 'accounts'})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {selectedOfficerFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const off = recoveryStaff.find((s) => s.userId === selectedOfficerFilter);
+                    if (off) {
+                      switchDemoStaff(off);
+                    }
+                  }}
+                  className="btn btn-sm btn-outline text-success"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    padding: '0.3rem 0.65rem',
+                    background: '#f0fdf4',
+                    borderColor: '#86efac',
+                  }}
+                  title={language === 'ur' ? 'اس منتخب آفیسر کے روپ میں موبائل ایپ دیکھیں' : 'Test this officer mobile view'}
+                >
+                  <Eye size={13} />
+                  <span>
+                    {language === 'ur' ? 'اس آفیسر کا موبائل ویو ٹیسٹ کریں' : 'View Mobile App as this Officer'}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Target Filter Pills */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
             <span className="text-muted" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -608,6 +784,12 @@ export const RecoveryPortalPage: React.FC = () => {
                             <MapPin size={13} />
                             <span>{[assignment.area, customer?.area, customer?.city].filter(Boolean).join(', ')}</span>
                           </div>
+                          {(isOwner || isManager || !isRecovery) && (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.35rem', background: '#f1f5f9', padding: '0.15rem 0.45rem', borderRadius: '0.25rem', fontSize: '0.75rem', color: '#334155', border: '1px solid #cbd5e1' }}>
+                              <UserCheck size={12} className="text-primary" />
+                              <span>{language === 'ur' ? 'تفویض شدہ آفیسر:' : 'Assigned to:'} <strong>{staffMembers.find((s) => s.userId === assignment.employeeId)?.displayName || assignment.employeeId}</strong></span>
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ textAlign: 'right' }}>
@@ -691,6 +873,7 @@ export const RecoveryPortalPage: React.FC = () => {
                 <tr>
                   <th>{t('common.date')}</th>
                   <th>Customer</th>
+                  {(isOwner || isManager) && <th>Recovery Officer</th>}
                   <th>Outcome</th>
                   <th>Verification Proof</th>
                   <th>Note</th>
@@ -699,14 +882,14 @@ export const RecoveryPortalPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {visits.length === 0 ? (
+                {scopedVisits.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
+                    <td colSpan={isOwner || isManager ? 8 : 7} className="text-center text-muted" style={{ padding: '2rem' }}>
                       {t('common.noData')}
                     </td>
                   </tr>
                 ) : (
-                  visits.map((v) => {
+                  scopedVisits.map((v) => {
                     const hasGps = !!v.locationGeo;
                     const hasPhoto = !!v.photoProofUrl;
                     const cus = customersList.find((c) => c.customerId === v.customerId);
@@ -724,6 +907,13 @@ export const RecoveryPortalPage: React.FC = () => {
                             </div>
                           )}
                         </td>
+                        {(isOwner || isManager) && (
+                          <td style={{ fontSize: '0.8125rem' }}>
+                            <span className="font-semibold text-slate-700">
+                              {staffMembers.find((s) => s.userId === v.employeeId)?.displayName || v.employeeId}
+                            </span>
+                          </td>
+                        )}
                         <td>
                           <span
                             className={`badge ${

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   UserCheck,
   UserPlus,
@@ -42,7 +43,8 @@ import { rupeesToPaisa } from '@/domain/money/paisa';
 export const StaffPage: React.FC = () => {
   const { t, language } = useI18n();
   const { activeTenant, isOwner, canManageStaff, reloadMembership } = useTenant();
-  const { currentUser, isDemoUser } = useAuth();
+  const { currentUser, isDemoUser, switchDemoStaff } = useAuth();
+  const navigate = useNavigate();
 
   const [staff, setStaff] = useState<StaffMemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -532,7 +534,24 @@ export const StaffPage: React.FC = () => {
                       </td>
                       {canManageStaff && (
                         <td>
-                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {isDemoUser && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  switchDemoStaff(member);
+                                  if (member.role === 'recovery') navigate('/recovery');
+                                  else if (member.role === 'super_admin') navigate('/admin');
+                                  else navigate('/dashboard');
+                                }}
+                                className="btn btn-sm btn-outline text-success"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                                title={language === 'ur' ? `${member.displayName} کا لاگ ان ویو ٹیسٹ کریں` : `Test view as ${member.displayName}`}
+                              >
+                                <Eye size={12} />
+                                <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test View'}</span>
+                              </button>
+                            )}
                             {canConfigureThisMember && (
                               <button
                                 onClick={() => handleOpenPermissionsModal(member)}
@@ -779,7 +798,7 @@ export const StaffPage: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 onClick={copyCredentialsText}
                 className="btn btn-outline"
@@ -788,6 +807,28 @@ export const StaffPage: React.FC = () => {
                 <Copy size={16} />
                 <span>{language === 'ur' ? 'کاپی کریں' : 'Copy'}</span>
               </button>
+              {isDemoUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetStaff = staff.find((s) => s.email === createdCredentials.email);
+                    if (targetStaff) {
+                      switchDemoStaff(targetStaff);
+                      setCreatedCredentials(null);
+                      if (targetStaff.role === 'recovery') navigate('/recovery');
+                      else if (targetStaff.role === 'super_admin') navigate('/admin');
+                      else navigate('/dashboard');
+                    } else {
+                      setCreatedCredentials(null);
+                    }
+                  }}
+                  className="btn btn-success"
+                  style={{ flex: 1.2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                >
+                  <Eye size={15} />
+                  <span>{language === 'ur' ? 'ابھی اس کا ویو ٹیسٹ کریں' : 'Test View Now'}</span>
+                </button>
+              )}
               <button
                 onClick={() => setCreatedCredentials(null)}
                 className="btn btn-primary"

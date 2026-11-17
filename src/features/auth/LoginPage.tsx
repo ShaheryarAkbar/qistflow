@@ -3,7 +3,7 @@
 // Supports both Firebase Auth and 1-Click Role-Specific Offline Demo Mode
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Coins,
@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/app/providers/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { UserRole } from '@/types';
+import { StaffMemberRecord } from '@/repositories/staff.repository';
 
 export const LoginPage: React.FC = () => {
   const { signIn, enableDemoMode, loading } = useAuth();
@@ -27,6 +28,16 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [availableStaff, setAvailableStaff] = useState<StaffMemberRecord[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('qistflow_demo_staff_tenant-demo-ryk-01');
+    if (stored) {
+      try {
+        setAvailableStaff(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +49,42 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setSubmitting(true);
     try {
+      // Check if this matches a staff member created in the shop (offline demo mode)
+      const tenantId = 'tenant-demo-ryk-01';
+      const stored = localStorage.getItem(`qistflow_demo_staff_${tenantId}`);
+      if (stored) {
+        try {
+          const list: StaffMemberRecord[] = JSON.parse(stored);
+          const found = list.find((s) => s.email.toLowerCase().trim() === email.toLowerCase().trim());
+          if (found) {
+            enableDemoMode(found.role, found);
+            if (found.role === 'recovery') navigate('/recovery');
+            else if (found.role === 'super_admin') navigate('/admin');
+            else navigate('/dashboard');
+            return;
+          }
+        } catch (e) {}
+      }
+
       await signIn(email, password);
       navigate('/dashboard');
     } catch (err: any) {
+      // If Firebase auth throws error, check demo staff as fallback
+      const tenantId = 'tenant-demo-ryk-01';
+      const stored = localStorage.getItem(`qistflow_demo_staff_${tenantId}`);
+      if (stored) {
+        try {
+          const list: StaffMemberRecord[] = JSON.parse(stored);
+          const found = list.find((s) => s.email.toLowerCase().trim() === email.toLowerCase().trim());
+          if (found) {
+            enableDemoMode(found.role, found);
+            if (found.role === 'recovery') navigate('/recovery');
+            else if (found.role === 'super_admin') navigate('/admin');
+            else navigate('/dashboard');
+            return;
+          }
+        } catch (e) {}
+      }
       setError(err?.message || 'Login failed. Please check your credentials.');
     } finally {
       setSubmitting(false);
@@ -224,6 +268,32 @@ export const LoginPage: React.FC = () => {
           >
             🛡️ {language === 'ur' ? 'پلیٹ فارم سپر ایڈمن (Super-Admin)' : 'Platform Super-Admin'}
           </button>
+
+          {availableStaff.filter((s) => s.role === 'recovery').length > 0 && (
+            <div style={{ marginTop: '0.75rem', background: '#f8fafc', padding: '0.5rem 0.65rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.75rem', textAlign: 'left' }}>
+              <span className="text-muted" style={{ fontWeight: 600 }}>
+                {language === 'ur' ? 'یا براہ راست مخصوص فیلڈ آفیسر منتخب کریں:' : 'Or login directly as field officer:'}
+              </span>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                {availableStaff
+                  .filter((s) => s.role === 'recovery')
+                  .map((officer) => (
+                    <button
+                      key={officer.userId}
+                      type="button"
+                      onClick={() => {
+                        enableDemoMode(officer.role, officer);
+                        navigate('/recovery');
+                      }}
+                      className="btn btn-sm btn-outline text-success"
+                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.6875rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                    >
+                      🛵 {officer.displayName}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

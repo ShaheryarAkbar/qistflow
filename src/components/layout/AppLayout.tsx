@@ -36,11 +36,9 @@ import { useAuth } from '@/app/providers/AuthContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { UserRole } from '@/types';
 import { QuickCalculatorModal } from '@/components/shared/QuickCalculatorModal';
-import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
-
 export const AppLayout: React.FC = () => {
   const { t, language, toggleLanguage } = useI18n();
-  const { currentUser, logout, isDemoUser, enableDemoMode, switchDemoStaff } = useAuth();
+  const { currentUser, logout, isDemoUser } = useAuth();
   const {
     activeTenant,
     currentRole,
@@ -54,32 +52,11 @@ export const AppLayout: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [demoRecoveryOfficers, setDemoRecoveryOfficers] = useState<StaffMemberRecord[]>([]);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isDemoUser && activeTenant) {
-      StaffRepository.getStaffMembers(activeTenant.tenantId, true).then((members) => {
-        const rec = members.filter((m) => m.role === 'recovery');
-        setDemoRecoveryOfficers(rec);
-      });
-    }
-  }, [isDemoUser, activeTenant, currentRole]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const handleDemoRoleSwitch = (role: UserRole) => {
-    enableDemoMode(role);
-    if (role === 'recovery') {
-      navigate('/recovery');
-    } else if (role === 'super_admin') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
-    }
   };
 
   // Build role-tailored navigation items
@@ -484,125 +461,6 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Container */}
       <div className="app-main">
-        {/* High-Contrast, Clean, Highly Legible Demo Role Switcher Strip */}
-        {isDemoUser && (
-          <div
-            style={{
-              background: '#ffffff',
-              borderBottom: '2px solid #e2e8f0',
-              padding: '0.625rem 1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.625rem',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div
-                style={{
-                  background: '#ecfdf5',
-                  color: '#065f46',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '0.375rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontWeight: 700,
-                  fontSize: '0.8125rem',
-                  border: '1px solid #a7f3d0',
-                }}
-              >
-                <Sparkles size={15} className="text-success" />
-                <span>
-                  {language === 'ur' ? 'کردار منتخب کریں (Role Switcher):' : 'Active Role (Demo Switcher):'}
-                </span>
-              </div>
-
-              {isRecovery && demoRecoveryOfficers.length > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    background: '#fef3c7',
-                    border: '1px solid #fde68a',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '0.375rem',
-                  }}
-                >
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e' }}>
-                    {language === 'ur' ? 'آفیسر منتخب کریں:' : 'Officer:'}
-                  </span>
-                  <select
-                    value={currentUser?.uid}
-                    onChange={(e) => {
-                      const selected = demoRecoveryOfficers.find((s) => s.userId === e.target.value);
-                      if (selected) {
-                        switchDemoStaff(selected);
-                        navigate('/recovery');
-                      }
-                    }}
-                    className="form-input"
-                    style={{
-                      padding: '0.15rem 0.4rem',
-                      fontSize: '0.75rem',
-                      height: 'auto',
-                      fontWeight: 700,
-                      background: '#fff',
-                      color: '#0f172a',
-                    }}
-                  >
-                    {demoRecoveryOfficers.map((officer) => (
-                      <option key={officer.userId} value={officer.userId}>
-                        {officer.displayName} ({officer.designation || 'Field'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {[
-                { role: 'owner', labelUr: 'دکان دار (Owner)', labelEn: 'Shop Owner', icon: '👑' },
-                { role: 'manager', labelUr: 'مینیجر (Manager)', labelEn: 'Shop Manager', icon: '👔' },
-                { role: 'accountant', labelUr: 'اکاؤنٹنٹ (Finance)', labelEn: 'Accountant', icon: '🧮' },
-                { role: 'recovery', labelUr: 'ریکوری عملہ (Field)', labelEn: 'Recovery Officer', icon: '🛵' },
-                { role: 'super_admin', labelUr: 'سپر ایڈمن (Admin)', labelEn: 'Super-Admin', icon: '🛡️' },
-              ].map((item) => {
-                const isActive = currentRole === item.role;
-                return (
-                  <button
-                    key={item.role}
-                    type="button"
-                    onClick={() => handleDemoRoleSwitch(item.role as UserRole)}
-                    style={{
-                      background: isActive ? '#059669' : '#f8fafc',
-                      color: isActive ? '#ffffff' : '#0f172a',
-                      border: isActive ? '1px solid #047857' : '1px solid #cbd5e1',
-                      padding: '0.35rem 0.65rem',
-                      borderRadius: '0.5rem',
-                      fontWeight: isActive ? 700 : 600,
-                      fontSize: '0.8125rem',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      boxShadow: isActive ? '0 2px 5px rgba(5, 150, 105, 0.25)' : 'none',
-                      transition: 'all 0.15s ease-in-out',
-                    }}
-                  >
-                    <span>{item.icon}</span>
-                    <span>{language === 'ur' ? item.labelUr : item.labelEn}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Top Header */}
         <header className="app-header">
           <div className="header-left">
@@ -614,18 +472,39 @@ export const AppLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <div>
-              <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {isSuperAdmin
-                  ? 'QistFlow Platform Super-Admin'
-                  : language === 'ur' && activeTenant?.businessNameUr
-                  ? activeTenant.businessNameUr
-                  : activeTenant?.businessName || t('app.name')}
-              </h1>
-              {isRecovery && (
-                <div style={{ fontSize: '0.6875rem', color: '#b45309', fontWeight: 600 }}>
-                  {language === 'ur' ? 'صرف مجاز فیلڈ ریکوری کھاتوں تک رسائی' : 'Restricted Mobile Field Portal'}
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  {isSuperAdmin
+                    ? 'QistFlow Platform Control'
+                    : language === 'ur' && activeTenant?.businessNameUr
+                    ? activeTenant.businessNameUr
+                    : activeTenant?.businessName || t('app.name')}
+                </h1>
+                {!isSuperAdmin && (
+                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem', padding: '0.1rem 0.4rem' }}>
+                    {language === 'ur' ? 'مین برانچ' : 'Main Branch'}
+                  </span>
+                )}
+                <span
+                  className={`badge ${
+                    isOwner
+                      ? 'badge-success'
+                      : isManager
+                      ? 'badge-info'
+                      : isAccountant
+                      ? 'badge-warning'
+                      : isRecovery
+                      ? 'badge-danger'
+                      : 'badge-slate'
+                  }`}
+                  style={{ fontSize: '0.6875rem', padding: '0.1rem 0.4rem' }}
+                >
+                  {getRoleLabel()}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
+                {language === 'ur' ? 'لاگ ان:' : 'Logged in as:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
+              </div>
             </div>
           </div>
 
@@ -665,6 +544,17 @@ export const AppLayout: React.FC = () => {
                 <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
               </button>
             )}
+
+            {/* Direct Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="btn btn-sm btn-outline text-danger"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
+            >
+              <LogOut size={15} />
+              <span className="hidden sm:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
+            </button>
           </div>
         </header>
 

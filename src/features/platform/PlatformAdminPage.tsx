@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
   Store,
@@ -29,6 +30,13 @@ import {
   MessageCircle,
   Calendar,
   CheckCircle2,
+  Eye,
+  EyeOff,
+  Copy,
+  Share2,
+  PlusCircle,
+  UserPlus,
+  Mail,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -38,12 +46,29 @@ import { PlatformPlan, PlatformLicence } from '@/types';
 
 export const PlatformAdminPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { currentUser } = useAuth();
+  const { currentUser, enableDemoMode } = useAuth();
   const { activeTenant } = useTenant();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'tenants' | 'dues' | 'plans' | 'health'>('tenants');
   const [searchShop, setSearchShop] = useState('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // Password visibility & handover state
+  const [showTenantPasswords, setShowTenantPasswords] = useState<Record<string, boolean>>({});
+  const [isOnboardShopModalOpen, setIsOnboardShopModalOpen] = useState(false);
+  const [shareTenantHandover, setShareTenantHandover] = useState<any | null>(null);
+  const [tenantHandoverCopied, setTenantHandoverCopied] = useState(false);
+
+  // New Shop Form State
+  const [newShopName, setNewShopName] = useState('');
+  const [newShopNameUr, setNewShopNameUr] = useState('');
+  const [newShopCity, setNewShopCity] = useState('Rahim Yar Khan');
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [newOwnerPassword, setNewOwnerPassword] = useState('Pak@12345');
+  const [newShopPhone, setNewShopPhone] = useState('0300-1234567');
+  const [newShopPlan, setNewShopPlan] = useState('Professional Monthly (Rs. 3,499)');
 
   // Sample seed platform tenants
   const [tenants, setTenants] = useState([
@@ -52,6 +77,8 @@ export const PlatformAdminPage: React.FC = () => {
       businessName: 'Malik Electronics & Installments',
       businessNameUr: 'ملک الیکٹرانکس اینڈ اقساط سینٹر',
       ownerName: 'Haji Abdul Malik',
+      ownerEmail: 'owner@qistflow-demo.pk',
+      ownerPassword: 'Pak@12345',
       phone: '0300-1234567',
       city: 'Rahim Yar Khan',
       plan: 'Professional Monthly (Rs. 3,499)',
@@ -66,6 +93,8 @@ export const PlatformAdminPage: React.FC = () => {
       businessName: 'Khanpur Solar & Electric Mart',
       businessNameUr: 'خانپور سولر اینڈ الیکٹرک مارٹ',
       ownerName: 'Chaudhry Nadeem',
+      ownerEmail: 'nadeem.solar@khanpur.pk',
+      ownerPassword: 'Pak@12345',
       phone: '0301-9876543',
       city: 'Khanpur',
       plan: 'Standard Monthly (Rs. 1,999)',
@@ -80,6 +109,8 @@ export const PlatformAdminPage: React.FC = () => {
       businessName: 'Sadiqabad Fans & Home Appliances',
       businessNameUr: 'صادق آباد فینز اینڈ ہوم اپلائنسز',
       ownerName: 'Zahid Hussain',
+      ownerEmail: 'zahid.fans@sadiqabad.pk',
+      ownerPassword: 'Pak@12345',
       phone: '0302-3344556',
       city: 'Sadiqabad',
       plan: 'Standard Lifetime (Rs. 34,999)',
@@ -94,6 +125,8 @@ export const PlatformAdminPage: React.FC = () => {
       businessName: 'Al-Madina Motorbike Center',
       businessNameUr: 'المدینہ موٹر بائیک سینٹر',
       ownerName: 'Muhammad Arshad',
+      ownerEmail: 'arshad.motors@ryk.pk',
+      ownerPassword: 'Pak@12345',
       phone: '0303-7788990',
       city: 'Rahim Yar Khan',
       plan: 'Starter Monthly (Rs. 999)',
@@ -258,6 +291,72 @@ export const PlatformAdminPage: React.FC = () => {
     setTimeout(() => setActionSuccess(null), 3000);
   };
 
+  const toggleTenantPassword = (tenantId: string) => {
+    setShowTenantPasswords((prev) => ({ ...prev, [tenantId]: !prev[tenantId] }));
+  };
+
+  const handleOnboardShop = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newShopName || !newOwnerName || !newOwnerEmail || !newOwnerPassword) return;
+
+    const newTenantId = `tenant_${Date.now()}`;
+    const newTenant = {
+      tenantId: newTenantId,
+      businessName: newShopName,
+      businessNameUr: newShopNameUr || newShopName,
+      ownerName: newOwnerName,
+      ownerEmail: newOwnerEmail,
+      ownerPassword: newOwnerPassword,
+      phone: newShopPhone,
+      city: newShopCity,
+      plan: newShopPlan,
+      licenceType: 'subscription',
+      status: 'active',
+      activeContracts: 0,
+      createdAt: new Date().toISOString().split('T')[0],
+      supportNotes: 'Newly onboarded shop by Super-Admin.',
+    };
+
+    setTenants((prev) => [newTenant, ...prev]);
+    setIsOnboardShopModalOpen(false);
+    setShareTenantHandover(newTenant);
+    setActionSuccess(language === 'ur' ? 'نئی دکان رجسٹر ہو گئی اور مالک کے لاگ ان کریڈنشلز تیار ہیں!' : 'Shop onboarded successfully!');
+    setTimeout(() => setActionSuccess(null), 3000);
+
+    setNewShopName('');
+    setNewShopNameUr('');
+    setNewOwnerName('');
+    setNewOwnerEmail('');
+    setNewOwnerPassword('Pak@12345');
+  };
+
+  const getTenantHandoverText = (t: any) => {
+    return `*مبارک ہو! آپ کی دکان کا QistFlow پورٹل تیار ہے*
+دکان کا نام: ${t.businessNameUr || t.businessName}
+مالک کا نام: ${t.ownerName}
+شہر: ${t.city}
+لاگ ان ای میل (Gmail): ${t.ownerEmail}
+پاس ورڈ (Password): ${t.ownerPassword}
+سافٹ ویئر لنک: https://qistflow.app/#/login
+سیکیورٹی نوٹ: اپنا پاس ورڈ محفوظ رکھیں اور صرف اپنے پاس رکھیں۔ ملازمین کے لاگ ان اکاؤنٹس آپ دکان کے اندر Staff پیج سے خود بنائیں گے۔`;
+  };
+
+  const copyTenantHandoverMessage = (t: any) => {
+    navigator.clipboard.writeText(getTenantHandoverText(t));
+    setTenantHandoverCopied(true);
+    setTimeout(() => setTenantHandoverCopied(false), 2500);
+  };
+
+  const handleTestLoginAsOwner = (t: any) => {
+    enableDemoMode('owner', {
+      userId: t.tenantId + '_owner',
+      displayName: t.ownerName,
+      email: t.ownerEmail,
+      role: 'owner',
+    });
+    navigate('/dashboard');
+  };
+
   const handleMarkSubscriptionPaid = (subId: string) => {
     setShopSubscriptions((prev) =>
       prev.map((s) => (s.subId === subId ? { ...s, status: 'paid', lastPaidDate: new Date().toISOString().split('T')[0] } : s))
@@ -366,22 +465,32 @@ export const PlatformAdminPage: React.FC = () => {
           <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
               <h3 className="card-title">
-                {language === 'ur' ? 'رجسٹرڈ دکانوں کی فہرست' : 'Registered Shops Directory'}
+                {language === 'ur' ? 'رجسٹرڈ دکانوں کی فہرست و مالکان کے لاگ انز' : 'Registered Shops Directory & Owner Credentials'}
               </h3>
               <p className="card-subtitle">
                 {language === 'ur'
-                  ? 'رحیم یار خان، خانپور، اور صادق آباد کی رجسٹرڈ دکانیں'
-                  : 'All shops onboarded to QistFlow across target cities.'}
+                  ? 'سپر ایڈمن دکان کا کھاتہ اور مالک کا جی میل / پاس ورڈ بنا کر دیتا ہے (No public signup)'
+                  : 'Platform super-admin provisions shop tenancies and creates owner login credentials.'}
               </p>
             </div>
-            <div style={{ width: '100%', maxWidth: '280px' }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder={language === 'ur' ? 'نام یا شہر سے تلاش کریں...' : 'Search shop, city, or owner...'}
-                value={searchShop}
-                onChange={(e) => setSearchShop(e.target.value)}
-              />
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                onClick={() => setIsOnboardShopModalOpen(true)}
+                className="btn btn-sm btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <PlusCircle size={15} />
+                <span>{language === 'ur' ? '+ نئی دکان آن بورڈ کریں' : '+ Onboard New Shop'}</span>
+              </button>
+              <div style={{ width: '100%', maxWidth: '220px' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={language === 'ur' ? 'تلاش کریں...' : 'Search shop, city, or owner...'}
+                  value={searchShop}
+                  onChange={(e) => setSearchShop(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
@@ -391,55 +500,110 @@ export const PlatformAdminPage: React.FC = () => {
                 <tr>
                   <th>{language === 'ur' ? 'دکان کا نام' : 'Shop / Business'}</th>
                   <th>{language === 'ur' ? 'مالک / فون' : 'Owner & Contact'}</th>
+                  <th>{language === 'ur' ? 'مالک کا لاگ ان (Gmail & Password)' : 'Owner Login (Gmail & Password)'}</th>
                   <th>{language === 'ur' ? 'شہر' : 'City'}</th>
                   <th>{language === 'ur' ? 'پلان' : 'Plan'}</th>
                   <th>{language === 'ur' ? 'اسٹیٹس' : 'Status'}</th>
-                  <th>{language === 'ur' ? 'انتظام' : 'Action'}</th>
+                  <th>{language === 'ur' ? 'انتظام و ایکشنز' : 'Actions & Handover'}</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredTenants.map((t) => (
-                  <tr key={t.tenantId}>
-                    <td>
-                      <div className="font-semibold">{t.businessName}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{t.businessNameUr}</div>
-                    </td>
-                    <td>
-                      <div>{t.ownerName}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }} dir="ltr">{t.phone}</div>
-                    </td>
-                    <td>
-                      <span className="badge badge-outline">{t.city}</span>
-                    </td>
-                    <td>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{t.plan}</div>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          t.status === 'active'
-                            ? 'badge-success'
-                            : t.status === 'trial'
-                            ? 'badge-info'
-                            : t.status === 'grace'
-                            ? 'badge-warning'
-                            : 'badge-danger'
-                        }`}
-                      >
-                        {t.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => openEditModal(t)}
-                        className="btn btn-sm btn-outline"
-                      >
-                        <Edit size={14} />
-                        <span>{language === 'ur' ? 'لائسنس' : 'Manage'}</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredTenants.map((t) => {
+                  const isPassVisible = !!showTenantPasswords[t.tenantId];
+                  return (
+                    <tr key={t.tenantId}>
+                      <td>
+                        <div className="font-semibold">{t.businessName}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>{t.businessNameUr}</div>
+                      </td>
+                      <td>
+                        <div className="font-semibold">{t.ownerName}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }} dir="ltr">{t.phone}</div>
+                      </td>
+                      <td>
+                        <div style={{ background: '#f8fafc', padding: '0.35rem 0.6rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', minWidth: '190px' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a' }}>{t.ownerEmail}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#64748b' }}>
+                              {isPassVisible ? t.ownerPassword : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleTenantPassword(t.tenantId)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#64748b' }}
+                              title={isPassVisible ? 'Hide password' : 'Show password'}
+                            >
+                              {isPassVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(t.ownerPassword);
+                                setActionSuccess(`پاس ورڈ کاپی ہو گیا: ${t.ownerPassword}`);
+                                setTimeout(() => setActionSuccess(null), 2500);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#0284c7' }}
+                              title="Copy password"
+                            >
+                              <Copy size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-outline">{t.city}</span>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{t.plan}</div>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            t.status === 'active'
+                              ? 'badge-success'
+                              : t.status === 'trial'
+                              ? 'badge-info'
+                              : t.status === 'grace'
+                              ? 'badge-warning'
+                              : 'badge-danger'
+                          }`}
+                        >
+                          {t.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => setShareTenantHandover(t)}
+                            className="btn btn-sm btn-outline text-success"
+                            title={language === 'ur' ? 'مالک کو واٹس ایپ پر لاگ ان تفصیلات بھیجیں' : 'Send WhatsApp handover'}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            <MessageCircle size={13} />
+                            <span>{language === 'ur' ? 'لاگ ان بھیجیں' : 'Handover'}</span>
+                          </button>
+                          <button
+                            onClick={() => handleTestLoginAsOwner(t)}
+                            className="btn btn-sm btn-outline"
+                            title={language === 'ur' ? 'دکان دار کے طور پر ٹیسٹ لاگ ان کریں' : 'Test login as owner'}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            <Eye size={13} />
+                            <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test'}</span>
+                          </button>
+                          <button
+                            onClick={() => openEditModal(t)}
+                            className="btn btn-sm btn-outline"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            <Edit size={13} />
+                            <span>{language === 'ur' ? 'لائسنس' : 'Manage'}</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -749,6 +913,228 @@ export const PlatformAdminPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Onboard New Shop & Owner Login Modal */}
+      {isOnboardShopModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 60 }}>
+          <div className="card" style={{ width: '92%', maxWidth: '580px', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div>
+                <h3 className="card-title" style={{ margin: 0 }}>
+                  {language === 'ur' ? 'نئی دکان اور مالک کا لاگ ان رجسٹر کریں' : 'Onboard New Shop & Owner Login'}
+                </h3>
+                <p className="card-subtitle" style={{ margin: 0 }}>
+                  {language === 'ur' ? 'سپر ایڈمن دکان کا کھاتہ بنائے گا اور مالک کا جی میل / پاس ورڈ جاری کرے گا' : 'Super-Admin provisions tenancy and issues owner Gmail and initial password.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsOnboardShopModalOpen(false)}
+                className="btn btn-icon btn-outline btn-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleOnboardShop}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'دکان کا نام (English)' : 'Shop Name (English) *'}</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    value={newShopName}
+                    onChange={(e) => setNewShopName(e.target.value)}
+                    placeholder="e.g. Al-Rehman Electronics"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'دکان کا نام (اردو)' : 'Shop Name (Urdu)'}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newShopNameUr}
+                    onChange={(e) => setNewShopNameUr(e.target.value)}
+                    placeholder="مثال: الرحمٰن الیکٹرانکس اینڈ انسٹالمنٹ"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'شہر' : 'City *'}</label>
+                  <select
+                    className="form-input"
+                    value={newShopCity}
+                    onChange={(e) => setNewShopCity(e.target.value)}
+                  >
+                    <option value="Rahim Yar Khan">Rahim Yar Khan (رحیم یار خان)</option>
+                    <option value="Khanpur">Khanpur (خانپور)</option>
+                    <option value="Sadiqabad">Sadiqabad (صادق آباد)</option>
+                    <option value="Liaquatpur">Liaquatpur (لیاقت پور)</option>
+                    <option value="Bahawalpur">Bahawalpur (بہاولپور)</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'مالک کا نام' : 'Owner Name *'}</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    value={newOwnerName}
+                    onChange={(e) => setNewOwnerName(e.target.value)}
+                    placeholder="e.g. Tariq Mehmood"
+                  />
+                </div>
+              </div>
+
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.85rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#166534', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <KeyRound size={15} />
+                  <span>{language === 'ur' ? 'مالک کے لاگ ان کریڈنشلز (Owner Login Credentials)' : 'Owner Login Credentials (Gmail & Password)'}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کی جی میل (Gmail) *' : 'Owner Gmail *'}</label>
+                    <input
+                      type="email"
+                      required
+                      className="form-input"
+                      value={newOwnerEmail}
+                      onChange={(e) => setNewOwnerEmail(e.target.value)}
+                      placeholder="owner@gmail.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '0.75rem' }}>{language === 'ur' ? 'مالک کا پاس ورڈ *' : 'Initial Password *'}</label>
+                    <input
+                      type="text"
+                      required
+                      className="form-input font-mono"
+                      value={newOwnerPassword}
+                      onChange={(e) => setNewOwnerPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'مالک کا موبائل نمبر' : 'Owner Phone *'}</label>
+                  <input
+                    type="tel"
+                    required
+                    className="form-input"
+                    value={newShopPhone}
+                    onChange={(e) => setNewShopPhone(e.target.value)}
+                    placeholder="0300-1234567"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'سبسکرپشن پلان' : 'Subscription Plan'}</label>
+                  <select
+                    className="form-input"
+                    value={newShopPlan}
+                    onChange={(e) => setNewShopPlan(e.target.value)}
+                  >
+                    <option value="Professional Monthly (Rs. 3,499)">Professional Monthly (Rs. 3,499)</option>
+                    <option value="Standard Monthly (Rs. 1,999)">Standard Monthly (Rs. 1,999)</option>
+                    <option value="Starter Monthly (Rs. 999)">Starter Monthly (Rs. 999)</option>
+                    <option value="Standard Lifetime (Rs. 34,999)">Standard Lifetime (Rs. 34,999)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsOnboardShopModalOpen(false)}
+                  className="btn btn-outline"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <CheckCircle size={16} />
+                  <span>{language === 'ur' ? 'دکان آن بورڈ کریں و کریڈنشلز جاری کریں' : 'Onboard & Issue Credentials'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Handover Credentials Modal (WhatsApp / Copy) */}
+      {shareTenantHandover && (
+        <div className="modal-overlay" style={{ zIndex: 70 }}>
+          <div className="card" style={{ width: '92%', maxWidth: '520px', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+                  <MessageCircle size={18} />
+                </div>
+                <h3 className="card-title" style={{ margin: 0 }}>
+                  {language === 'ur' ? 'مالک کو لاگ ان کی ترسیل (Handover)' : 'Share Login with Shop Owner'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShareTenantHandover(null)}
+                className="btn btn-icon btn-outline btn-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '1rem' }}>
+              {language === 'ur'
+                ? `یہ لاگ ان پیغام دکان دار (${shareTenantHandover.ownerName}) کو واٹس ایپ یا ایس ایم ایس کے ذریعے بھیجیں تاکہ وہ اپنا پورٹل کھول سکیں۔`
+                : `Send this login handover message to the shop owner (${shareTenantHandover.ownerName}) via WhatsApp or SMS.`}
+            </p>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '0.5rem',
+                padding: '0.875rem',
+                fontSize: '0.8125rem',
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                marginBottom: '1rem',
+                lineHeight: 1.5,
+              }}
+            >
+              {getTenantHandoverText(shareTenantHandover)}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => copyTenantHandoverMessage(shareTenantHandover)}
+                className="btn btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Copy size={15} />
+                <span>{tenantHandoverCopied ? (language === 'ur' ? 'کاپی ہو گیا!' : 'Copied!') : (language === 'ur' ? 'پیغام کاپی کریں' : 'Copy Message')}</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(getTenantHandoverText(shareTenantHandover))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary"
+                  style={{ background: '#22c55e', borderColor: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <MessageCircle size={15} />
+                  <span>{language === 'ur' ? 'واٹس ایپ پر بھیجیں' : 'Send via WhatsApp'}</span>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}

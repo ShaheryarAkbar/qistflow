@@ -26,6 +26,7 @@ export interface StaffMemberRecord {
   designation?: string;
   monthlySalaryPaisa?: number;
   joinedAt: string;
+  password?: string;
 }
 
 const DEMO_STAFF_KEY = 'qistflow_demo_staff';
@@ -49,6 +50,7 @@ export const StaffRepository = {
           designation: 'Business Owner & Founder',
           monthlySalaryPaisa: 0,
           joinedAt: '2026-01-01',
+          password: 'Pak@12345',
         },
         {
           userId: 'demo-manager-102',
@@ -68,6 +70,7 @@ export const StaffRepository = {
           designation: 'Shop Manager (Main Branch)',
           monthlySalaryPaisa: 4500000, // Rs. 45,000
           joinedAt: '2026-03-15',
+          password: 'Pak@12345',
         },
         {
           userId: 'demo-accountant-103',
@@ -86,6 +89,7 @@ export const StaffRepository = {
           designation: 'Head Accountant & Ledger Keeper',
           monthlySalaryPaisa: 3500000, // Rs. 35,000
           joinedAt: '2026-04-01',
+          password: 'Pak@12345',
         },
         {
           userId: 'demo-recovery-101',
@@ -98,6 +102,7 @@ export const StaffRepository = {
           designation: 'Field Recovery Officer (Zone A)',
           monthlySalaryPaisa: 2800000, // Rs. 28,000
           joinedAt: '2026-05-10',
+          password: 'Pak@12345',
         },
         {
           userId: 'demo-recovery-102',
@@ -110,6 +115,7 @@ export const StaffRepository = {
           designation: 'Field Recovery Officer (Zone B)',
           monthlySalaryPaisa: 2500000, // Rs. 25,000
           joinedAt: '2026-06-01',
+          password: 'Pak@12345',
         },
         {
           userId: 'demo-support-104',
@@ -122,6 +128,7 @@ export const StaffRepository = {
           designation: 'Cleaning & Support Staff (صفائی و معاون عملہ)',
           monthlySalaryPaisa: 2000000, // Rs. 20,000
           joinedAt: '2026-02-15',
+          password: 'Pak@12345',
         },
       ];
       localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(initialStaff));
@@ -154,9 +161,24 @@ export const StaffRepository = {
     phone?: string;
     role: UserRole;
     permissions?: string[];
+    designation?: string;
+    monthlySalaryPaisa?: number;
+    password?: string;
     isDemo?: boolean;
   }): Promise<StaffMemberRecord> {
-    const { tenantId, invitedBy, displayName, email, phone, role, permissions, isDemo = false } = params;
+    const {
+      tenantId,
+      invitedBy,
+      displayName,
+      email,
+      phone,
+      role,
+      permissions,
+      designation,
+      monthlySalaryPaisa,
+      password = 'Pak@12345',
+      isDemo = false,
+    } = params;
     const userId = `staff_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     // Default permissions based on role
@@ -178,7 +200,10 @@ export const StaffRepository = {
       role,
       status: 'active',
       permissions: effectivePermissions,
+      designation: designation || (role === 'manager' ? 'Shop Manager' : role === 'accountant' ? 'Head Accountant' : 'Recovery Officer'),
+      monthlySalaryPaisa: monthlySalaryPaisa || (role === 'manager' ? 4500000 : role === 'accountant' ? 3500000 : 2800000),
       joinedAt: new Date().toISOString().split('T')[0],
+      password,
     };
 
     if (isDemo) {
@@ -201,6 +226,30 @@ export const StaffRepository = {
 
     await setDoc(doc(db, 'tenants', tenantId, 'memberships', userId), membershipDoc);
     return newMember;
+  },
+
+  async updateStaffPassword(
+    tenantId: string,
+    userId: string,
+    newPassword: string,
+    isDemo = false
+  ): Promise<StaffMemberRecord | undefined> {
+    if (isDemo) {
+      const staff = await this.getStaffMembers(tenantId, true);
+      const target = staff.find((s) => s.userId === userId);
+      if (target) {
+        target.password = newPassword;
+        localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(staff));
+        return target;
+      }
+      return undefined;
+    }
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'memberships', userId), {
+      password: newPassword,
+      updatedAt: serverTimestamp(),
+    });
+    return undefined;
   },
 
   async updateStaffPermissions(

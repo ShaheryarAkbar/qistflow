@@ -96,6 +96,72 @@ export const StaffPage: React.FC = () => {
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Password Vault States
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [editingPasswordMember, setEditingPasswordMember] = useState<StaffMemberRecord | null>(null);
+  const [newMemberPassword, setNewMemberPassword] = useState('');
+  const [savingNewPassword, setSavingNewPassword] = useState(false);
+  const [shareHandoverMember, setShareHandoverMember] = useState<StaffMemberRecord | null>(null);
+  const [handoverCopied, setHandoverCopied] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const toggleShowPassword = (userId: string) => {
+    setShowPasswords((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const handleOpenEditPassword = (member: StaffMemberRecord) => {
+    setEditingPasswordMember(member);
+    setNewMemberPassword(member.password || 'Pak@12345');
+  };
+
+  const handleSaveNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !editingPasswordMember || !newMemberPassword) return;
+    setSavingNewPassword(true);
+    try {
+      await StaffRepository.updateStaffPassword(
+        activeTenant.tenantId,
+        editingPasswordMember.userId,
+        newMemberPassword,
+        isDemoUser
+      );
+      setEditingPasswordMember(null);
+      await loadStaff();
+      showToast(language === 'ur' ? 'پاس ورڈ کامیابی سے تبدیل ہو گیا!' : 'Password updated successfully!');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update password');
+    } finally {
+      setSavingNewPassword(false);
+    }
+  };
+
+  const handleOpenShareHandover = (member: StaffMemberRecord) => {
+    setShareHandoverMember(member);
+    setHandoverCopied(false);
+  };
+
+  const getHandoverText = (member: StaffMemberRecord) => {
+    return `*QistFlow لاگ ان تفصیلات برائے ملازم*
+دکان: ${activeTenant?.businessNameUr || activeTenant?.businessName || 'قسط فلو'}
+نام: ${member.displayName}
+عہدہ: ${member.designation || member.role}
+لاگ ان ای میل (Gmail): ${member.email}
+پاس ورڈ (Password): ${member.password || 'Pak@12345'}
+سافٹ ویئر لاگ ان لنک: https://qistflow.app/#/login
+نوٹ: اپنا پاس ورڈ محفوظ رکھیں اور صرف اپنی ڈیوائس پر لاگ ان کریں۔`;
+  };
+
+  const copyHandoverMessage = (member: StaffMemberRecord) => {
+    navigator.clipboard.writeText(getHandoverText(member));
+    setHandoverCopied(true);
+    setTimeout(() => setHandoverCopied(false), 2500);
+  };
+
   const loadStaff = async () => {
     if (!activeTenant) return;
     setLoading(true);
@@ -199,6 +265,9 @@ export const StaffPage: React.FC = () => {
         email,
         phone,
         role,
+        password: tempPassword,
+        designation,
+        monthlySalaryPaisa: rupeesToPaisa(monthlySalaryRupees),
         isDemo: isDemoUser,
       });
 
@@ -432,154 +501,239 @@ export const StaffPage: React.FC = () => {
 
       {/* TAB 1: Staff Members & Roles */}
       {activeTab === 'members' && (
-        <div className="card">
-          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Staff Member</th>
-                  <th>Assigned Role</th>
-                  <th>Designation</th>
-                  <th>Monthly Salary</th>
-                  <th>Permissions & Scope</th>
-                  <th>Contact Information</th>
-                  <th>Joined Date</th>
-                  <th>{t('common.status')}</th>
-                  {canManageStaff && <th>{t('common.actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="text-center" style={{ padding: '2rem' }}>
-                      {t('common.loading')}
-                    </td>
-                  </tr>
-                ) : staff.map((member) => {
-                  const roleBadge = getRoleBadge(member.role);
-                  const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+        <div>
+          {/* Staff Credentials & Passwords Vault Info Card */}
+          <div
+            className="card mb-4"
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderLeft: '5px solid #2563eb',
+              padding: '1rem',
+              borderRadius: '0.625rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+              <KeyRound size={22} className="text-primary" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
+                  {language === 'ur'
+                    ? 'ملازمین کے لاگ انز و پاس ورڈز والٹ (Staff Credentials & Handover Vault)'
+                    : 'Staff Credentials & Handover Vault'}
+                </h4>
+                <p style={{ fontSize: '0.8125rem', color: '#475569', margin: 0 }}>
+                  {language === 'ur'
+                    ? 'دکان کا مالک اور مینیجر تمام ملازمین (اکاؤنٹنٹ، ریکوری افسران) کے لاگ ان ای میلز اور پاس ورڈز یہاں سے دیکھ سکتے ہیں، تبدیل کر سکتے ہیں اور براہ راست ملازم کو واٹس ایپ پر بھیج سکتے ہیں۔ ملازمین کو اپنے دیے گئے لاگ ان سے سائن ان کرنا ہوگا۔'
+                    : 'Shop leadership has full visibility over all staff login emails and passwords. You can view, reset, and hand over credentials directly to employees via WhatsApp/SMS.'}
+                </p>
+              </div>
+            </div>
+          </div>
 
-                  return (
-                    <tr key={member.userId}>
-                      <td>
-                        <div className="font-semibold">{member.displayName}</div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                          ID: {member.userId}
-                        </div>
+          <div className="card">
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Staff Member</th>
+                    <th>Assigned Role</th>
+                    <th>Designation</th>
+                    <th>Monthly Salary</th>
+                    <th>Permissions & Scope</th>
+                    <th>Login Email & Password</th>
+                    <th>Phone</th>
+                    <th>Joined Date</th>
+                    <th>{t('common.status')}</th>
+                    {canManageStaff && <th>{t('common.actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={10} className="text-center" style={{ padding: '2rem' }}>
+                        {t('common.loading')}
                       </td>
-                      <td>
-                        <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
-                      </td>
-                      <td>
-                        <span className="font-semibold text-slate-700" style={{ fontSize: '0.8125rem' }}>
-                          {member.designation || member.role.toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <MoneyDisplay paisa={member.monthlySalaryPaisa || 0} className="font-bold text-primary" />
-                          {canManageStaff && (
-                            <button
-                              onClick={() => handleOpenEditSalary(member)}
-                              className="btn btn-icon btn-sm btn-outline"
-                              title={language === 'ur' ? 'تنخواہ تبدیل کریں' : 'Edit salary'}
-                              style={{ padding: '0.2rem', width: '22px', height: '22px' }}
-                            >
-                              <Edit2 size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {member.role === 'owner' ? (
-                          <span className="badge badge-success">Full Business Access</span>
-                        ) : member.role === 'recovery' ? (
-                          <span className="badge badge-slate">Restricted Mobile Field</span>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                            <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
-                              {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
-                            </span>
-                            {canConfigureThisMember && (
-                              <button
-                                onClick={() => handleOpenPermissionsModal(member)}
-                                className="btn btn-outline btn-sm"
-                                style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                title="Owner Configure Permissions"
-                              >
-                                <Sliders size={12} />
-                                <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '0.8125rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Mail size={12} className="text-muted" />
-                            <span>{member.email}</span>
-                          </div>
-                          {member.phone && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
-                              <Phone size={12} className="text-muted" />
-                              <span dir="ltr">{member.phone}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
-                      <td>
-                        <StatusBadge status={member.status} />
-                      </td>
-                      {canManageStaff && (
+                    </tr>
+                  ) : staff.map((member) => {
+                    const roleBadge = getRoleBadge(member.role);
+                    const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+
+                    return (
+                      <tr key={member.userId}>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                            {isDemoUser && (
+                          <div className="font-semibold">{member.displayName}</div>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            ID: {member.userId}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
+                        </td>
+                        <td>
+                          <span className="font-semibold text-slate-700" style={{ fontSize: '0.8125rem' }}>
+                            {member.designation || member.role.toUpperCase()}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <MoneyDisplay paisa={member.monthlySalaryPaisa || 0} className="font-bold text-primary" />
+                            {canManageStaff && (
                               <button
-                                type="button"
-                                onClick={() => {
-                                  switchDemoStaff(member);
-                                  if (member.role === 'recovery') navigate('/recovery');
-                                  else if (member.role === 'super_admin') navigate('/admin');
-                                  else navigate('/dashboard');
-                                }}
-                                className="btn btn-sm btn-outline text-success"
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', borderColor: '#86efac', background: '#f0fdf4' }}
-                                title={language === 'ur' ? `${member.displayName} کا لاگ ان ویو ٹیسٹ کریں` : `Test view as ${member.displayName}`}
+                                onClick={() => handleOpenEditSalary(member)}
+                                className="btn btn-icon btn-sm btn-outline"
+                                title={language === 'ur' ? 'تنخواہ تبدیل کریں' : 'Edit salary'}
+                                style={{ padding: '0.2rem', width: '22px', height: '22px' }}
                               >
-                                <Eye size={12} />
-                                <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test View'}</span>
+                                <Edit2 size={11} />
                               </button>
-                            )}
-                            {canConfigureThisMember && (
-                              <button
-                                onClick={() => handleOpenPermissionsModal(member)}
-                                className="btn btn-sm btn-outline text-primary"
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                              >
-                                <Sliders size={13} />
-                                <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
-                              </button>
-                            )}
-                            {member.role !== 'owner' ? (
-                              <button
-                                onClick={() => handleToggleStatus(member)}
-                                className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
-                              >
-                                {member.status === 'active' ? 'Suspend' : 'Activate'}
-                              </button>
-                            ) : (
-                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
                             )}
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td>
+                          {member.role === 'owner' ? (
+                            <span className="badge badge-success">Full Business Access</span>
+                          ) : member.role === 'recovery' ? (
+                            <span className="badge badge-slate">Restricted Mobile Field</span>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                              <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                                {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
+                              </span>
+                              {canConfigureThisMember && (
+                                <button
+                                  onClick={() => handleOpenPermissionsModal(member)}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                  title="Owner Configure Permissions"
+                                >
+                                  <Sliders size={12} />
+                                  <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8125rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                              <Mail size={12} className="text-primary" />
+                              <strong className="text-slate-900">{member.email}</strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <KeyRound size={12} className="text-amber-600" />
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>
+                                {showPasswords[member.userId] ? (member.password || 'Pak@12345') : '••••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleShowPassword(member.userId)}
+                                className="btn btn-icon btn-sm btn-outline"
+                                style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                title={showPasswords[member.userId] ? 'Hide' : 'Show password'}
+                              >
+                                {showPasswords[member.userId] ? <EyeOff size={11} /> : <Eye size={11} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(member.password || 'Pak@12345');
+                                  showToast(language === 'ur' ? 'پاس ورڈ کاپی ہو گیا!' : 'Password copied!');
+                                }}
+                                className="btn btn-icon btn-sm btn-outline"
+                                style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                title="Copy password"
+                              >
+                                <Copy size={11} />
+                              </button>
+                              {canManageStaff && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditPassword(member)}
+                                  className="btn btn-icon btn-sm btn-outline text-primary"
+                                  style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                  title={language === 'ur' ? 'پاس ورڈ تبدیل کریں' : 'Change password'}
+                                >
+                                  <Edit2 size={11} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8125rem' }}>
+                            {member.phone ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Phone size={12} className="text-muted" />
+                                <span dir="ltr">{member.phone}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
+                        <td>
+                          <StatusBadge status={member.status} />
+                        </td>
+                        {canManageStaff && (
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenShareHandover(member)}
+                                className="btn btn-sm btn-outline text-success"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                                title={language === 'ur' ? 'لاگ ان کی تفصیلات واٹس ایپ پر بھیجیں' : 'Share credentials with employee'}
+                              >
+                                <Share2 size={12} />
+                                <span>{language === 'ur' ? 'لاگ ان بھیجیں' : 'Share'}</span>
+                              </button>
+                              {isDemoUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    switchDemoStaff(member);
+                                    if (member.role === 'recovery') navigate('/recovery');
+                                    else if (member.role === 'super_admin') navigate('/admin');
+                                    else navigate('/dashboard');
+                                  }}
+                                  className="btn btn-sm btn-outline text-primary"
+                                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                  title={language === 'ur' ? `${member.displayName} کا لاگ ان ویو ٹیسٹ کریں` : `Test view as ${member.displayName}`}
+                                >
+                                  <Eye size={12} />
+                                  <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test View'}</span>
+                                </button>
+                              )}
+                              {canConfigureThisMember && (
+                                <button
+                                  onClick={() => handleOpenPermissionsModal(member)}
+                                  className="btn btn-sm btn-outline text-primary"
+                                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                >
+                                  <Sliders size={13} />
+                                  <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
+                                </button>
+                              )}
+                              {member.role !== 'owner' ? (
+                                <button
+                                  onClick={() => handleToggleStatus(member)}
+                                  className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
+                                >
+                                  {member.status === 'active' ? 'Suspend' : 'Activate'}
+                                </button>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -1298,6 +1452,164 @@ export const StaffPage: React.FC = () => {
               >
                 <Printer size={15} />
                 <span>{language === 'ur' ? 'پرنٹ کریں' : 'Print Slip'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Alert Notice */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            background: '#065f46',
+            color: '#fff',
+            padding: '0.75rem 1.25rem',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            zIndex: 100,
+            fontSize: '0.875rem',
+            fontWeight: 600,
+          }}
+        >
+          <CheckCircle2 size={18} className="text-emerald-300" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Edit Password Modal */}
+      {editingPasswordMember && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <KeyRound size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'ملازم کا لاگ ان پاس ورڈ تبدیل کریں' : 'Change Employee Password'}
+                </h3>
+              </div>
+              <button onClick={() => setEditingPasswordMember(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewPassword}>
+              <div className="modal-body">
+                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.375rem', border: '1px solid #e2e8f0', marginBottom: '1rem', fontSize: '0.8125rem' }}>
+                  <div><strong>{editingPasswordMember.displayName}</strong> ({editingPasswordMember.role.toUpperCase()})</div>
+                  <div className="text-muted">{editingPasswordMember.email}</div>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'نیا پاس ورڈ' : 'New Password'}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newMemberPassword}
+                    onChange={(e) => setNewMemberPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="Enter new password"
+                  />
+                  <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                    {language === 'ur' ? 'تبدیل کرنے کے بعد یہ پاس ورڈ ملازم کو بھیج دیں۔' : 'Employee will use this password to sign in.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setEditingPasswordMember(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingNewPassword}>
+                  {savingNewPassword ? t('common.loading') : language === 'ur' ? 'پاس ورڈ محفوظ کریں' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Share Credentials Handover Modal */}
+      {shareHandoverMember && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="card" style={{ width: '90%', maxWidth: '480px', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Share2 size={20} className="text-success" />
+                <h3 className="card-title text-success" style={{ margin: 0 }}>
+                  {language === 'ur' ? 'لاگ ان تفصیلات برائے ملازم' : 'Employee Login Handover'}
+                </h3>
+              </div>
+              <button onClick={() => setShareHandoverMember(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-muted mb-3" style={{ fontSize: '0.8125rem' }}>
+              {language === 'ur'
+                ? 'یہ پیغام کاپی کر کے ملازم کو واٹس ایپ یا ایس ایم ایس پر بھیجیں تاکہ وہ فوری سائن ان کر سکے۔'
+                : 'Copy or send this message directly to the employee via WhatsApp or SMS for login.'}
+            </p>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.5rem',
+                padding: '0.875rem',
+                fontFamily: 'monospace',
+                fontSize: '0.8125rem',
+                whiteSpace: 'pre-line',
+                lineHeight: 1.5,
+                color: '#0f172a',
+                marginBottom: '1rem',
+              }}
+            >
+              {getHandoverText(shareHandoverMember)}
+            </div>
+
+            {handoverCopied && (
+              <div className="alert alert-success mb-3" style={{ padding: '0.5rem' }}>
+                <CheckCircle size={15} />
+                <span>{language === 'ur' ? 'مکمل پیغام کاپی ہو گیا!' : 'Credentials message copied to clipboard!'}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => copyHandoverMessage(shareHandoverMember)}
+                className="btn btn-outline"
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+              >
+                <Copy size={15} />
+                <span>{language === 'ur' ? 'پیغام کاپی کریں' : 'Copy Text'}</span>
+              </button>
+              {shareHandoverMember.phone && (
+                <a
+                  href={`https://wa.me/${shareHandoverMember.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(getHandoverText(shareHandoverMember))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-success"
+                  style={{ flex: 1.2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                >
+                  <Share2 size={15} />
+                  <span>WhatsApp</span>
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setShareHandoverMember(null)}
+                className="btn btn-secondary"
+              >
+                {t('common.confirm')}
               </button>
             </div>
           </div>

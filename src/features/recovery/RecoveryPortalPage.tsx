@@ -444,13 +444,13 @@ export const RecoveryPortalPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Active Recovery Officer Banner & Quick Switcher for Testing */}
+      {/* Active Recovery Officer Banner (Restricted Identity - Strictly No Officer Dropdown) */}
       {isRecovery && (
         <div
           className="card mb-4"
           style={{
-            background: '#eff6ff',
-            border: '1px solid #93c5fd',
+            background: '#f0fdf4',
+            border: '1px solid #86efac',
             padding: '0.875rem 1rem',
             borderRadius: '0.75rem',
             display: 'flex',
@@ -463,7 +463,7 @@ export const RecoveryPortalPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <div
               style={{
-                background: '#2563eb',
+                background: '#059669',
                 color: '#fff',
                 width: '36px',
                 height: '36px',
@@ -477,49 +477,20 @@ export const RecoveryPortalPage: React.FC = () => {
               🛵
             </div>
             <div>
-              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e3a8a' }}>
-                {language === 'ur'
-                  ? 'ریکوری فیلڈ موبائل پورٹل (محدود موبائل ویو)'
-                  : 'Recovery Mobile Field View (Restricted)'}
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#064e3b' }}>
+                {currentUser?.displayName || 'فیلڈ ریکوری آفیسر'}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>
-                {language === 'ur' ? 'فعال آفیسر:' : 'Active Officer:'}{' '}
-                <strong style={{ color: '#1e40af' }}>{currentUser?.displayName}</strong> ({currentUser?.email})
+              <div style={{ fontSize: '0.75rem', color: '#047857' }}>
+                {language === 'ur'
+                  ? 'محدود رسائی: صرف آپ کو تفویض کردہ گاہکوں اور قسطوں کا ریکارڈ'
+                  : 'Restricted Mobile Access: Only your assigned customers & dues'}
               </div>
             </div>
           </div>
 
-          {isDemoUser && recoveryStaff.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e40af' }}>
-                {language === 'ur' ? 'دوسرا آفیسر منتخب کریں:' : 'Switch Officer:'}
-              </span>
-              <select
-                value={currentUser?.uid}
-                onChange={(e) => {
-                  const off = recoveryStaff.find((s) => s.userId === e.target.value);
-                  if (off) {
-                    switchDemoStaff(off);
-                  }
-                }}
-                className="form-input"
-                style={{
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.8125rem',
-                  height: 'auto',
-                  fontWeight: 700,
-                  background: '#ffffff',
-                  minWidth: '170px',
-                }}
-              >
-                {recoveryStaff.map((officer) => (
-                  <option key={officer.userId} value={officer.userId}>
-                    {officer.displayName} ({officer.designation || 'Field'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', padding: '0.2rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
+            ID: {currentUser?.uid}
+          </div>
         </div>
       )}
 

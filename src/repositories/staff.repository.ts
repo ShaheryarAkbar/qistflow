@@ -12,7 +12,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase/app';
-import { Membership, UserRole, MembershipStatus } from '@/types';
+import { Membership, UserRole, MembershipStatus, StaffPayrollRecord, PaymentMethod } from '@/types';
+import { ExpenseRepository } from './expense.repository';
 
 export interface StaffMemberRecord {
   userId: string;
@@ -22,10 +23,13 @@ export interface StaffMemberRecord {
   role: UserRole;
   status: MembershipStatus;
   permissions: string[];
+  designation?: string;
+  monthlySalaryPaisa?: number;
   joinedAt: string;
 }
 
 const DEMO_STAFF_KEY = 'qistflow_demo_staff';
+const DEMO_PAYROLL_KEY = 'qistflow_demo_payroll';
 
 export const StaffRepository = {
   async getStaffMembers(tenantId: string, isDemo = false): Promise<StaffMemberRecord[]> {
@@ -36,17 +40,19 @@ export const StaffRepository = {
       const initialStaff: StaffMemberRecord[] = [
         {
           userId: 'demo-owner-101',
-          displayName: 'Haji Abdul Malik (Owner)',
+          displayName: 'Haji Abdul Malik',
           email: 'owner@qistflow-demo.pk',
           phone: '0300-1234567',
           role: 'owner',
           status: 'active',
           permissions: ['all'],
+          designation: 'Business Owner & Founder',
+          monthlySalaryPaisa: 0,
           joinedAt: '2026-01-01',
         },
         {
           userId: 'demo-manager-102',
-          displayName: 'Muhammad Tariq (Shop Manager)',
+          displayName: 'Muhammad Tariq',
           email: 'manager@qistflow-demo.pk',
           phone: '0301-7654321',
           role: 'manager',
@@ -59,11 +65,13 @@ export const StaffRepository = {
             'can_manage_staff',
             'grant_discounts',
           ],
+          designation: 'Shop Manager (Main Branch)',
+          monthlySalaryPaisa: 4500000, // Rs. 45,000
           joinedAt: '2026-03-15',
         },
         {
           userId: 'demo-accountant-103',
-          displayName: 'Rashid Mehmood (Accountant)',
+          displayName: 'Rashid Mehmood',
           email: 'accountant@qistflow-demo.pk',
           phone: '0303-4455667',
           role: 'accountant',
@@ -75,17 +83,45 @@ export const StaffRepository = {
             'view_contracts',
             'view_customers',
           ],
+          designation: 'Head Accountant & Ledger Keeper',
+          monthlySalaryPaisa: 3500000, // Rs. 35,000
           joinedAt: '2026-04-01',
         },
         {
           userId: 'demo-recovery-101',
-          displayName: 'Kamran Ali (Recovery Officer)',
+          displayName: 'Kamran Ali',
           email: 'recovery@qistflow-demo.pk',
           phone: '0302-9988776',
           role: 'recovery',
           status: 'active',
           permissions: ['assigned_collections'],
+          designation: 'Field Recovery Officer (Zone A)',
+          monthlySalaryPaisa: 2800000, // Rs. 28,000
           joinedAt: '2026-05-10',
+        },
+        {
+          userId: 'demo-recovery-102',
+          displayName: 'Bilal Ahmed',
+          email: 'bilal.recovery@qistflow-demo.pk',
+          phone: '0304-1122334',
+          role: 'recovery',
+          status: 'active',
+          permissions: ['assigned_collections'],
+          designation: 'Field Recovery Officer (Zone B)',
+          monthlySalaryPaisa: 2500000, // Rs. 25,000
+          joinedAt: '2026-06-01',
+        },
+        {
+          userId: 'demo-support-104',
+          displayName: 'Muhammad Aslam',
+          email: 'aslam.support@qistflow-demo.pk',
+          phone: '0305-9911223',
+          role: 'recovery', // uses base operational role with support designation
+          status: 'active',
+          permissions: [],
+          designation: 'Cleaning & Support Staff (صفائی و معاون عملہ)',
+          monthlySalaryPaisa: 2000000, // Rs. 20,000
+          joinedAt: '2026-02-15',
         },
       ];
       localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(initialStaff));
@@ -103,6 +139,8 @@ export const StaffRepository = {
         role: m.role,
         status: m.membershipStatus,
         permissions: m.permissions || [m.role],
+        designation: 'Staff Member',
+        monthlySalaryPaisa: 3000000,
         joinedAt: new Date().toISOString().split('T')[0],
       };
     });
@@ -207,6 +245,117 @@ export const StaffRepository = {
       membershipStatus: status,
       updatedAt: serverTimestamp(),
     });
+  },
+
+  async updateStaffSalary(
+    tenantId: string,
+    userId: string,
+    monthlySalaryPaisa: number,
+    designation?: string,
+    isDemo = false
+  ): Promise<void> {
+    if (isDemo) {
+      const staff = await this.getStaffMembers(tenantId, true);
+      const target = staff.find((s) => s.userId === userId);
+      if (target) {
+        target.monthlySalaryPaisa = monthlySalaryPaisa;
+        if (designation) target.designation = designation;
+        localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(staff));
+      }
+      return;
+    }
+    const updates: any = { monthlySalaryPaisa, updatedAt: serverTimestamp() };
+    if (designation) updates.designation = designation;
+    await updateDoc(doc(db, 'tenants', tenantId, 'memberships', userId), updates);
+  },
+
+  async getPayrollRecords(tenantId: string, monthKey = '2026-11', isDemo = false): Promise<StaffPayrollRecord[]> {
+    if (isDemo) {
+      const stored = localStorage.getItem(`${DEMO_PAYROLL_KEY}_${tenantId}_${monthKey}`);
+      if (stored) return JSON.parse(stored);
+
+      const staff = await this.getStaffMembers(tenantId, true);
+      const initialPayroll: StaffPayrollRecord[] = staff
+        .filter((s) => s.role !== 'owner' && (s.monthlySalaryPaisa || 0) > 0)
+        .map((s, idx) => {
+          const isSamplePaid = idx === 0; // manager paid, others pending
+          return {
+            payrollId: `payr_${monthKey}_${s.userId}`,
+            tenantId,
+            userId: s.userId,
+            employeeName: s.displayName,
+            role: s.role,
+            designation: s.designation || s.role.toUpperCase(),
+            monthKey,
+            baseSalaryPaisa: s.monthlySalaryPaisa || 3000000,
+            bonusPaisa: 0,
+            deductionsPaisa: 0,
+            netPayablePaisa: s.monthlySalaryPaisa || 3000000,
+            status: isSamplePaid ? 'paid' : 'pending',
+            paidAt: isSamplePaid ? `${monthKey}-05` : undefined,
+            paymentMethod: isSamplePaid ? 'bank' : undefined,
+            notes: isSamplePaid ? 'Monthly salary transferred via bank' : undefined,
+            createdAt: new Date().toISOString(),
+          };
+        });
+
+      localStorage.setItem(`${DEMO_PAYROLL_KEY}_${tenantId}_${monthKey}`, JSON.stringify(initialPayroll));
+      return initialPayroll;
+    }
+
+    const colRef = collection(db, 'tenants', tenantId, 'payroll');
+    const snap = await getDocs(colRef);
+    return snap.docs.map((d: any) => ({ ...d.data(), id: d.id } as StaffPayrollRecord));
+  },
+
+  async paySalary(params: {
+    tenantId: string;
+    userId: string;
+    payrollId: string;
+    amountPaisa: number;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+    isDemo?: boolean;
+  }): Promise<StaffPayrollRecord> {
+    const { tenantId, userId, payrollId, amountPaisa, paymentMethod, notes = '', isDemo = false } = params;
+
+    const expense = await ExpenseRepository.recordExpense({
+      tenantId,
+      userId,
+      category: 'Salaries (تنخواہیں)',
+      amountPaisa,
+      method: paymentMethod,
+      description: `Staff Salary Payment [${notes || payrollId}]`,
+      isDemo,
+    });
+
+    if (isDemo) {
+      const parts = payrollId.split('_');
+      const monthKey = parts[1] || '2026-11';
+      const records = await this.getPayrollRecords(tenantId, monthKey, true);
+      const target = records.find((r) => r.payrollId === payrollId);
+      if (!target) throw new Error('Payroll record not found');
+
+      target.status = 'paid';
+      target.paidAt = new Date().toISOString().split('T')[0];
+      target.paymentMethod = paymentMethod;
+      target.expenseId = expense.expenseId;
+      target.notes = notes;
+
+      localStorage.setItem(`${DEMO_PAYROLL_KEY}_${tenantId}_${monthKey}`, JSON.stringify(records));
+      return target;
+    }
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'payroll', payrollId), {
+      status: 'paid',
+      paidAt: serverTimestamp(),
+      paymentMethod,
+      expenseId: expense.expenseId,
+      notes,
+    });
+
+    const docSnap = await getDocs(collection(db, 'tenants', tenantId, 'payroll'));
+    return docSnap.docs.find((d) => d.id === payrollId)?.data() as StaffPayrollRecord;
   },
 };
 

@@ -280,5 +280,89 @@ export const PaymentRepository = {
 
     return reversal;
   },
+
+  async updatePayment(params: {
+    tenantId: string;
+    userId: string;
+    paymentId: string;
+    customerId?: string;
+    contractId?: string;
+    amountPaisa?: number;
+    method?: PaymentMethod;
+    notes?: string;
+    reference?: string;
+    correctionReason: string;
+    isDemo?: boolean;
+  }): Promise<Payment> {
+    const {
+      tenantId,
+      userId,
+      paymentId,
+      customerId,
+      contractId,
+      amountPaisa,
+      method,
+      notes,
+      reference,
+      correctionReason,
+      isDemo = false,
+    } = params;
+
+    const payments = await this.getPayments(tenantId, isDemo);
+    const target = payments.find((p) => p.paymentId === paymentId);
+    if (!target) throw new Error('Payment not found');
+
+    const previousAmount = target.amountPaisa;
+    const previousContractId = target.contractId;
+
+    if (customerId) target.customerId = customerId;
+    if (contractId !== undefined) target.contractId = contractId;
+    if (method) target.method = method;
+    if (reference !== undefined) target.reference = reference;
+
+    const auditNote = `[Corrected on ${new Date().toISOString().split('T')[0]}: ${correctionReason}]`;
+    target.notes = notes ? `${notes} ${auditNote}` : `${target.notes || ''} ${auditNote}`.trim();
+
+    // If amount changed or contract changed, adjust contract totals
+    if (amountPaisa !== undefined && amountPaisa !== previousAmount) {
+      target.amountPaisa = amountPaisa;
+      const contracts = await SaleRepository.getContracts(tenantId, isDemo);
+      if (previousContractId) {
+        const oldCtr = contracts.find((c) => c.contractId === previousContractId);
+        if (oldCtr) {
+          const delta = amountPaisa - previousAmount;
+          oldCtr.totalPaidPaisa = Math.max(0, oldCtr.totalPaidPaisa + delta);
+          oldCtr.outstandingPaisa = Math.max(0, oldCtr.outstandingPaisa - delta);
+          if (isDemo) {
+            localStorage.setItem(`qistflow_demo_contracts_${tenantId}`, JSON.stringify(contracts));
+          } else {
+            await updateDoc(doc(db, 'tenants', tenantId, 'contracts', previousContractId), {
+              totalPaidPaisa: oldCtr.totalPaidPaisa,
+              outstandingPaisa: oldCtr.outstandingPaisa,
+              updatedAt: serverTimestamp(),
+            });
+          }
+        }
+      }
+    }
+
+    if (isDemo) {
+      localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(payments));
+      return target;
+    }
+
+    const updates: any = {
+      notes: target.notes,
+      updatedAt: serverTimestamp(),
+    };
+    if (customerId) updates.customerId = customerId;
+    if (contractId !== undefined) updates.contractId = contractId;
+    if (amountPaisa !== undefined) updates.amountPaisa = amountPaisa;
+    if (method) updates.method = method;
+    if (reference !== undefined) updates.reference = reference;
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'payments', paymentId), updates);
+    return target;
+  },
 };
 

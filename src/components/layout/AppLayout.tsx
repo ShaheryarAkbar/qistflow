@@ -206,6 +206,7 @@ export const AppLayout: React.FC = () => {
       { to: '/recovery', label: t('nav.recovery'), icon: Coins },
       { to: '/reports', label: t('nav.reports'), icon: BarChart3 },
       { to: '/archives', label: t('nav.archives'), icon: DownloadCloud },
+      { to: '/branches', label: language === 'ur' ? 'شاخیں و لائسنس (Branches)' : 'Shop Branches', icon: Store },
       { to: '/staff', label: t('nav.staff'), icon: UserCheck },
       { to: '/calculator', label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator', icon: Calculator },
       { to: '/settings', label: t('nav.settings'), icon: Settings },

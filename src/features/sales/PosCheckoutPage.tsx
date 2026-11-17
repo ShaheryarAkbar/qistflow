@@ -16,9 +16,11 @@ import {
   CheckCircle2,
   Trash2,
   Plus,
+  Minus,
   Coins,
   Receipt,
   AlertTriangle,
+  UserCheck,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -27,6 +29,8 @@ import { Customer, Product, SaleItemSnapshot, ScheduleFrequency } from '@/types'
 import { CustomerRepository } from '@/repositories/customer.repository';
 import { ProductRepository } from '@/repositories/product.repository';
 import { SaleRepository } from '@/repositories/sale.repository';
+import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
+import { RecoveryRepository } from '@/repositories/recovery.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { rupeesToPaisa } from '@/domain/money/paisa';
 import { generateScheduleEntries } from '@/domain/schedules/generator';
@@ -39,6 +43,8 @@ export const PosCheckoutPage: React.FC = () => {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [recoveryOfficers, setRecoveryOfficers] = useState<StaffMemberRecord[]>([]);
+  const [assignedOfficerId, setAssignedOfficerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   // Wizard state
@@ -60,20 +66,31 @@ export const PosCheckoutPage: React.FC = () => {
   });
 
   const [saving, setSaving] = useState(false);
-  const [successResult, setSuccessResult] = useState<{ saleId: string; contractId?: string } | null>(null);
+  const [successResult, setSuccessResult] = useState<{
+    saleId: string;
+    contractId?: string;
+    assignedOfficerName?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!activeTenant) return;
     const load = async () => {
       setLoading(true);
       try {
-        const [cList, pList] = await Promise.all([
+        const [cList, pList, staffList] = await Promise.all([
           CustomerRepository.getCustomers(activeTenant.tenantId, isDemoUser),
           ProductRepository.getProducts(activeTenant.tenantId, isDemoUser),
+          StaffRepository.getStaffMembers(activeTenant.tenantId, isDemoUser),
         ]);
         setCustomers(cList);
         setProducts(pList);
         if (cList.length > 0) setSelectedCustomerId(cList[0].customerId);
+
+        const recList = staffList.filter((s) => s.role === 'recovery');
+        setRecoveryOfficers(recList);
+        if (recList.length > 0) {
+          setAssignedOfficerId(recList[0].userId);
+        }
       } finally {
         setLoading(false);
       }
@@ -102,7 +119,35 @@ export const PosCheckoutPage: React.FC = () => {
     }
   };
 
-  const removeBasketItem = (productId: string) => {
+  const incrementBasketItem = (productId: string) => {
+    setBasket(
+      basket.map((b) => {
+        if (b.product.productId === productId) {
+          if (b.quantity >= b.product.stockOnHand) {
+            alert(`Cannot add more than available stock (${b.product.stockOnHand} units)`);
+            return b;
+          }
+          return { ...b, quantity: b.quantity + 1 };
+        }
+        return b;
+      })
+    );
+  };
+
+  const decrementBasketItem = (productId: string) => {
+    setBasket(
+      basket
+        .map((b) => {
+          if (b.product.productId === productId) {
+            return { ...b, quantity: b.quantity - 1 };
+          }
+          return b;
+        })
+        .filter((b) => b.quantity > 0)
+    );
+  };
+
+  const removeEntireBasketItem = (productId: string) => {
     setBasket(basket.filter((b) => b.product.productId !== productId));
   };
 
@@ -186,9 +231,28 @@ export const PosCheckoutPage: React.FC = () => {
         isDemo: isDemoUser,
       });
 
+      let officerName: string | undefined;
+      // Auto-assign to Recovery Officer if installment contract
+      if (saleType === 'installment' && res.contract?.contractId && assignedOfficerId) {
+        const officer = recoveryOfficers.find((o) => o.userId === assignedOfficerId);
+        officerName = officer?.displayName;
+        const selectedCus = customers.find((c) => c.customerId === selectedCustomerId);
+
+        await RecoveryRepository.assignCustomer({
+          tenantId: activeTenant.tenantId,
+          assignedBy: currentUser.uid,
+          customerId: selectedCustomerId,
+          contractId: res.contract.contractId,
+          employeeId: assignedOfficerId,
+          area: selectedCus?.area || selectedCus?.city || 'Main Area',
+          isDemo: isDemoUser,
+        });
+      }
+
       setSuccessResult({
         saleId: res.sale.saleId,
         contractId: res.contract?.contractId,
+        assignedOfficerName: officerName,
       });
     } catch (err: any) {
       alert(err?.message || 'Failed to complete sale.');
@@ -311,18 +375,42 @@ export const PosCheckoutPage: React.FC = () => {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Item</th>
-                        <th>Qty</th>
-                        <th>Cash Price</th>
-                        <th>Installment Price</th>
-                        <th>Action</th>
+                        <th>{language === 'ur' ? 'پروڈکٹ' : 'Item'}</th>
+                        <th>{language === 'ur' ? 'تعداد (کم / زیادہ)' : 'Quantity (Add / Remove)'}</th>
+                        <th>{language === 'ur' ? 'نقد قیمت' : 'Cash Price'}</th>
+                        <th>{language === 'ur' ? 'اقساط قیمت' : 'Installment Price'}</th>
+                        <th>{language === 'ur' ? 'ہٹائیں' : 'Action'}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {basket.map((b) => (
                         <tr key={b.product.productId}>
                           <td className="font-semibold">{b.product.name}</td>
-                          <td>{b.quantity}</td>
+                          <td>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', border: '1.5px solid #cbd5e1', borderRadius: '0.5rem', overflow: 'hidden' }}>
+                              <button
+                                type="button"
+                                onClick={() => decrementBasketItem(b.product.productId)}
+                                className="btn btn-icon btn-sm"
+                                style={{ border: 'none', borderRadius: 0, padding: '0.35rem 0.6rem', background: '#f1f5f9' }}
+                                title={language === 'ur' ? 'ایک کم کریں' : 'Decrease 1'}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span style={{ minWidth: '2.5rem', textAlign: 'center', fontWeight: 700, fontSize: '0.875rem', padding: '0 0.5rem' }}>
+                                {b.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => incrementBasketItem(b.product.productId)}
+                                className="btn btn-icon btn-sm"
+                                style={{ border: 'none', borderRadius: 0, padding: '0.35rem 0.6rem', background: '#f1f5f9' }}
+                                title={language === 'ur' ? 'ایک بڑھائیں' : 'Increase 1'}
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          </td>
                           <td>
                             <MoneyDisplay paisa={b.product.cashPricePaisa * b.quantity} />
                           </td>
@@ -331,8 +419,10 @@ export const PosCheckoutPage: React.FC = () => {
                           </td>
                           <td>
                             <button
-                              onClick={() => removeBasketItem(b.product.productId)}
+                              type="button"
+                              onClick={() => removeEntireBasketItem(b.product.productId)}
                               className="btn btn-icon btn-outline text-danger"
+                              title={language === 'ur' ? 'پوری آئٹم ڈیلیٹ کریں' : 'Remove item'}
                             >
                               <Trash2 size={14} />
                             </button>
@@ -415,6 +505,34 @@ export const PosCheckoutPage: React.FC = () => {
                         onChange={(e) => setFirstDueDateKey(e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  {/* Recovery Officer Assignment */}
+                  <div className="form-group" style={{ padding: '0.875rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#166534', fontWeight: 600 }}>
+                      <UserCheck size={16} />
+                      <span>{language === 'ur' ? 'تفویض شدہ ریکوری آفیسر (Auto-Assign Recovery Officer)' : 'Assign Recovery Officer'}</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      value={assignedOfficerId}
+                      onChange={(e) => setAssignedOfficerId(e.target.value)}
+                    >
+                      {recoveryOfficers.length === 0 ? (
+                        <option value="">{language === 'ur' ? 'کوئی ریکوری آفیسر دستیاب نہیں' : 'No recovery officers found'}</option>
+                      ) : (
+                        recoveryOfficers.map((o) => (
+                          <option key={o.userId} value={o.userId}>
+                            {o.displayName} ({o.email})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.375rem', marginBottom: 0 }}>
+                      {language === 'ur'
+                        ? 'معاہدہ کنفرم ہوتے ہی یہ گاہک اس ریکوری آفیسر کے موبائل پورٹل میں خودکار طور پر شو ہو جائے گا۔'
+                        : 'Contract will automatically show up in this officer’s assigned recovery list upon activation.'}
+                    </p>
                   </div>
 
                   {/* Schedule Preview Table */}
@@ -527,11 +645,23 @@ export const PosCheckoutPage: React.FC = () => {
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
                 {language === 'ur' ? 'سیل و معاہدہ کامیابی سے درج ہو گیا!' : 'Sale & Contract Posted Successfully!'}
               </h3>
-              <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1.25rem' }}>
                 {language === 'ur'
                   ? 'اسٹاک سے اشیاء خودکار طور پر کم ہو گئی ہیں اور اقساط کا کھاتہ چالو کر دیا گیا ہے۔'
                   : 'Items have been deducted from inventory movements and installment schedule entries are active.'}
               </p>
+
+              {successResult.assignedOfficerName && (
+                <div style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0', textAlign: 'left', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#166534', fontWeight: 600 }}>
+                    <UserCheck size={16} />
+                    <span>{language === 'ur' ? 'تفویض شدہ ریکوری آفیسر:' : 'Assigned Recovery Officer:'}</span>
+                  </div>
+                  <div style={{ color: '#15803d', marginTop: '0.25rem' }}>
+                    {successResult.assignedOfficerName} — {language === 'ur' ? 'آفیسر کے ریکوری پورٹل میں کامیابی سے شامل کر دیا گیا ہے۔' : 'Added to officer\'s live recovery queue.'}
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                 <button

@@ -21,13 +21,23 @@ import {
   AlertCircle,
   Sliders,
   Check,
+  Banknote,
+  DollarSign,
+  Wallet,
+  FileText,
+  Printer,
+  Calendar,
+  CheckCircle2,
+  Edit2,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { useAuth } from '@/app/providers/AuthContext';
-import { UserRole } from '@/types';
+import { UserRole, StaffPayrollRecord, PaymentMethod } from '@/types';
 import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
+import { rupeesToPaisa } from '@/domain/money/paisa';
 
 export const StaffPage: React.FC = () => {
   const { t, language } = useI18n();
@@ -37,6 +47,27 @@ export const StaffPage: React.FC = () => {
   const [staff, setStaff] = useState<StaffMemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'members' | 'payroll'>('members');
+
+  // Payroll state
+  const [selectedMonth, setSelectedMonth] = useState('2026-11');
+  const [payrollRecords, setPayrollRecords] = useState<StaffPayrollRecord[]>([]);
+  const [loadingPayroll, setLoadingPayroll] = useState(false);
+
+  // Salary Edit Modal
+  const [editingSalaryMember, setEditingSalaryMember] = useState<StaffMemberRecord | null>(null);
+  const [editSalaryRupees, setEditSalaryRupees] = useState('');
+  const [editDesignation, setEditDesignation] = useState('');
+  const [savingSalary, setSavingSalary] = useState(false);
+
+  // Pay Salary Modal
+  const [payingPayrollRecord, setPayingPayrollRecord] = useState<StaffPayrollRecord | null>(null);
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('cash');
+  const [payNotes, setPayNotes] = useState('');
+  const [processingPay, setProcessingPay] = useState(false);
+
+  // Printable Salary Slip
+  const [activeSlipRecord, setActiveSlipRecord] = useState<StaffPayrollRecord | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -44,6 +75,8 @@ export const StaffPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [tempPassword, setTempPassword] = useState('Pak@12345');
   const [role, setRole] = useState<UserRole>('recovery');
+  const [designation, setDesignation] = useState('Recovery Officer');
+  const [monthlySalaryRupees, setMonthlySalaryRupees] = useState('30000');
   const [saving, setSaving] = useState(false);
 
   // Permission Configuration Modal State
@@ -72,9 +105,84 @@ export const StaffPage: React.FC = () => {
     }
   };
 
+  const loadPayroll = async () => {
+    if (!activeTenant) return;
+    setLoadingPayroll(true);
+    try {
+      const data = await StaffRepository.getPayrollRecords(activeTenant.tenantId, selectedMonth, isDemoUser);
+      setPayrollRecords(data);
+    } finally {
+      setLoadingPayroll(false);
+    }
+  };
+
   useEffect(() => {
     loadStaff();
   }, [activeTenant, isDemoUser]);
+
+  useEffect(() => {
+    if (activeTab === 'payroll') {
+      loadPayroll();
+    }
+  }, [activeTenant, selectedMonth, activeTab, isDemoUser]);
+
+  const handleOpenEditSalary = (member: StaffMemberRecord) => {
+    setEditingSalaryMember(member);
+    setEditSalaryRupees(((member.monthlySalaryPaisa || 0) / 100).toString());
+    setEditDesignation(member.designation || member.role.toUpperCase());
+  };
+
+  const handleSaveSalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !editingSalaryMember) return;
+    setSavingSalary(true);
+    try {
+      const paisa = rupeesToPaisa(editSalaryRupees);
+      await StaffRepository.updateStaffSalary(
+        activeTenant.tenantId,
+        editingSalaryMember.userId,
+        paisa,
+        editDesignation,
+        isDemoUser
+      );
+      setEditingSalaryMember(null);
+      await loadStaff();
+      if (activeTab === 'payroll') await loadPayroll();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update salary');
+    } finally {
+      setSavingSalary(false);
+    }
+  };
+
+  const handleOpenPaySalary = (record: StaffPayrollRecord) => {
+    setPayingPayrollRecord(record);
+    setPayMethod('cash');
+    setPayNotes(`Monthly salary for ${record.employeeName} (${record.monthKey})`);
+  };
+
+  const handleConfirmPaySalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !currentUser || !payingPayrollRecord) return;
+    setProcessingPay(true);
+    try {
+      await StaffRepository.paySalary({
+        tenantId: activeTenant.tenantId,
+        userId: currentUser.uid,
+        payrollId: payingPayrollRecord.payrollId,
+        amountPaisa: payingPayrollRecord.netPayablePaisa,
+        paymentMethod: payMethod,
+        notes: payNotes,
+        isDemo: isDemoUser,
+      });
+      setPayingPayrollRecord(null);
+      await loadPayroll();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to process salary payment');
+    } finally {
+      setProcessingPay(false);
+    }
+  };
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,6 +398,26 @@ export const StaffPage: React.FC = () => {
         )}
       </div>
 
+      {/* Tab Switcher */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+        <button
+          onClick={() => setActiveTab('members')}
+          className={`btn btn-sm ${activeTab === 'members' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+        >
+          <UserCheck size={15} />
+          <span>{language === 'ur' ? 'عملہ اور لاگ ان اکاؤنٹس' : 'Staff Accounts & Roles'} ({staff.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('payroll')}
+          className={`btn btn-sm ${activeTab === 'payroll' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+        >
+          <Banknote size={15} />
+          <span>{language === 'ur' ? 'تنخواہوں کا رجسٹر و سلیپ (Salaries & Payroll)' : 'Salaries & Payroll Register'}</span>
+        </button>
+      </div>
+
       {/* Security principle box */}
       <div className="alert alert-info mb-6" style={{ fontSize: '0.8125rem' }}>
         <Shield size={16} />
@@ -300,118 +428,294 @@ export const StaffPage: React.FC = () => {
         </span>
       </div>
 
-      {/* Staff Table */}
-      <div className="card">
-        <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th>Assigned Role</th>
-                <th>Permissions & Scope</th>
-                <th>Contact Information</th>
-                <th>Joined Date</th>
-                <th>{t('common.status')}</th>
-                {canManageStaff && <th>{t('common.actions')}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      {/* TAB 1: Staff Members & Roles */}
+      {activeTab === 'members' && (
+        <div className="card">
+          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="text-center" style={{ padding: '2rem' }}>
-                    {t('common.loading')}
-                  </td>
+                  <th>Staff Member</th>
+                  <th>Assigned Role</th>
+                  <th>Designation</th>
+                  <th>Monthly Salary</th>
+                  <th>Permissions & Scope</th>
+                  <th>Contact Information</th>
+                  <th>Joined Date</th>
+                  <th>{t('common.status')}</th>
+                  {canManageStaff && <th>{t('common.actions')}</th>}
                 </tr>
-              ) : staff.map((member) => {
-                const roleBadge = getRoleBadge(member.role);
-                const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="text-center" style={{ padding: '2rem' }}>
+                      {t('common.loading')}
+                    </td>
+                  </tr>
+                ) : staff.map((member) => {
+                  const roleBadge = getRoleBadge(member.role);
+                  const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
 
-                return (
-                  <tr key={member.userId}>
-                    <td>
-                      <div className="font-semibold">{member.displayName}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                        ID: {member.userId}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
-                    </td>
-                    <td>
-                      {member.role === 'owner' ? (
-                        <span className="badge badge-success">Full Business Access</span>
-                      ) : member.role === 'recovery' ? (
-                        <span className="badge badge-slate">Restricted Mobile Field</span>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                          <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
-                            {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
-                          </span>
-                          {canConfigureThisMember && (
-                            <button
-                              onClick={() => handleOpenPermissionsModal(member)}
-                              className="btn btn-outline btn-sm"
-                              style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                              title="Owner Configure Permissions"
-                            >
-                              <Sliders size={12} />
-                              <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ fontSize: '0.8125rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Mail size={12} className="text-muted" />
-                          <span>{member.email}</span>
-                        </div>
-                        {member.phone && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
-                            <Phone size={12} className="text-muted" />
-                            <span dir="ltr">{member.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
-                    <td>
-                      <StatusBadge status={member.status} />
-                    </td>
-                    {canManageStaff && (
+                  return (
+                    <tr key={member.userId}>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-                          {canConfigureThisMember && (
+                        <div className="font-semibold">{member.displayName}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                          ID: {member.userId}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
+                      </td>
+                      <td>
+                        <span className="font-semibold text-slate-700" style={{ fontSize: '0.8125rem' }}>
+                          {member.designation || member.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <MoneyDisplay paisa={member.monthlySalaryPaisa || 0} className="font-bold text-primary" />
+                          {canManageStaff && (
                             <button
-                              onClick={() => handleOpenPermissionsModal(member)}
-                              className="btn btn-sm btn-outline text-primary"
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                              onClick={() => handleOpenEditSalary(member)}
+                              className="btn btn-icon btn-sm btn-outline"
+                              title={language === 'ur' ? 'تنخواہ تبدیل کریں' : 'Edit salary'}
+                              style={{ padding: '0.2rem', width: '22px', height: '22px' }}
                             >
-                              <Sliders size={13} />
-                              <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
+                              <Edit2 size={11} />
                             </button>
-                          )}
-                          {member.role !== 'owner' ? (
-                            <button
-                              onClick={() => handleToggleStatus(member)}
-                              className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
-                            >
-                              {member.status === 'active' ? 'Suspend' : 'Activate'}
-                            </button>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
                           )}
                         </div>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <td>
+                        {member.role === 'owner' ? (
+                          <span className="badge badge-success">Full Business Access</span>
+                        ) : member.role === 'recovery' ? (
+                          <span className="badge badge-slate">Restricted Mobile Field</span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                            <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                              {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
+                            </span>
+                            {canConfigureThisMember && (
+                              <button
+                                onClick={() => handleOpenPermissionsModal(member)}
+                                className="btn btn-outline btn-sm"
+                                style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                title="Owner Configure Permissions"
+                              >
+                                <Sliders size={12} />
+                                <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.8125rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Mail size={12} className="text-muted" />
+                            <span>{member.email}</span>
+                          </div>
+                          {member.phone && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
+                              <Phone size={12} className="text-muted" />
+                              <span dir="ltr">{member.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
+                      <td>
+                        <StatusBadge status={member.status} />
+                      </td>
+                      {canManageStaff && (
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                            {canConfigureThisMember && (
+                              <button
+                                onClick={() => handleOpenPermissionsModal(member)}
+                                className="btn btn-sm btn-outline text-primary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                              >
+                                <Sliders size={13} />
+                                <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
+                              </button>
+                            )}
+                            {member.role !== 'owner' ? (
+                              <button
+                                onClick={() => handleToggleStatus(member)}
+                                className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
+                              >
+                                {member.status === 'active' ? 'Suspend' : 'Activate'}
+                              </button>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* TAB 2: Salaries & Payroll Register */}
+      {activeTab === 'payroll' && (
+        <div>
+          {/* Payroll Header Controls & Summary */}
+          <div className="card mb-6" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#fff', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                  {language === 'ur' ? 'ماہانہ تنخواہوں کا مصدقہ رجسٹر (Staff Payroll Register)' : 'Staff Monthly Payroll Register'}
+                </h3>
+                <p style={{ fontSize: '0.8125rem', opacity: 0.8, margin: '0.25rem 0 0' }}>
+                  {language === 'ur'
+                    ? 'تمام عملہ (مینیجر، اکاؤنٹنٹ، ریکوری ایجنٹس، صفائی والا/ہیلپر) کی تنخواہیں ادا کریں اور پرچی پرنٹ کریں۔'
+                    : 'Manage salaries for all employees (Manager, Accountant, Recovery, Helper/Cleaner) with expense integration.'}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Calendar size={16} className="text-emerald-400" />
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="form-input"
+                  style={{ backgroundColor: '#fff', color: '#0f172a', fontWeight: 600, padding: '0.4rem 0.75rem', fontSize: '0.875rem' }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            {(() => {
+              const totalPayable = payrollRecords.reduce((s, r) => s + r.netPayablePaisa, 0);
+              const totalPaid = payrollRecords.filter((r) => r.status === 'paid').reduce((s, r) => s + r.netPayablePaisa, 0);
+              const totalPending = payrollRecords.filter((r) => r.status === 'pending').reduce((s, r) => s + r.netPayablePaisa, 0);
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Total Employees</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{payrollRecords.length}</div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Total Monthly Payroll</div>
+                    <MoneyDisplay paisa={totalPayable} className="font-bold" style={{ fontSize: '1.25rem' }} />
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.8, color: '#86efac' }}>Total Paid</div>
+                    <MoneyDisplay paisa={totalPaid} className="font-bold text-success" style={{ fontSize: '1.25rem' }} />
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.8, color: '#fde047' }}>Pending To Pay</div>
+                    <MoneyDisplay paisa={totalPending} className="font-bold text-warning" style={{ fontSize: '1.25rem' }} />
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Payroll Table */}
+          <div className="card">
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Employee & Designation</th>
+                    <th>Role</th>
+                    <th>Base Salary</th>
+                    <th>Net Payable</th>
+                    <th>Status</th>
+                    <th>Payment Details</th>
+                    <th>{t('common.actions')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingPayroll ? (
+                    <tr>
+                      <td colSpan={7} className="text-center" style={{ padding: '2rem' }}>
+                        {t('common.loading')}
+                      </td>
+                    </tr>
+                  ) : payrollRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
+                        {language === 'ur' ? 'اس ماہ کا کوئی پے رول ریکارڈ موجود نہیں' : 'No payroll records found for this month'}
+                      </td>
+                    </tr>
+                  ) : (
+                    payrollRecords.map((r) => (
+                      <tr key={r.payrollId}>
+                        <td>
+                          <div className="font-semibold">{r.employeeName}</div>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            {r.designation}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge badge-slate">{r.role.toUpperCase()}</span>
+                        </td>
+                        <td>
+                          <MoneyDisplay paisa={r.baseSalaryPaisa} />
+                        </td>
+                        <td>
+                          <MoneyDisplay paisa={r.netPayablePaisa} className="font-bold text-primary" />
+                        </td>
+                        <td>
+                          <span className={`badge ${r.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
+                            {r.status === 'paid' ? (language === 'ur' ? 'ادا شدہ (Paid)' : 'PAID') : (language === 'ur' ? 'زیر التواء (Pending)' : 'PENDING')}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.8125rem' }}>
+                          {r.status === 'paid' ? (
+                            <div>
+                              <div>Paid: {r.paidAt}</div>
+                              <div className="text-muted" style={{ fontSize: '0.75rem' }}>Method: {r.paymentMethod?.toUpperCase()}</div>
+                            </div>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                            {r.status === 'pending' && canManageStaff && (
+                              <button
+                                onClick={() => handleOpenPaySalary(r)}
+                                className="btn btn-sm btn-primary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                              >
+                                <Banknote size={13} />
+                                <span>{language === 'ur' ? 'تنخواہ ادا کریں' : 'Pay Salary'}</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => setActiveSlipRecord(r)}
+                              className="btn btn-sm btn-outline"
+                              title={language === 'ur' ? 'تنخواہ کی پرچی دیکھیں' : 'Print Salary Slip'}
+                            >
+                              <Printer size={13} />
+                              <span>{language === 'ur' ? 'پرچی' : 'Slip'}</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Created Credentials Handover Card Modal */}
       {createdCredentials && (
@@ -594,6 +898,29 @@ export const StaffPage: React.FC = () => {
                     </option>
                   </select>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'عہدہ / ٹائٹل (Designation)' : 'Designation'}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Field Officer / Helper / Safai"
+                      value={designation}
+                      onChange={(e) => setDesignation(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label">{language === 'ur' ? 'ماہانہ تنخواہ (PKR)' : 'Monthly Salary (PKR)'}</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 30000"
+                      value={monthlySalaryRupees}
+                      onChange={(e) => setMonthlySalaryRupees(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="modal-footer">
@@ -711,6 +1038,226 @@ export const StaffPage: React.FC = () => {
                   <span>{savingPerms ? t('common.loading') : language === 'ur' ? 'محفوظ کریں' : 'Save Permissions'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Salary Modal */}
+      {editingSalaryMember && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Banknote size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'ماہانہ تنخواہ و عہدہ تبدیل کریں' : 'Edit Staff Salary & Title'}
+                </h3>
+              </div>
+              <button onClick={() => setEditingSalaryMember(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSalary}>
+              <div className="modal-body">
+                <p style={{ fontSize: '0.875rem', color: '#475569', marginBottom: '1rem' }}>
+                  {language === 'ur' ? 'ملازم:' : 'Employee:'} <strong>{editingSalaryMember.displayName}</strong> ({editingSalaryMember.email})
+                </p>
+
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'عہدہ / ٹائٹل (Designation)' : 'Designation'}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editDesignation}
+                    onChange={(e) => setEditDesignation(e.target.value)}
+                    placeholder="e.g. Senior Recovery Agent / Helper / Safai"
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">{language === 'ur' ? 'ماہانہ تنخواہ (PKR)' : 'Monthly Base Salary (PKR)'}</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={editSalaryRupees}
+                    onChange={(e) => setEditSalaryRupees(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setEditingSalaryMember(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingSalary}>
+                  {savingSalary ? t('common.loading') : language === 'ur' ? 'تنخواہ محفوظ کریں' : 'Save Salary'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Pay Salary Modal */}
+      {payingPayrollRecord && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '460px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Banknote size={18} className="text-success" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'ماہانہ تنخواہ کی ادائیگی' : 'Pay Monthly Salary'}
+                </h3>
+              </div>
+              <button onClick={() => setPayingPayrollRecord(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPaySalary}>
+              <div className="modal-body">
+                <div style={{ padding: '0.875rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span className="text-muted">Employee:</span>
+                    <strong>{payingPayrollRecord.employeeName}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span className="text-muted">Designation:</span>
+                    <span>{payingPayrollRecord.designation}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span className="text-muted">Month:</span>
+                    <span className="font-semibold">{payingPayrollRecord.monthKey}</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid #bbf7d0', paddingTop: '0.5rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="font-bold">Net Salary Payable:</span>
+                    <MoneyDisplay paisa={payingPayrollRecord.netPayablePaisa} className="font-bold text-success" style={{ fontSize: '1.125rem' }} />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'ادائیگی کا ذریعہ' : 'Payment Method'}</label>
+                  <select
+                    className="form-select"
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
+                  >
+                    <option value="cash">Cash (نقد دکان کی دراز سے)</option>
+                    <option value="bank_transfer">Bank Transfer (بینک سے آن لائن)</option>
+                    <option value="online">Easypaisa / JazzCash</option>
+                    <option value="cheque">Cheque (چیک)</option>
+                  </select>
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">Notes / Reference</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={payNotes}
+                    onChange={(e) => setPayNotes(e.target.value)}
+                    placeholder="e.g. Salary paid via cash / bank Trx ID"
+                  />
+                  <p style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '0.375rem', marginBottom: 0 }}>
+                    {language === 'ur'
+                      ? 'نوٹ: یہ ادائیگی خودکار طور پر دکان کے اخراجات (Expenses) میں تنخواہوں کی مد میں درج ہو جائے گی۔'
+                      : 'Note: This payment will automatically register under shop Expenses ("Salaries") for accounting.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setPayingPayrollRecord(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={processingPay}>
+                  {processingPay ? t('common.loading') : language === 'ur' ? 'ادائیگی مکمل کریں' : 'Confirm & Post Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Salary Voucher Modal */}
+      {activeSlipRecord && (
+        <div className="modal-overlay" style={{ zIndex: 70 }}>
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Printer size={18} className="text-primary" />
+                <h3 className="modal-title">{language === 'ur' ? 'ماہانہ تنخواہ واؤچر / پرچی' : 'Official Salary Voucher'}</h3>
+              </div>
+              <button onClick={() => setActiveSlipRecord(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '1.5rem', backgroundColor: '#fff' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px dashed #cbd5e1', paddingBottom: '1rem', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                  {activeTenant?.businessName || 'QistFlow Partner Shop'}
+                </h2>
+                <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                  {language === 'ur' ? 'تنخواہ کی باضابطہ رسید / واؤچر' : 'Official Staff Salary Payment Slip'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Month: <strong>{activeSlipRecord.monthKey}</strong> | Date: <strong>{activeSlipRecord.paidAt || new Date().toISOString().split('T')[0]}</strong>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '0.875rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="text-muted">{language === 'ur' ? 'ملازم کا نام:' : 'Employee Name:'}</span>
+                  <span className="font-bold">{activeSlipRecord.employeeName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="text-muted">{language === 'ur' ? 'عہدہ:' : 'Designation:'}</span>
+                  <span className="font-semibold">{activeSlipRecord.designation}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="text-muted">{language === 'ur' ? 'بنیادی تنخواہ:' : 'Base Salary:'}</span>
+                  <MoneyDisplay paisa={activeSlipRecord.baseSalaryPaisa} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="text-muted">{language === 'ur' ? 'ادائیگی کا ذریعہ:' : 'Payment Method:'}</span>
+                  <span className="badge badge-slate">{(activeSlipRecord.paymentMethod || 'cash').toUpperCase()}</span>
+                </div>
+                <div style={{ borderTop: '2px solid #0f172a', paddingTop: '0.75rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="font-bold" style={{ fontSize: '1rem' }}>{language === 'ur' ? 'کل ادا شدہ رقم:' : 'Net Paid Amount:'}</span>
+                  <MoneyDisplay paisa={activeSlipRecord.netPayablePaisa} className="font-bold text-success" style={{ fontSize: '1.25rem' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2.5rem', paddingTop: '1rem', borderTop: '1px dashed #cbd5e1', textAlign: 'center', fontSize: '0.75rem' }}>
+                <div>
+                  <div style={{ borderBottom: '1px solid #94a3b8', height: '2rem', marginBottom: '0.25rem' }} />
+                  <span>{language === 'ur' ? 'وصول کنندہ دستخط (Employee)' : 'Employee Signature'}</span>
+                </div>
+                <div>
+                  <div style={{ borderBottom: '1px solid #94a3b8', height: '2rem', marginBottom: '0.25rem' }} />
+                  <span>{language === 'ur' ? 'دکان مینیجر / مالک دستخط' : 'Owner / Manager Signature'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" onClick={() => setActiveSlipRecord(null)} className="btn btn-secondary">
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+              >
+                <Printer size={15} />
+                <span>{language === 'ur' ? 'پرنٹ کریں' : 'Print Slip'}</span>
+              </button>
             </div>
           </div>
         </div>

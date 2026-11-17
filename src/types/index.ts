@@ -444,6 +444,7 @@ export interface RecoveryVisit {
   employeeId: string;
   visitedAt: any;
   outcome: RecoveryVisitOutcome;
+  amountCollectedPaisa?: number;
   note?: string;
   nextFollowUpAt?: any;
   paymentId?: string;
@@ -530,5 +531,57 @@ export interface PlatformAuditEvent {
   targetTenantId?: string;
   details: string;
   occurredAt: any;
+}
+
+// --- Multi-Branch & Shop Sub-licensing Entities ---
+
+export interface ShopBranch {
+  id?: string;
+  branchId: string;
+  tenantId: string;
+  branchCode: string;
+  name: string;
+  nameUr?: string;
+  managerId?: string;
+  managerName?: string;
+  phone?: string;
+  city?: string;
+  address?: string;
+  licenceKey?: string;
+  licenceStatus: 'active' | 'grace' | 'suspended' | 'trial';
+  monthlyTargetPaisa: number;
+  status: 'active' | 'inactive';
+  metrics?: {
+    totalSalesPaisa: number;
+    totalCollectedPaisa: number;
+    totalExpensesPaisa: number;
+    netProfitPaisa: number;
+    performanceRating: 'profit' | 'average' | 'loss';
+  };
+  createdAt: any;
+  createdBy: string;
+}
+
+// --- Staff Payroll & Salary Management ---
+
+export interface StaffPayrollRecord {
+  id?: string;
+  payrollId: string;
+  tenantId: string;
+  userId: string;
+  employeeName: string;
+  role: string;
+  designation?: string;
+  monthKey: string; // e.g. '2026-11'
+  baseSalaryPaisa: number;
+  bonusPaisa: number;
+  deductionsPaisa: number;
+  netPayablePaisa: number;
+  status: 'pending' | 'paid';
+  paidAt?: any;
+  paymentMethod?: PaymentMethod;
+  expenseId?: string;
+  notes?: string;
+  createdAt: any;
 }
 

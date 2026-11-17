@@ -13,6 +13,7 @@ import {
   X,
   CreditCard,
   AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -28,7 +29,7 @@ import { rupeesToPaisa } from '@/domain/money/paisa';
 
 export const PaymentsPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant, isOwner } = useTenant();
+  const { activeTenant, isOwner, isManager } = useTenant();
   const { currentUser, isDemoUser } = useAuth();
 
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -46,6 +47,16 @@ export const PaymentsPage: React.FC = () => {
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Edit / Mistake Correction Modal
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editCustomerId, setEditCustomerId] = useState('');
+  const [editContractId, setEditContractId] = useState('');
+  const [editAmountRupees, setEditAmountRupees] = useState('');
+  const [editMethod, setEditMethod] = useState<PaymentMethod>('cash');
+  const [editReference, setEditReference] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editCorrectionReason, setEditCorrectionReason] = useState('');
 
   // Active receipt viewer
   const [activeReceiptData, setActiveReceiptData] = useState<any | null>(null);
@@ -164,6 +175,54 @@ export const PaymentsPage: React.FC = () => {
       await loadData();
     } catch (err: any) {
       alert(err?.message || 'Failed to reverse payment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenEdit = (p: Payment) => {
+    setEditingPayment(p);
+    setEditCustomerId(p.customerId);
+    setEditContractId(p.contractId || '');
+    setEditAmountRupees((p.amountPaisa / 100).toString());
+    setEditMethod(p.method);
+    setEditReference(p.reference || '');
+    setEditNotes(p.notes || '');
+    setEditCorrectionReason('');
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !editingPayment) return;
+    if (!editCorrectionReason.trim()) {
+      alert(
+        language === 'ur'
+          ? 'براہ کرم درستی کی وجہ ضرور درج کریں تاکہ آڈٹ ٹریل اور ریکارڈ درست رہے (مثلاً: غلط گاہک کو چلی گئی تھی)'
+          : 'Please enter a correction reason for audit records.'
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await PaymentRepository.updatePayment({
+        tenantId: activeTenant.tenantId,
+        userId: currentUser?.uid || 'staff',
+        paymentId: editingPayment.paymentId,
+        customerId: editCustomerId,
+        contractId: editContractId || undefined,
+        amountPaisa: rupeesToPaisa(editAmountRupees),
+        method: editMethod,
+        reference: editReference,
+        notes: editNotes,
+        correctionReason: editCorrectionReason,
+        isDemo: isDemoUser,
+      });
+
+      setEditingPayment(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update payment');
     } finally {
       setSaving(false);
     }
@@ -295,6 +354,16 @@ export const PaymentsPage: React.FC = () => {
                           >
                             <Printer size={13} />
                           </button>
+
+                          {(isOwner || isManager) && (
+                            <button
+                              onClick={() => handleOpenEdit(p)}
+                              className="btn btn-sm btn-outline text-primary"
+                              title={language === 'ur' ? 'غلطی کی درستی / کسٹمر تبدیلی' : 'Edit / Correct mistake'}
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                          )}
 
                           {p.status === 'posted' && (
                             <button
@@ -435,6 +504,149 @@ export const PaymentsPage: React.FC = () => {
                 >
                   <CheckCircle size={16} />
                   <span>{saving ? t('common.loading') : 'Collect & Issue Receipt'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Mistake Correction Modal */}
+      {editingPayment && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }}>
+          <div className="modal-box" style={{ maxWidth: '540px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Edit3 size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'ادائیگی میں درستی و کسٹمر تبدیلی' : 'Edit & Correct Payment Entry'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingPayment(null)}
+                className="btn btn-icon btn-outline"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              <div className="modal-body">
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                  {language === 'ur'
+                    ? 'نوٹ: اگر غلطی سے کسی اور گاہک کی رقم دوسرے کے کھاتے میں ڈال دی گئی تھی یا رقم غلط درج ہو گئی تھی، تو آپ یہاں سے صحیح کسٹمر و رقم میں تبدیل کر سکتے ہیں۔ تمام سابقہ اور نئے بیلنس خودکار سیٹ ہو جائیں گے۔'
+                    : 'Note: If payment was recorded under the wrong customer or incorrect amount, you can re-allocate it here with an audit note. Contract balances will adjust reactively.'}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{t('customers.name')}</label>
+                  <select
+                    className="form-select"
+                    value={editCustomerId}
+                    onChange={(e) => {
+                      setEditCustomerId(e.target.value);
+                      const cusCtr = contracts.filter((c) => c.customerId === e.target.value);
+                      if (cusCtr.length > 0) setEditContractId(cusCtr[0].contractId);
+                      else setEditContractId('');
+                    }}
+                    required
+                  >
+                    {customers.map((c) => (
+                      <option key={c.customerId} value={c.customerId}>
+                        {c.fullName} — {c.phoneDisplay} ({c.area || c.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {contracts.filter((c) => c.customerId === editCustomerId).length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Contract</label>
+                    <select
+                      className="form-select"
+                      value={editContractId}
+                      onChange={(e) => setEditContractId(e.target.value)}
+                    >
+                      <option value="">No specific contract</option>
+                      {contracts
+                        .filter((c) => c.customerId === editCustomerId)
+                        .map((c) => (
+                          <option key={c.contractId} value={c.contractId}>
+                            {c.contractCode} (Remaining: Rs. {c.outstandingPaisa / 100})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{t('payments.amount')} (PKR)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editAmountRupees}
+                      onChange={(e) => setEditAmountRupees(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('payments.method')}</label>
+                    <select
+                      className="form-select"
+                      value={editMethod}
+                      onChange={(e) => setEditMethod(e.target.value as PaymentMethod)}
+                    >
+                      <option value="cash">Cash (نقد)</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="online">Easypaisa / JazzCash</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>{language === 'ur' ? 'درستی کی وجہ (آڈٹ ٹریل کے لیے لازمی)' : 'Correction Reason (Required for audit)'}</span>
+                    <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={language === 'ur' ? 'مثال: غلط کسٹمر کا نام چن لیا گیا تھا یا رقم غلط لکھی گئی تھی' : 'e.g. Mistakenly entered under wrong customer with same name'}
+                    value={editCorrectionReason}
+                    onChange={(e) => setEditCorrectionReason(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">Reference / Notes</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editReference}
+                    placeholder="Trx ID or additional reference"
+                    onChange={(e) => setEditReference(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingPayment(null)}
+                  className="btn btn-secondary"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving || !editCorrectionReason.trim()}
+                >
+                  {saving ? t('common.loading') : language === 'ur' ? 'درستی محفوظ کریں' : 'Save Correction'}
                 </button>
               </div>
             </form>

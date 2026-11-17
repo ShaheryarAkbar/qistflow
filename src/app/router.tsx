@@ -29,6 +29,7 @@ import { SettingsPage } from '@/features/settings/SettingsPage';
 import { PlatformAdminPage } from '@/features/platform/PlatformAdminPage';
 import { CalculatorPage } from '@/features/calculator/CalculatorPage';
 import { CustomerPortalPage } from '@/features/portal/CustomerPortalPage';
+import { BranchesPage } from '@/features/branches/BranchesPage';
 
 // --- Guards ---
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -242,6 +243,14 @@ export const router = createHashRouter([
         element: (
           <RequireRole roles={['owner']}>
             <ArchivesPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'branches',
+        element: (
+          <RequireRole roles={['owner']}>
+            <BranchesPage />
           </RequireRole>
         ),
       },

@@ -25,6 +25,12 @@ import {
   Check,
   Eye,
   Filter,
+  Trophy,
+  Medal,
+  Award,
+  Edit3,
+  UserPlus,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -40,6 +46,7 @@ import { RecoveryRepository } from '@/repositories/recovery.repository';
 import { CustomerRepository } from '@/repositories/customer.repository';
 import { SaleRepository } from '@/repositories/sale.repository';
 import { PaymentRepository } from '@/repositories/payment.repository';
+import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PrintableReceipt } from '@/components/shared/PrintableReceipt';
@@ -56,10 +63,13 @@ export const RecoveryPortalPage: React.FC = () => {
   const { activeTenant, isOwner, isManager } = useTenant();
   const { currentUser, isDemoUser } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'assigned' | 'visits' | 'audit'>('assigned');
+  const [activeTab, setActiveTab] = useState<'assigned' | 'visits' | 'audit' | 'leaderboard'>('assigned');
   const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'completed'>('all');
   const [cards, setCards] = useState<RecoveryCardData[]>([]);
   const [visits, setVisits] = useState<RecoveryVisit[]>([]);
+  const [customersList, setCustomersList] = useState<Customer[]>([]);
+  const [contractsList, setContractsList] = useState<Contract[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Log Visit Modal State
@@ -68,6 +78,17 @@ export const RecoveryPortalPage: React.FC = () => {
   const [visitNote, setVisitNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Reassign Assignment Modal State
+  const [reassigningCard, setReassigningCard] = useState<RecoveryCardData | null>(null);
+  const [targetNewOfficerId, setTargetNewOfficerId] = useState<string>('');
+
+  // Edit / Mistake Correction Visit Modal State
+  const [editingVisit, setEditingVisit] = useState<RecoveryVisit | null>(null);
+  const [editVisitOutcome, setEditVisitOutcome] = useState<RecoveryVisitOutcome>('collected');
+  const [editVisitNote, setEditVisitNote] = useState<string>('');
+  const [editVisitCustomerId, setEditVisitCustomerId] = useState<string>('');
+  const [editVisitFollowUp, setEditVisitFollowUp] = useState<string>('');
 
   // Proof-of-Visit: Free HTML5 Geolocation State
   const [capturingGps, setCapturingGps] = useState(false);
@@ -94,16 +115,82 @@ export const RecoveryPortalPage: React.FC = () => {
   const [collectAmountRupees, setCollectAmountRupees] = useState('');
   const [collectReceipt, setCollectReceipt] = useState<any | null>(null);
 
+  const handleOpenReassign = (card: RecoveryCardData) => {
+    setReassigningCard(card);
+    const recStaff = staffMembers.filter((s) => s.role === 'recovery');
+    if (recStaff.length > 0) {
+      setTargetNewOfficerId(recStaff[0].userId);
+    } else if (staffMembers.length > 0) {
+      setTargetNewOfficerId(staffMembers[0].userId);
+    }
+  };
+
+  const handleConfirmReassign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !reassigningCard || !targetNewOfficerId) return;
+    setSaving(true);
+    try {
+      await RecoveryRepository.reassignCustomer({
+        tenantId: activeTenant.tenantId,
+        assignmentId: reassigningCard.assignment.assignmentId,
+        newEmployeeId: targetNewOfficerId,
+        isDemo: isDemoUser,
+      });
+      setReassigningCard(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to reassign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenEditVisit = (v: RecoveryVisit) => {
+    setEditingVisit(v);
+    setEditVisitOutcome(v.outcome);
+    setEditVisitNote(v.note || '');
+    setEditVisitCustomerId(v.customerId);
+    setEditVisitFollowUp(v.nextFollowUpAt ? String(v.nextFollowUpAt).split('T')[0] : '');
+  };
+
+  const handleSaveEditVisit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !editingVisit) return;
+    setSaving(true);
+    try {
+      await RecoveryRepository.updateVisit({
+        tenantId: activeTenant.tenantId,
+        visitId: editingVisit.visitId,
+        outcome: editVisitOutcome,
+        note: editVisitNote,
+        customerId: editVisitCustomerId,
+        nextFollowUpAt: editVisitFollowUp || undefined,
+        isDemo: isDemoUser,
+      });
+      setEditingVisit(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update visit');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const loadData = async () => {
     if (!activeTenant || !currentUser) return;
     setLoading(true);
     try {
-      const [asgList, vList, cusList, ctrList] = await Promise.all([
+      const [asgList, vList, cusList, ctrList, staffList] = await Promise.all([
         RecoveryRepository.getAssignments(activeTenant.tenantId, undefined, isDemoUser),
         RecoveryRepository.getVisits(activeTenant.tenantId, isDemoUser),
         CustomerRepository.getCustomers(activeTenant.tenantId, isDemoUser),
         SaleRepository.getContracts(activeTenant.tenantId, isDemoUser),
+        StaffRepository.getStaffMembers(activeTenant.tenantId, isDemoUser),
       ]);
+
+      setCustomersList(cusList);
+      setContractsList(ctrList);
+      setStaffMembers(staffList);
 
       const mapped: RecoveryCardData[] = asgList.map((asg) => ({
         assignment: asg,
@@ -256,6 +343,7 @@ export const RecoveryPortalPage: React.FC = () => {
         customerId: targetCard.customer?.customerId || '',
         contractId: targetCard.contract?.contractId,
         outcome,
+        amountCollectedPaisa: outcome === 'collected' && collectAmountRupees ? rupeesToPaisa(collectAmountRupees) : undefined,
         note: visitNote,
         nextFollowUpAt: followUpDate || undefined,
         paymentId: createdPaymentId,
@@ -300,6 +388,41 @@ export const RecoveryPortalPage: React.FC = () => {
     return true;
   });
 
+  // Recovery Officers Performance Leaderboard calculation
+  const recoveryStaff = staffMembers.filter((s) => s.role === 'recovery');
+  const targetStaffForLeaderboard = recoveryStaff.length > 0 ? recoveryStaff : staffMembers;
+
+  const leaderboardStats = targetStaffForLeaderboard
+    .map((officer) => {
+      const officerCards = cards.filter((c) => c.assignment.employeeId === officer.userId);
+      const assignedCount = officerCards.length;
+      const officerVisits = visits.filter((v) => v.employeeId === officer.userId);
+      const visitsTodayCount = officerVisits.filter((v) => {
+        const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
+        return vDate === todayStr || v.visitedAt === 'Today';
+      }).length;
+      const verifiedVisitsCount = officerVisits.filter((v) => !!v.locationGeo || !!v.photoProofUrl).length;
+      const collectedPaisa = officerVisits
+        .filter((v) => v.outcome === 'collected')
+        .reduce((sum, v) => sum + (v.amountCollectedPaisa || 0), 0);
+      const completionRate =
+        assignedCount > 0
+          ? Math.round((visitsTodayCount / assignedCount) * 100)
+          : visitsTodayCount > 0
+          ? 100
+          : 0;
+
+      return {
+        officer,
+        assignedCount,
+        visitsTodayCount,
+        verifiedVisitsCount,
+        collectedPaisa,
+        completionRate,
+      };
+    })
+    .sort((a, b) => b.collectedPaisa - a.collectedPaisa || b.visitsTodayCount - a.visitsTodayCount);
+
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '3rem' }}>
       {/* Top Header */}
@@ -329,14 +452,24 @@ export const RecoveryPortalPage: React.FC = () => {
             {language === 'ur' ? 'دورے' : 'Visits'} ({visits.length})
           </button>
           {(isOwner || isManager) && (
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-outline'}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            >
-              <ShieldCheck size={14} className={activeTab === 'audit' ? 'text-white' : 'text-success'} />
-              <span>{language === 'ur' ? 'فیلڈ آڈٹ مانیٹر' : 'Audit Monitor'}</span>
-            </button>
+            <>
+              <button
+                onClick={() => setActiveTab('audit')}
+                className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-outline'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+              >
+                <ShieldCheck size={14} className={activeTab === 'audit' ? 'text-white' : 'text-success'} />
+                <span>{language === 'ur' ? 'فیلڈ آڈٹ مانیٹر' : 'Audit Monitor'}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('leaderboard')}
+                className={`btn btn-sm ${activeTab === 'leaderboard' ? 'btn-primary' : 'btn-outline'}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+              >
+                <Trophy size={14} className={activeTab === 'leaderboard' ? 'text-white' : 'text-amber-500'} />
+                <span>{language === 'ur' ? 'کارکردگی درجہ بندی (لیڈر بورڈ)' : 'Leaderboard'}</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -490,7 +623,14 @@ export const RecoveryPortalPage: React.FC = () => {
                       )}
 
                       {/* Mobile Action Buttons */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.75rem' }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: isOwner || isManager ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+                          gap: '0.5rem',
+                          marginTop: '0.75rem',
+                        }}
+                      >
                         <a
                           href={`tel:${customer?.phoneDisplay || customer?.normalizedPhone}`}
                           className="btn btn-secondary btn-sm"
@@ -519,6 +659,19 @@ export const RecoveryPortalPage: React.FC = () => {
                           <CheckCircle2 size={14} />
                           <span>{isVisitedToday ? (language === 'ur' ? 'دوبارہ وزٹ' : 'Re-Visit') : t('recovery.logVisit')}</span>
                         </button>
+
+                        {(isOwner || isManager) && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReassign({ assignment, customer, contract })}
+                            className="btn btn-outline btn-sm text-secondary"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}
+                            title={language === 'ur' ? 'آفیسر تبدیل کریں' : 'Reassign officer'}
+                          >
+                            <ArrowRightLeft size={13} />
+                            <span>{language === 'ur' ? 'تبدیلی' : 'Reassign'}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -542,12 +695,13 @@ export const RecoveryPortalPage: React.FC = () => {
                   <th>Verification Proof</th>
                   <th>Note</th>
                   <th>Next Follow-up</th>
+                  <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {visits.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center text-muted" style={{ padding: '2rem' }}>
+                    <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
                       {t('common.noData')}
                     </td>
                   </tr>
@@ -555,13 +709,21 @@ export const RecoveryPortalPage: React.FC = () => {
                   visits.map((v) => {
                     const hasGps = !!v.locationGeo;
                     const hasPhoto = !!v.photoProofUrl;
+                    const cus = customersList.find((c) => c.customerId === v.customerId);
 
                     return (
                       <tr key={v.visitId}>
                         <td style={{ fontSize: '0.8125rem' }}>
                           {typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : 'Today'}
                         </td>
-                        <td className="font-semibold">{v.customerId}</td>
+                        <td>
+                          <div className="font-semibold">{cus?.fullName || v.customerId}</div>
+                          {cus?.phoneDisplay && (
+                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                              {cus.phoneDisplay}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           <span
                             className={`badge ${
@@ -595,7 +757,7 @@ export const RecoveryPortalPage: React.FC = () => {
                                 onClick={() =>
                                   setZoomedPhoto({
                                     url: v.photoProofUrl!,
-                                    customerName: v.customerId,
+                                    customerName: cus?.fullName || v.customerId,
                                     geo: v.locationGeo,
                                     time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
                                   })
@@ -615,6 +777,19 @@ export const RecoveryPortalPage: React.FC = () => {
                         </td>
                         <td style={{ fontSize: '0.8125rem', maxWidth: '180px' }}>{v.note || '—'}</td>
                         <td style={{ fontSize: '0.8125rem' }}>{v.nextFollowUpAt ? String(v.nextFollowUpAt).split('T')[0] : '—'}</td>
+                        <td>
+                          {(isOwner || isManager) && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditVisit(v)}
+                              className="btn btn-sm btn-outline text-primary"
+                              title={language === 'ur' ? 'وزٹ لاگ کی درستی' : 'Edit visit record'}
+                              style={{ padding: '0.25rem 0.5rem' }}
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -668,126 +843,300 @@ export const RecoveryPortalPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Visit Time</th>
+                    <th>Officer</th>
                     <th>Customer & Note</th>
                     <th>Outcome</th>
                     <th>GPS Geo-Location</th>
                     <th>Doorstep Photo Proof</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visits.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center text-muted" style={{ padding: '2rem' }}>
+                      <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
                         No audit records available yet.
                       </td>
                     </tr>
                   ) : (
-                    visits.map((v) => (
-                      <tr key={v.visitId}>
-                        <td style={{ fontSize: '0.8125rem' }}>
-                          <div className="font-semibold">
-                            {typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : 'Today'}
-                          </div>
-                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            {v.employeeId}
-                          </div>
-                        </td>
+                    visits.map((v) => {
+                      const cus = customersList.find((c) => c.customerId === v.customerId);
+                      const officer = staffMembers.find((s) => s.userId === v.employeeId);
 
-                        <td>
-                          <div className="font-semibold">{v.customerId}</div>
-                          <div className="text-muted" style={{ fontSize: '0.75rem', maxWidth: '240px' }}>
-                            {v.note || 'No notes entered'}
-                          </div>
-                        </td>
-
-                        <td>
-                          <span
-                            className={`badge ${
-                              v.outcome === 'collected'
-                                ? 'badge-success'
-                                : v.outcome === 'unavailable'
-                                ? 'badge-danger'
-                                : 'badge-warning'
-                            }`}
-                          >
-                            {v.outcome.toUpperCase()}
-                          </span>
-                        </td>
-
-                        <td>
-                          {v.locationGeo ? (
-                            <div>
-                              <a
-                                href={`https://maps.google.com/?q=${v.locationGeo.latitude},${v.locationGeo.longitude}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn btn-outline btn-sm"
-                                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#0369a1' }}
-                              >
-                                <Navigation size={12} />
-                                <span>{v.locationGeo.latitude}, {v.locationGeo.longitude}</span>
-                                <ExternalLink size={10} />
-                              </a>
-                              <div className="text-muted" style={{ fontSize: '0.6875rem', marginTop: '0.125rem' }}>
-                                Accuracy: ±{v.locationGeo.accuracyMeters || 10}m
-                              </div>
+                      return (
+                        <tr key={v.visitId}>
+                          <td style={{ fontSize: '0.8125rem' }}>
+                            <div className="font-semibold">
+                              {typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : 'Today'}
                             </div>
-                          ) : (
-                            <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>
-                              Unverified (No GPS)
+                          </td>
+
+                          <td>
+                            <div className="font-semibold" style={{ fontSize: '0.8125rem' }}>
+                              {officer?.displayName || v.employeeId}
+                            </div>
+                            <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                              {officer?.role || 'Recovery'}
+                            </div>
+                          </td>
+
+                          <td>
+                            <div className="font-semibold">{cus?.fullName || v.customerId}</div>
+                            <div className="text-muted" style={{ fontSize: '0.75rem', maxWidth: '220px' }}>
+                              {v.note || 'No notes entered'}
+                            </div>
+                          </td>
+
+                          <td>
+                            <span
+                              className={`badge ${
+                                v.outcome === 'collected'
+                                  ? 'badge-success'
+                                  : v.outcome === 'unavailable'
+                                  ? 'badge-danger'
+                                  : 'badge-warning'
+                              }`}
+                            >
+                              {v.outcome.toUpperCase()}
                             </span>
-                          )}
-                        </td>
+                          </td>
 
-                        <td>
-                          {v.photoProofUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <img
-                                src={v.photoProofUrl}
-                                alt="Doorstep Proof"
-                                onClick={() =>
-                                  setZoomedPhoto({
-                                    url: v.photoProofUrl!,
-                                    customerName: v.customerId,
-                                    geo: v.locationGeo,
-                                    time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
-                                  })
-                                }
-                                style={{
-                                  width: '44px',
-                                  height: '44px',
-                                  objectFit: 'cover',
-                                  borderRadius: '0.375rem',
-                                  border: '1px solid #cbd5e1',
-                                  cursor: 'pointer',
-                                }}
-                                title="Click to view enlarged proof"
-                              />
-                              <button
-                                onClick={() =>
-                                  setZoomedPhoto({
-                                    url: v.photoProofUrl!,
-                                    customerName: v.customerId,
-                                    geo: v.locationGeo,
-                                    time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
-                                  })
-                                }
-                                className="btn btn-outline btn-sm"
-                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.6875rem' }}
-                              >
-                                <Eye size={12} />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>No Photo</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                          <td>
+                            {v.locationGeo ? (
+                              <div>
+                                <a
+                                  href={`https://maps.google.com/?q=${v.locationGeo.latitude},${v.locationGeo.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-outline btn-sm"
+                                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#0369a1' }}
+                                >
+                                  <Navigation size={12} />
+                                  <span>{v.locationGeo.latitude}, {v.locationGeo.longitude}</span>
+                                  <ExternalLink size={10} />
+                                </a>
+                                <div className="text-muted" style={{ fontSize: '0.6875rem', marginTop: '0.125rem' }}>
+                                  Accuracy: ±{v.locationGeo.accuracyMeters || 10}m
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>
+                                Unverified (No GPS)
+                              </span>
+                            )}
+                          </td>
+
+                          <td>
+                            {v.photoProofUrl ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <img
+                                  src={v.photoProofUrl}
+                                  alt="Doorstep Proof"
+                                  onClick={() =>
+                                    setZoomedPhoto({
+                                      url: v.photoProofUrl!,
+                                      customerName: cus?.fullName || v.customerId,
+                                      geo: v.locationGeo,
+                                      time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
+                                    })
+                                  }
+                                  style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    objectFit: 'cover',
+                                    borderRadius: '0.375rem',
+                                    border: '1px solid #cbd5e1',
+                                    cursor: 'pointer',
+                                  }}
+                                  title="Click to view enlarged proof"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setZoomedPhoto({
+                                      url: v.photoProofUrl!,
+                                      customerName: cus?.fullName || v.customerId,
+                                      geo: v.locationGeo,
+                                      time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
+                                    })
+                                  }
+                                  className="btn btn-outline btn-sm"
+                                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.6875rem' }}
+                                >
+                                  <Eye size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>No Photo</span>
+                            )}
+                          </td>
+
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditVisit(v)}
+                              className="btn btn-outline btn-sm text-primary"
+                              style={{ padding: '0.25rem 0.5rem' }}
+                              title={language === 'ur' ? 'وزٹ لاگ کی درستی' : 'Edit visit record'}
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: Owner & Manager Recovery Officer Daily Performance & Leaderboard */}
+      {activeTab === 'leaderboard' && (isOwner || isManager) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Header Card */}
+          <div className="card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#fff', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ padding: '0.625rem', background: 'rgba(234, 179, 8, 0.2)', borderRadius: '0.5rem', color: '#facc15' }}>
+                  <Trophy size={28} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                    {language === 'ur' ? 'ریکوری آفیسرز روزانہ کارکردگی و درجہ بندی (Leaderboard)' : 'Daily Recovery Officer Leaderboard & Ranking'}
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', opacity: 0.8, margin: 0 }}>
+                    {language === 'ur'
+                      ? 'مکمل وزٹ، نقد وصولی اور جی پی ایس تصدیق کی بنیاد پر شفاف رینکنگ'
+                      : 'Rankings calculated from completed visits, cash collected, and verified doorstep audits.'}
+                  </p>
+                </div>
+              </div>
+              <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '0.4rem 0.75rem' }}>
+                {targetStaffForLeaderboard.length} {language === 'ur' ? 'آفیسرز فعال' : 'Active Officers'}
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard Cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {leaderboardStats.map((item, index) => {
+              const rank = index + 1;
+              let rankBadge = {
+                icon: <Medal size={20} className="text-slate-400" />,
+                label: `#${rank}`,
+                badgeClass: 'badge-slate',
+                perfText: language === 'ur' ? 'فالواپ کی ضرورت ⚠️' : 'Needs Follow-up ⚠️',
+                bg: '#ffffff',
+                border: '#e2e8f0',
+              };
+
+              if (rank === 1) {
+                rankBadge = {
+                  icon: <Trophy size={22} style={{ color: '#eab308' }} />,
+                  label: '1st 🥇',
+                  badgeClass: 'badge-warning',
+                  perfText: language === 'ur' ? 'ٹاپ پرفارمر 🏆 (سب سے آگے)' : 'Top Performer 🏆',
+                  bg: '#fffbeb',
+                  border: '#fde68a',
+                };
+              } else if (rank === 2) {
+                rankBadge = {
+                  icon: <Medal size={22} style={{ color: '#94a3b8' }} />,
+                  label: '2nd 🥈',
+                  badgeClass: 'badge-info',
+                  perfText: language === 'ur' ? 'بہترین کارکردگی 👍' : 'Good Performance 👍',
+                  bg: '#f8fafc',
+                  border: '#cbd5e1',
+                };
+              } else if (rank === 3) {
+                rankBadge = {
+                  icon: <Award size={22} style={{ color: '#b45309' }} />,
+                  label: '3rd 🥉',
+                  badgeClass: 'badge-warning',
+                  perfText: language === 'ur' ? 'معمولی کارکردگی ⚠️' : 'Average ⚠️',
+                  bg: '#fffdf5',
+                  border: '#fef08a',
+                };
+              }
+
+              return (
+                <div
+                  key={item.officer.userId}
+                  className="card"
+                  style={{
+                    backgroundColor: rankBadge.bg,
+                    border: `1.5px solid ${rankBadge.border}`,
+                    padding: '1.25rem',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px' }}>
+                        {rankBadge.icon}
+                        <span style={{ fontWeight: 800, fontSize: '0.9375rem', marginTop: '0.125rem' }}>{rankBadge.label}</span>
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                            {item.officer.displayName}
+                          </h4>
+                          <span className={`badge ${rankBadge.badgeClass}`}>{rankBadge.perfText}</span>
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.8125rem', marginTop: '0.125rem' }}>
+                          {item.officer.phone || item.officer.email} • {item.officer.designation || 'Recovery Officer'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                        {language === 'ur' ? 'کل وصولی (آج)' : 'Total Collected Today'}
+                      </div>
+                      <MoneyDisplay paisa={item.collectedPaisa} className="font-bold text-success" style={{ fontSize: '1.25rem' }} />
+                    </div>
+                  </div>
+
+                  {/* Progress & Target Stats Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4" style={{ backgroundColor: '#ffffff', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>تفویض شدہ اہداف (Assigned)</div>
+                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{item.assignedCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>آج مکمل وزٹ (Completed)</div>
+                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#16a34a' }}>{item.visitsTodayCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>جی پی ایس تصدیق (Verified Proof)</div>
+                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0284c7' }}>{item.verifiedVisitsCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>ٹارگٹ شرح (Completion %)</div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: item.completionRate >= 80 ? '#16a34a' : '#d97706' }}>
+                        {item.completionRate}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Target Completion Progress bar */}
+                  <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginTop: '0.75rem' }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(4, item.completionRate))}%`,
+                        height: '100%',
+                        background: item.completionRate >= 80 ? '#10b981' : item.completionRate >= 50 ? '#f59e0b' : '#ef4444',
+                        borderRadius: '999px',
+                        transition: 'width 0.4s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1010,6 +1359,163 @@ export const RecoveryPortalPage: React.FC = () => {
                 </a>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reassign Customer Modal for Owner & Manager */}
+      {reassigningCard && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ArrowRightLeft size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'ریکوری آفیسر کی تبدیلی / غلط تفویض درستی' : 'Reassign Recovery Officer'}
+                </h3>
+              </div>
+              <button onClick={() => setReassigningCard(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReassign}>
+              <div className="modal-body">
+                <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: '#475569' }}>
+                  {language === 'ur' ? 'گاہک:' : 'Customer:'}{' '}
+                  <strong>{reassigningCard.customer?.fullName}</strong> ({reassigningCard.customer?.phoneDisplay})
+                </p>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    {language === 'ur' ? 'نیا نامزد کردہ ریکوری آفیسر' : 'Select New Recovery Officer'}
+                  </label>
+                  <select
+                    className="form-select"
+                    value={targetNewOfficerId}
+                    onChange={(e) => setTargetNewOfficerId(e.target.value)}
+                    required
+                  >
+                    {staffMembers
+                      .filter((s) => s.role === 'recovery')
+                      .map((s) => (
+                        <option key={s.userId} value={s.userId}>
+                          {s.displayName} ({s.phone || s.email})
+                        </option>
+                      ))}
+                    {staffMembers.filter((s) => s.role === 'recovery').length === 0 &&
+                      staffMembers.map((s) => (
+                        <option key={s.userId} value={s.userId}>
+                          {s.displayName} ({s.role})
+                        </option>
+                      ))}
+                  </select>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.375rem', marginBottom: 0 }}>
+                    {language === 'ur'
+                      ? 'تبدیل کرتے ہی یہ کھاتہ نئے آفیسر کی موبائل لسٹ میں لائیو منتقل ہو جائے گا۔'
+                      : 'Account will immediately appear in the new officer’s recovery target list.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setReassigningCard(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? t('common.loading') : language === 'ur' ? 'آفیسر تبدیل کریں' : 'Confirm Reassignment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Correct Mistaken Visit Modal for Owner & Manager */}
+      {editingVisit && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="modal-box" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Edit3 size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'وزٹ لاگ میں درستی و غلطی سدھار' : 'Edit / Correct Visit Log'}
+                </h3>
+              </div>
+              <button onClick={() => setEditingVisit(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditVisit}>
+              <div className="modal-body">
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.5rem', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1e40af' }}>
+                  {language === 'ur'
+                    ? 'اگر ریکوری آفیسر نے غلط کسٹمر سلیکٹ کر کے وزٹ درج کر دیا تھا یا وزٹ کا نتیجہ غلط تھا تو آپ یہاں سے صحیح کسٹمر و نوٹس میں تبدیلی کر سکتے ہیں۔'
+                    : 'If the recovery officer logged the visit under the wrong customer or entered the incorrect outcome, adjust the record here.'}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'درست گاہک منتخب کریں' : 'Correct Customer'}</label>
+                  <select
+                    className="form-select"
+                    value={editVisitCustomerId}
+                    onChange={(e) => setEditVisitCustomerId(e.target.value)}
+                    required
+                  >
+                    {customersList.map((c) => (
+                      <option key={c.customerId} value={c.customerId}>
+                        {c.fullName} — {c.phoneDisplay} ({c.area || c.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Visit Outcome</label>
+                  <select
+                    className="form-select"
+                    value={editVisitOutcome}
+                    onChange={(e) => setEditVisitOutcome(e.target.value as RecoveryVisitOutcome)}
+                  >
+                    <option value="collected">{t('recovery.collected')} (رقم وصول کر لی)</option>
+                    <option value="unavailable">Unavailable (گھر پر نہیں تھا / تالا لگا تھا)</option>
+                    <option value="promised">{t('recovery.promised')} (اگلی تاریخ کا وعدہ کیا)</option>
+                    <option value="refused">{t('recovery.refused')} (ادائیگی سے انکار)</option>
+                    <option value="rescheduled">Rescheduled</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{t('recovery.nextFollowUp')}</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editVisitFollowUp}
+                    onChange={(e) => setEditVisitFollowUp(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group mb-0">
+                  <label className="form-label">Visit Notes / Reason for update</label>
+                  <textarea
+                    className="form-textarea"
+                    value={editVisitNote}
+                    onChange={(e) => setEditVisitNote(e.target.value)}
+                    placeholder="Enter corrected remarks or reason..."
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setEditingVisit(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? t('common.loading') : language === 'ur' ? 'درستی محفوظ کریں' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

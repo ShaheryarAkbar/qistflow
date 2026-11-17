@@ -8,6 +8,7 @@ import {
   doc,
   getDocs,
   setDoc,
+  updateDoc,
   query,
   orderBy,
   limit,
@@ -107,6 +108,7 @@ export const RecoveryRepository = {
           employeeId: 'demo-recovery-101',
           visitedAt: new Date(Date.now() - 3600000 * 3).toISOString() as any,
           outcome: 'collected',
+          amountCollectedPaisa: 500000,
           note: 'Customer paid installment cash on doorstep. Receipt issued.',
           locationGeo: {
             latitude: 28.4212,
@@ -158,6 +160,7 @@ export const RecoveryRepository = {
     customerId: string;
     contractId?: string;
     outcome: RecoveryVisitOutcome;
+    amountCollectedPaisa?: number;
     note?: string;
     nextFollowUpAt?: string;
     paymentId?: string;
@@ -178,6 +181,7 @@ export const RecoveryRepository = {
       customerId,
       contractId,
       outcome,
+      amountCollectedPaisa,
       note = '',
       nextFollowUpAt,
       paymentId,
@@ -197,6 +201,7 @@ export const RecoveryRepository = {
       employeeId: userId,
       visitedAt: isDemo ? new Date().toISOString() : (serverTimestamp() as any),
       outcome,
+      amountCollectedPaisa,
       note,
       nextFollowUpAt: nextFollowUpAt ? (nextFollowUpAt as any) : undefined,
       paymentId,
@@ -215,6 +220,116 @@ export const RecoveryRepository = {
 
     await setDoc(doc(db, 'tenants', tenantId, 'recoveryVisits', visitId), newVisit);
     return newVisit;
+  },
+
+  async assignCustomer(params: {
+    tenantId: string;
+    assignedBy: string;
+    customerId: string;
+    contractId?: string;
+    employeeId: string;
+    area?: string;
+    isDemo?: boolean;
+  }): Promise<RecoveryAssignment> {
+    const {
+      tenantId,
+      assignedBy,
+      customerId,
+      contractId,
+      employeeId,
+      area = 'Main Area',
+      isDemo = false,
+    } = params;
+
+    const assignmentId = `asg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newAssignment: RecoveryAssignment = {
+      assignmentId,
+      tenantId,
+      customerId,
+      contractId,
+      employeeId,
+      assignedAt: isDemo ? new Date().toISOString() : (serverTimestamp() as any),
+      assignedBy,
+      status: 'active',
+      area,
+    };
+
+    if (isDemo) {
+      const stored = localStorage.getItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`);
+      const list: RecoveryAssignment[] = stored ? JSON.parse(stored) : [];
+      // If customer was already assigned, update or prepend
+      const updated = [newAssignment, ...list.filter((a) => a.customerId !== customerId)];
+      localStorage.setItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`, JSON.stringify(updated));
+      return newAssignment;
+    }
+
+    await setDoc(doc(db, 'tenants', tenantId, 'recoveryAssignments', assignmentId), newAssignment);
+    return newAssignment;
+  },
+
+  async updateVisit(params: {
+    tenantId: string;
+    visitId: string;
+    outcome?: RecoveryVisitOutcome;
+    note?: string;
+    nextFollowUpAt?: string;
+    customerId?: string;
+    contractId?: string;
+    isDemo?: boolean;
+  }): Promise<RecoveryVisit | null> {
+    const { tenantId, visitId, outcome, note, nextFollowUpAt, customerId, contractId, isDemo = false } = params;
+
+    if (isDemo) {
+      const visits = await this.getVisits(tenantId, true);
+      const target = visits.find((v) => v.visitId === visitId);
+      if (!target) return null;
+      if (outcome) target.outcome = outcome;
+      if (note !== undefined) target.note = note;
+      if (nextFollowUpAt !== undefined) target.nextFollowUpAt = nextFollowUpAt as any;
+      if (customerId) target.customerId = customerId;
+      if (contractId) target.contractId = contractId;
+
+      localStorage.setItem(`${DEMO_VISITS_KEY}_${tenantId}`, JSON.stringify(visits));
+      return target;
+    }
+
+    const docRef = doc(db, 'tenants', tenantId, 'recoveryVisits', visitId);
+    const updates: any = { updatedAt: serverTimestamp() };
+    if (outcome) updates.outcome = outcome;
+    if (note !== undefined) updates.note = note;
+    if (nextFollowUpAt !== undefined) updates.nextFollowUpAt = nextFollowUpAt;
+    if (customerId) updates.customerId = customerId;
+    if (contractId) updates.contractId = contractId;
+
+    await updateDoc(docRef, updates);
+    const visits = await this.getVisits(tenantId, false);
+    return visits.find((v) => v.visitId === visitId) || null;
+  },
+
+  async reassignCustomer(params: {
+    tenantId: string;
+    assignmentId: string;
+    newEmployeeId: string;
+    isDemo?: boolean;
+  }): Promise<void> {
+    const { tenantId, assignmentId, newEmployeeId, isDemo = false } = params;
+
+    if (isDemo) {
+      const stored = localStorage.getItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`);
+      if (!stored) return;
+      const list: RecoveryAssignment[] = JSON.parse(stored);
+      const target = list.find((a) => a.assignmentId === assignmentId);
+      if (target) {
+        target.employeeId = newEmployeeId;
+        localStorage.setItem(`${DEMO_ASSIGNMENTS_KEY}_${tenantId}`, JSON.stringify(list));
+      }
+      return;
+    }
+
+    await updateDoc(doc(db, 'tenants', tenantId, 'recoveryAssignments', assignmentId), {
+      employeeId: newEmployeeId,
+      updatedAt: serverTimestamp(),
+    });
   },
 };
 

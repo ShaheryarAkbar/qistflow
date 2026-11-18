@@ -3,6 +3,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Receipt as ReceiptIcon,
   PlusCircle,
@@ -31,6 +32,7 @@ export const PaymentsPage: React.FC = () => {
   const { t, language } = useI18n();
   const { activeTenant, isOwner, isManager } = useTenant();
   const { currentUser, isDemoUser } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -88,6 +90,19 @@ export const PaymentsPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [activeTenant, isDemoUser]);
+
+  // Support deep links with query parameters (e.g. from external buttons)
+  useEffect(() => {
+    const paramCusId = searchParams.get('customerId');
+    const paramCtrId = searchParams.get('contractId');
+    const paramAmount = searchParams.get('amount');
+    const paramOpen = searchParams.get('openCollect');
+
+    if (paramCusId) setSelectedCustomerId(paramCusId);
+    if (paramCtrId) setSelectedContractId(paramCtrId);
+    if (paramAmount) setAmountRupees(paramAmount);
+    if (paramOpen === '1' || paramCusId) setIsCollectModalOpen(true);
+  }, [searchParams]);
 
   // Update selected contract when customer changes
   useEffect(() => {

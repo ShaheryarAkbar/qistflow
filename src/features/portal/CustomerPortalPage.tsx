@@ -37,8 +37,8 @@ export const CustomerPortalPage: React.FC = () => {
     productName: 'Super Asia Washing Machine (SA-240)',
     agreedPricePaisa: 4800000, // Rs. 48,000
     advancePaisa: 1200000,      // Rs. 12,000
-    totalPaidPaisa: 1700000,    // Rs. 17,000
-    remainingPaisa: 3100000,    // Rs. 31,000
+    totalPaidPaisa: 1800000,    // Rs. 18,000 (Advance 12k + Inst#1 6k)
+    remainingPaisa: 3000000,    // Rs. 30,000 remaining
     monthlyDuePaisa: 600000,    // Rs. 6,000
     nextDueDate: '2026-12-10',
     schedule: [

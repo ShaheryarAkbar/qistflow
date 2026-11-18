@@ -38,28 +38,94 @@ export const PaymentRepository = {
   async getPayments(tenantId: string, isDemo = false): Promise<Payment[]> {
     if (isDemo) {
       const stored = localStorage.getItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`);
-      if (stored) return JSON.parse(stored);
+      const oneMonthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+      const twoMonthsAgo = new Date(Date.now() - 60 * 86400000).toISOString();
 
-      const initialPayments: Payment[] = [
+      const defaultPayments: Payment[] = [
         {
           paymentId: 'pay-2026-001',
           tenantId,
           customerId: 'cus-ryk-001',
           contractId: 'ctr-ryk-1001',
-          amountPaisa: 500000, // 5,000 PKR
+          amountPaisa: 600000, // Rs. 6,000 (Muhammad Arshad Inst #1)
           method: 'cash',
-          paidAt: new Date(Date.now() - 86400000 * 2).toISOString() as any,
+          paidAt: oneMonthAgo,
           receivedBy: 'owner',
-          reference: 'SLIP-101',
+          reference: 'RCP-1001',
           paymentKind: 'installment',
           status: 'posted',
           idempotencyKeyId: 'idem-001',
-          createdAt: new Date(Date.now() - 86400000 * 2).toISOString() as any,
+          createdAt: oneMonthAgo,
+          createdBy: 'owner',
+        },
+        {
+          paymentId: 'pay-2026-002',
+          tenantId,
+          customerId: 'cus-ryk-002',
+          contractId: 'ctr-ryk-1002',
+          amountPaisa: 1200000, // Rs. 12,000 (Tariq Mehmood Inst #1)
+          method: 'jazzcash',
+          paidAt: twoMonthsAgo,
+          receivedBy: 'owner',
+          reference: 'RCP-1002',
+          paymentKind: 'installment',
+          status: 'posted',
+          idempotencyKeyId: 'idem-002',
+          createdAt: twoMonthsAgo,
+          createdBy: 'owner',
+        },
+        {
+          paymentId: 'pay-2026-003',
+          tenantId,
+          customerId: 'cus-ryk-002',
+          contractId: 'ctr-ryk-1002',
+          amountPaisa: 1200000, // Rs. 12,000 (Tariq Mehmood Inst #2)
+          method: 'cash',
+          paidAt: oneMonthAgo,
+          receivedBy: 'owner',
+          reference: 'RCP-1003',
+          paymentKind: 'installment',
+          status: 'posted',
+          idempotencyKeyId: 'idem-003',
+          createdAt: oneMonthAgo,
+          createdBy: 'owner',
+        },
+        {
+          paymentId: 'pay-2026-004',
+          tenantId,
+          customerId: 'cus-ryk-003',
+          contractId: 'ctr-ryk-1003',
+          amountPaisa: 1000000, // Rs. 10,000 (Zahid Hussain Inst #1)
+          method: 'easypaisa',
+          paidAt: oneMonthAgo,
+          receivedBy: 'owner',
+          reference: 'RCP-1004',
+          paymentKind: 'installment',
+          status: 'posted',
+          idempotencyKeyId: 'idem-004',
+          createdAt: oneMonthAgo,
           createdBy: 'owner',
         },
       ];
-      localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(initialPayments));
-      return initialPayments;
+
+      if (stored) {
+        let payments: Payment[] = JSON.parse(stored);
+        const hasTariq = payments.some((p) => p.customerId === 'cus-ryk-002');
+        const hasBad29k = payments.some((p) => p.amountPaisa === 2900000);
+        if (!hasTariq || hasBad29k) {
+          const userPayments = payments.filter(
+            (p) =>
+              !['pay-2026-001', 'pay-2026-002', 'pay-2026-003', 'pay-2026-004'].includes(p.paymentId) &&
+              p.amountPaisa !== 2900000
+          );
+          payments = [...userPayments, ...defaultPayments];
+          localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(payments));
+        }
+        return payments;
+      }
+
+      localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(defaultPayments));
+      return defaultPayments;
     }
 
     const colRef = collection(db, 'tenants', tenantId, 'payments');
@@ -108,7 +174,7 @@ export const PaymentRepository = {
       method,
       paidAt: isDemo ? new Date().toISOString() : (serverTimestamp() as any),
       receivedBy: userId,
-      reference,
+      reference: reference || receiptNumber,
       notes,
       paymentKind,
       status: 'posted',

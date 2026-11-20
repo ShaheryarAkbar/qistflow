@@ -634,6 +634,15 @@ input[type='radio'] {
     margin: auto;
     word-break: break-word;
 
+    // When <form> is direct child of .modal-box wrapping .modal-body and .modal-footer
+    > form {
+      display: flex !important;
+      flex-direction: column !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
     .modal-header {
       flex-shrink: 0 !important;
       padding: 1rem 1.25rem;

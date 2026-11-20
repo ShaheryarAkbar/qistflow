@@ -375,7 +375,7 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
 
           {/* STEP 2: STRICT VERIFICATION AND REVIEW FORM */}
           {scannedResult && !scanning && (
-            <form onSubmit={handleConfirmAndSave}>
+            <form id="ai-receipt-verify-form" onSubmit={handleConfirmAndSave}>
               {/* Caution Banner */}
               <div
                 style={{
@@ -634,55 +634,54 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* Modal Footer with Confirmation Button */}
-              <div
-                className="modal-footer"
-                style={{
-                  position: 'sticky',
-                  bottom: '-1rem',
-                  zIndex: 10,
-                  margin: '1.25rem -1rem -1rem -1rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="btn btn-secondary"
-                  disabled={saving}
-                >
-                  {language === 'ur' ? 'کینسل کریں' : 'Cancel'}
-                </button>
-
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving || items.length === 0}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    padding: '0.5rem 1.25rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  <CheckCircle2 size={16} />
-                  <span>
-                    {saving
-                      ? (language === 'ur' ? 'اسٹاک درج ہو رہا ہے...' : 'Recording stock...')
-                      : (language === 'ur' ? 'تصدیق کریں اور انوینٹری میں اسٹاک شامل کریں' : 'Confirm & Add Stock to Inventory')}
-                  </span>
-                </button>
-              </div>
             </form>
           )}
         </div>
+
+        {/* Modal Footer (Positioned below modal-body, fixed at bottom) */}
+        {scannedResult && !scanning && (
+          <div
+            className="modal-footer"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary"
+              disabled={saving}
+            >
+              {language === 'ur' ? 'کینسل کریں' : 'Cancel'}
+            </button>
+
+            <button
+              type="submit"
+              form="ai-receipt-verify-form"
+              className="btn btn-primary"
+              disabled={saving || items.length === 0}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                padding: '0.5rem 1.25rem',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+              }}
+            >
+              <CheckCircle2 size={16} />
+              <span>
+                {saving
+                  ? (language === 'ur' ? 'اسٹاک درج ہو رہا ہے...' : 'Recording stock...')
+                  : (language === 'ur' ? 'تصدیق کریں اور انوینٹری میں اسٹاک شامل کریں' : 'Confirm & Add Stock to Inventory')}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Enlarged High-Resolution Photo Zoom Modal */}

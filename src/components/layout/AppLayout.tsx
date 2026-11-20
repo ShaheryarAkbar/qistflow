@@ -322,7 +322,7 @@ export const AppLayout: React.FC = () => {
       {sidebarOpen && (
         <div
           className="modal-overlay"
-          style={{ zIndex: 35 }}
+          style={{ zIndex: 65 }}
           onClick={() => setSidebarOpen(false)}
         />
       )}

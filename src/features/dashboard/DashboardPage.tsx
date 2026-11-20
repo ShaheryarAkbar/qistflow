@@ -21,6 +21,7 @@ import {
   Printer,
   X,
   CreditCard,
+  Coins,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -78,7 +79,7 @@ interface CollectedTableItem {
 
 export const DashboardPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant } = useTenant();
+  const { activeTenant, isOwner, isManager, isAccountant, isRecovery } = useTenant();
   const { currentUser, isDemoUser } = useAuth();
   const navigate = useNavigate();
 
@@ -370,20 +371,43 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <button
-            onClick={() => navigate('/sales/new')}
-            className="btn btn-primary"
-          >
-            <PlusCircle size={16} />
-            <span>{t('dashboard.newSale')}</span>
-          </button>
+          {(isOwner || isManager) && (
+            <button
+              onClick={() => navigate('/sales/new')}
+              className="btn btn-primary"
+            >
+              <PlusCircle size={16} />
+              <span>{t('dashboard.newSale')}</span>
+            </button>
+          )}
+
           <button
             onClick={() => navigate('/payments')}
-            className="btn btn-secondary"
+            className={`btn ${isAccountant ? 'btn-primary' : 'btn-secondary'}`}
           >
             <Receipt size={16} />
             <span>{t('dashboard.recordPayment')}</span>
           </button>
+
+          {isAccountant && (
+            <button
+              onClick={() => navigate('/expenses')}
+              className="btn btn-secondary"
+            >
+              <CreditCard size={16} />
+              <span>{language === 'ur' ? 'خرچہ درج کریں' : 'Record Expense'}</span>
+            </button>
+          )}
+
+          {isRecovery && (
+            <button
+              onClick={() => navigate('/recovery')}
+              className="btn btn-primary"
+            >
+              <Coins size={16} />
+              <span>{language === 'ur' ? 'فیلڈ ریکوری پورٹل' : 'Recovery Field Portal'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -484,8 +508,10 @@ export const DashboardPage: React.FC = () => {
 
         <div
           className="card"
-          style={{ cursor: 'pointer' }}
-          onClick={() => navigate('/inventory')}
+          style={{ cursor: isOwner || isManager ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (isOwner || isManager) navigate('/inventory');
+          }}
         >
           <div
             className="card-body"

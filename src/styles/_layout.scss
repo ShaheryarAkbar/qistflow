@@ -49,6 +49,9 @@
 
     @include respond-to(tablet) {
       transform: translateX(-100%);
+      z-index: 70; // Positioned cleanly above mobile bottom nav (z-index 50) and backdrop (z-index 65)
+      box-shadow: 0 0 28px rgba(0, 0, 0, 0.28);
+
       &.sidebar-open {
         transform: translateX(0);
       }
@@ -142,6 +145,11 @@
       padding: 1rem;
       border-top: 1px solid $color-border;
       background-color: $slate-50;
+      flex-shrink: 0;
+
+      @include respond-to(tablet) {
+        padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+      }
     }
   }
 

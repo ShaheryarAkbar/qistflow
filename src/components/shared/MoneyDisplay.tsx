@@ -26,6 +26,6 @@ export const MoneyDisplay: React.FC<MoneyDisplayProps> = ({
     useUrduNumerals: language === 'ur',
   });
 
-  return <span className={`font-medium ${className}`} style={style}>{formatted}</span>;
+  return <span className={`font-medium ${className}`} style={{ whiteSpace: 'nowrap', ...style }}>{formatted}</span>;
 };
 

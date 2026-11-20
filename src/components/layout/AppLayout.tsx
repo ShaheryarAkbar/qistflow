@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   Smartphone,
   Sparkles,
+  MoreVertical,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -52,6 +53,7 @@ export const AppLayout: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -463,7 +465,8 @@ export const AppLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <div className="header-title-block">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0 }}>
+              {/* Line 1: Shop Name & Status Badges */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0 }}>
                 <h1
                   className="shop-title"
                   title={activeTenant?.businessName}
@@ -475,7 +478,7 @@ export const AppLayout: React.FC = () => {
                     : activeTenant?.businessName || t('app.name')}
                 </h1>
                 {!isSuperAdmin && (
-                  <span className="badge badge-slate hidden md:inline-flex" style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem' }}>
+                  <span className="badge badge-slate hidden sm:inline-flex" style={{ fontSize: '0.625rem', padding: '0.08rem 0.35rem', whiteSpace: 'nowrap' }}>
                     {language === 'ur' ? 'مین برانچ' : 'Main'}
                   </span>
                 )}
@@ -491,64 +494,190 @@ export const AppLayout: React.FC = () => {
                       ? 'badge-danger'
                       : 'badge-slate'
                   }`}
-                  style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', whiteSpace: 'nowrap' }}
+                  style={{ fontSize: '0.625rem', padding: '0.08rem 0.35rem', whiteSpace: 'nowrap' }}
                 >
                   {getRoleLabel()}
                 </span>
               </div>
+
+              {/* Line 2: Logged-in User Subline (Cleanly below Shop Name) */}
               <div className="header-meta-user">
-                {language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
+                <span>{language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong></span>
               </div>
             </div>
           </div>
 
           <div className="header-right">
-            {/* Quick Universal Calculator Modal Button (Shop Roles Only, Hidden for Super-Admin) */}
-            {!isSuperAdmin && (
+            {/* Desktop Action Buttons (Visible on Laptop & Desktop >= 1024px) */}
+            <div className="header-desktop-actions">
+              {!isSuperAdmin && (
+                <button
+                  onClick={() => setCalculatorOpen(true)}
+                  className="header-btn btn btn-outline text-primary"
+                  title={language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}
+                >
+                  <Calculator size={15} />
+                  <span>{language === 'ur' ? 'حساب کتاب' : 'Calc'}</span>
+                </button>
+              )}
+
               <button
-                onClick={() => setCalculatorOpen(true)}
-                className="header-btn btn btn-outline text-primary"
-                title={language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}
+                onClick={toggleLanguage}
+                className="header-btn btn btn-outline"
+                title={language === 'ur' ? 'زبان تبدیل کریں' : 'Switch Language'}
               >
-                <Calculator size={15} />
-                <span className="hidden md:inline">
-                  {language === 'ur' ? 'حساب کتاب' : 'Calc'}
-                </span>
+                <Languages size={15} />
+                <span>{t('app.switchLanguage')}</span>
               </button>
-            )}
 
-            {/* Bilingual toggle button */}
-            <button
-              onClick={toggleLanguage}
-              className="header-btn btn btn-outline"
-              title={language === 'ur' ? 'زبان تبدیل کریں' : 'Switch Language'}
-            >
-              <Languages size={15} />
-              <span className="hidden md:inline">{t('app.switchLanguage')}</span>
-              <span className="md:hidden font-bold text-xs">{language === 'ur' ? 'EN' : 'اردو'}</span>
-            </button>
+              {!isSuperAdmin && (isOwner || isManager) && (
+                <button
+                  onClick={() => navigate('/sales/new')}
+                  className="header-btn btn btn-primary"
+                  title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
+                >
+                  <PlusCircle size={15} />
+                  <span>{t('dashboard.newSale')}</span>
+                </button>
+              )}
 
-            {/* Quick POS action button (only for Shop Owner & Manager, never for Platform Super-Admin) */}
-            {!isSuperAdmin && (isOwner || isManager) && (
               <button
-                onClick={() => navigate('/sales/new')}
-                className="header-btn btn btn-primary"
-                title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
+                onClick={handleLogout}
+                className="header-btn-icon-only btn btn-outline text-danger"
+                title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
               >
-                <PlusCircle size={15} />
-                <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
+                <LogOut size={15} />
+                <span className="hidden xl:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
               </button>
-            )}
+            </div>
 
-            {/* Direct Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="header-btn-icon-only btn btn-outline text-danger"
-              title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
-            >
-              <LogOut size={15} />
-              <span className="hidden lg:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
-            </button>
+            {/* Mobile / Tablet Compact Action Bar (< 1024px) */}
+            <div className="header-mobile-actions">
+              {/* Primary Quick Sale Button on mobile */}
+              {!isSuperAdmin && (isOwner || isManager) && (
+                <button
+                  onClick={() => navigate('/sales/new')}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}
+                  title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
+                >
+                  <PlusCircle size={14} />
+                  <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
+                </button>
+              )}
+
+              {/* 3-Dots Mobile Actions Toggle */}
+              <button
+                type="button"
+                onClick={() => setMobileActionsOpen(!mobileActionsOpen)}
+                className={`btn btn-icon ${mobileActionsOpen ? 'btn-primary' : 'btn-outline'}`}
+                style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', padding: 0 }}
+                aria-label="More Actions"
+                title={language === 'ur' ? 'مزید اختیارات و کیلکولیٹر' : 'More Options'}
+              >
+                <MoreVertical size={18} />
+              </button>
+
+              {/* Mobile Actions Dropdown Menu */}
+              {mobileActionsOpen && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+                    onClick={() => setMobileActionsOpen(false)}
+                  />
+                  <div
+                    className="card"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: language === 'ur' ? 'auto' : 0,
+                      left: language === 'ur' ? 0 : 'auto',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '0.75rem',
+                      boxShadow: '0 12px 28px -4px rgba(0,0,0,0.18)',
+                      minWidth: '230px',
+                      padding: '0.5rem',
+                      zIndex: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    {/* Header User Badge in Dropdown */}
+                    <div style={{ padding: '0.5rem 0.625rem', borderBottom: '1px solid #f1f5f9', marginBottom: '0.25rem' }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a' }}>
+                        {currentUser?.displayName || currentUser?.email}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                        {getRoleLabel()} • {activeTenant?.businessName}
+                      </div>
+                    </div>
+
+                    {/* Quick Calculator Option */}
+                    {!isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCalculatorOpen(true);
+                          setMobileActionsOpen(false);
+                        }}
+                        className="btn btn-sm btn-outline"
+                        style={{ justifyContent: 'flex-start', border: 'none', background: '#f8fafc', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%' }}
+                      >
+                        <Calculator size={16} className="text-primary" />
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}</span>
+                      </button>
+                    )}
+
+                    {/* Language Switcher Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleLanguage();
+                        setMobileActionsOpen(false);
+                      }}
+                      className="btn btn-sm btn-outline"
+                      style={{ justifyContent: 'flex-start', border: 'none', background: '#f8fafc', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%' }}
+                    >
+                      <Languages size={16} className="text-primary" />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{t('app.switchLanguage')}</span>
+                        <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>{language === 'ur' ? 'English' : 'اردو'}</span>
+                      </div>
+                    </button>
+
+                    {/* Customer Passbook Link */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate('/portal');
+                        setMobileActionsOpen(false);
+                      }}
+                      className="btn btn-sm btn-outline"
+                      style={{ justifyContent: 'flex-start', border: 'none', background: '#f8fafc', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%' }}
+                    >
+                      <Smartphone size={16} className="text-primary" />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{language === 'ur' ? 'کسٹمر پاس بک' : 'Customer Passbook'}</span>
+                    </button>
+
+                    {/* Direct Logout Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileActionsOpen(false);
+                        handleLogout();
+                      }}
+                      className="btn btn-sm btn-outline text-danger"
+                      style={{ justifyContent: 'flex-start', border: 'none', background: '#fef2f2', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%', marginTop: '0.25rem' }}
+                    >
+                      <LogOut size={16} />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ' : 'Logout'}</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

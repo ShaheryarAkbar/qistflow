@@ -895,8 +895,8 @@ export const RecoveryPortalPage: React.FC = () => {
             </div>
           )}
 
-          {/* Target Filter Pills */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+          {/* Target Filter Pills (Auto-wrap on mobile / tablet) */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
             <span className="text-muted" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Filter size={12} /> {language === 'ur' ? 'فلٹر:' : 'Filter:'}
             </span>
@@ -988,11 +988,11 @@ export const RecoveryPortalPage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Mobile Action Buttons */}
+                      {/* Mobile Action Buttons (Wraps smoothly to 2x2 on mobile phones) */}
                       <div
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: isOwner || isManager ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))',
                           gap: '0.5rem',
                           marginTop: '0.75rem',
                         }}

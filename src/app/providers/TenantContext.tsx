@@ -49,7 +49,7 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, isDemoUser, currentDemoRole } = useAuth();
+  const { currentUser, isDemoUser, currentDemoRole, loading: authLoading } = useAuth();
   const [activeTenant, setActiveTenant] = useState<Tenant | null>(null);
   const [activeMembership, setActiveMembership] = useState<Membership | null>(null);
   const [userTenants, setUserTenants] = useState<{ tenant: Tenant; membership: Membership }[]>([]);
@@ -57,10 +57,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (!currentUser) {
-      setActiveTenant(null);
-      setActiveMembership(null);
-      setUserTenants([]);
-      setLoadingTenant(false);
+      if (!authLoading) {
+        setActiveTenant(null);
+        setActiveMembership(null);
+        setUserTenants([]);
+        setLoadingTenant(false);
+      }
       return;
     }
 

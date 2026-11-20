@@ -154,8 +154,8 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Highlights Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-6">
+      {/* KPI Highlights Grid (1 col on mobile, 2 on tablet, 4 on desktop to avoid cramped prices) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="stat-card">
           <div className="stat-icon icon-emerald">
             <TrendingUp size={22} />

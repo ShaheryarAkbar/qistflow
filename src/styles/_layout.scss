@@ -199,9 +199,10 @@
         .header-title-block {
           min-width: 0;
           display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          flex-wrap: nowrap;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 0.1rem;
 
           .shop-title {
             font-size: 0.9375rem;
@@ -211,30 +212,44 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            max-width: 180px;
+            max-width: 170px;
 
             @media (min-width: 480px) {
-              max-width: 240px;
+              max-width: 250px;
             }
 
             @media (min-width: 768px) {
               font-size: 1.125rem;
-              max-width: 360px;
+              max-width: 380px;
             }
 
             @media (min-width: 1024px) {
-              max-width: 460px;
+              max-width: 480px;
             }
           }
 
           .header-meta-user {
-            display: none;
-            @media (min-width: 1024px) {
-              display: block;
+            display: block !important;
+            font-size: 0.6875rem;
+            color: #64748b;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 170px;
+
+            @media (min-width: 480px) {
+              max-width: 250px;
+              font-size: 0.71875rem;
+            }
+
+            @media (min-width: 768px) {
+              max-width: 380px;
               font-size: 0.75rem;
-              color: #64748b;
-              margin-top: 0.1rem;
-              white-space: nowrap;
+            }
+
+            @media (min-width: 1024px) {
+              max-width: 480px;
             }
           }
         }
@@ -245,9 +260,30 @@
         align-items: center;
         gap: 0.35rem;
         flex-shrink: 0;
+        position: relative;
 
         @media (min-width: 640px) {
           gap: 0.5rem;
+        }
+
+        .header-desktop-actions {
+          display: flex !important;
+          align-items: center;
+          gap: 0.5rem;
+
+          @media (max-width: 1023px) {
+            display: none !important;
+          }
+        }
+
+        .header-mobile-actions {
+          display: none !important;
+          align-items: center;
+          gap: 0.35rem;
+
+          @media (max-width: 1023px) {
+            display: flex !important;
+          }
         }
 
         .header-btn {

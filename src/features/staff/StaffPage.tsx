@@ -85,8 +85,32 @@ export const StaffPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [tempPassword, setTempPassword] = useState('Pak@12345');
   const [role, setRole] = useState<UserRole>('recovery');
-  const [designation, setDesignation] = useState('Recovery Officer');
+  const [designation, setDesignation] = useState('Field Recovery Officer');
   const [monthlySalaryRupees, setMonthlySalaryRupees] = useState('30000');
+
+  const getDefaultDesignationForRole = (r: UserRole, lang: string) => {
+    switch (r) {
+      case 'manager':
+        return lang === 'ur' ? 'شاپ مینیجر (Shop General Manager)' : 'Shop General Manager';
+      case 'accountant':
+        return lang === 'ur' ? 'اکاؤنٹنٹ و کیش آفیسر (Accountant & Cash Officer)' : 'Accountant & Cash Officer';
+      case 'recovery':
+        return lang === 'ur' ? 'فیلڈ ریکوری آفیسر (Field Recovery Officer)' : 'Field Recovery Officer';
+      default:
+        return r.toUpperCase();
+    }
+  };
+
+  const handleOpenInviteModal = () => {
+    setName('');
+    setEmail('');
+    setPhone('');
+    setTempPassword('Pak@12345');
+    setRole('recovery');
+    setDesignation(getDefaultDesignationForRole('recovery', language));
+    setMonthlySalaryRupees('25000');
+    setIsInviteModalOpen(true);
+  };
   const [saving, setSaving] = useState(false);
 
   // Permission Configuration Modal State
@@ -521,7 +545,7 @@ export const StaffPage: React.FC = () => {
 
         {canManageStaff && (
           <button
-            onClick={() => setIsInviteModalOpen(true)}
+            onClick={handleOpenInviteModal}
             className="btn btn-primary"
           >
             <UserPlus size={16} />
@@ -1245,7 +1269,11 @@ export const StaffPage: React.FC = () => {
                   <select
                     className="form-select"
                     value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
+                    onChange={(e) => {
+                      const newRole = e.target.value as UserRole;
+                      setRole(newRole);
+                      setDesignation(getDefaultDesignationForRole(newRole, language));
+                    }}
                   >
                     <option value="recovery">
                       {language === 'ur'

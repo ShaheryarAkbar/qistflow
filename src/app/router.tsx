@@ -48,7 +48,7 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const RequireTenant: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { activeTenant, loadingTenant } = useTenant();
+  const { activeTenant, loadingTenant, isSuperAdmin } = useTenant();
   if (loadingTenant) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -56,8 +56,12 @@ const RequireTenant: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </div>
     );
   }
+  // Super admin manages the whole platform and is not constrained to a single retail shop
+  if (isSuperAdmin) {
+    return <>{children}</>;
+  }
   if (!activeTenant) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };

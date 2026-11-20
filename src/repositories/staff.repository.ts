@@ -39,26 +39,69 @@ export const StaffRepository = {
       if (stored) {
         try {
           const parsed: StaffMemberRecord[] = JSON.parse(stored);
-          // If Tariq Mehmood is missing from older cached storage, add him
-          const hasTariq = parsed.some((s) => s.email === 'tariq.recovery@qistflow-demo.pk' || s.userId === 'demo-recovery-103');
-          if (!hasTariq) {
-            parsed.push({
-              userId: 'demo-recovery-103',
-              displayName: 'Tariq Mehmood',
-              email: 'tariq.recovery@qistflow-demo.pk',
-              phone: '0305-5544332',
-              role: 'recovery',
-              status: 'active',
-              permissions: ['assigned_collections'],
-              designation: 'Field Recovery Officer (Zone C)',
-              monthlySalaryPaisa: 2600000, // Rs. 26,000
-              joinedAt: '2026-06-15',
-              password: 'Pak@12345',
-            });
-            localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(parsed));
+          if (tenantId === 'tenant-demo-ryk-01' || tenantId.includes('test')) {
+            // If Tariq Mehmood is missing from older cached storage, add him
+            const hasTariq = parsed.some((s) => s.email === 'tariq.recovery@qistflow-demo.pk' || s.userId === 'demo-recovery-103');
+            if (!hasTariq) {
+              parsed.push({
+                userId: 'demo-recovery-103',
+                displayName: 'Tariq Mehmood',
+                email: 'tariq.recovery@qistflow-demo.pk',
+                phone: '0305-5544332',
+                role: 'recovery',
+                status: 'active',
+                permissions: ['assigned_collections'],
+                designation: 'Field Recovery Officer (Zone C)',
+                monthlySalaryPaisa: 2600000, // Rs. 26,000
+                joinedAt: '2026-06-15',
+                password: 'Pak@12345',
+              });
+              localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(parsed));
+            }
           }
           return parsed;
         } catch (e) {}
+      }
+
+      // For any clean/fresh shop other than the reference demo shop 'tenant-demo-ryk-01'
+      // Seed ONLY the shop owner (NO manager, NO accountant, NO recovery officer pre-populated)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        let ownerName = 'Shop Owner';
+        let ownerEmail = `owner@${tenantId}.pk`;
+        let ownerPhone = '0300-1234567';
+        let ownerPassword = 'Pak@12345';
+
+        const storedShops = localStorage.getItem('qistflow_registered_shops');
+        if (storedShops) {
+          try {
+            const list = JSON.parse(storedShops);
+            const found = list.find((s: any) => s.tenantId === tenantId);
+            if (found) {
+              ownerName = found.ownerName || ownerName;
+              ownerEmail = found.ownerEmail || found.email || ownerEmail;
+              ownerPhone = found.phone || ownerPhone;
+              ownerPassword = found.ownerPassword || found.password || ownerPassword;
+            }
+          } catch (e) {}
+        }
+
+        const freshShopStaff: StaffMemberRecord[] = [
+          {
+            userId: `${tenantId}_owner`,
+            displayName: ownerName,
+            email: ownerEmail,
+            phone: ownerPhone,
+            role: 'owner',
+            status: 'active',
+            permissions: ['all'],
+            designation: 'Business Owner & Founder (دکان مالک)',
+            monthlySalaryPaisa: 0,
+            joinedAt: new Date().toISOString().split('T')[0],
+            password: ownerPassword,
+          },
+        ];
+        localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(freshShopStaff));
+        return freshShopStaff;
       }
 
       const initialStaff: StaffMemberRecord[] = [

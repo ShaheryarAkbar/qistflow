@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   X,
   CheckCircle,
+  Edit3,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -45,6 +46,19 @@ export const CustomersPage: React.FC = () => {
   // Duplicate phone warning modal state
   const [duplicateWarning, setDuplicateWarning] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Edit Customer Modal State
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhoneDisplay, setEditPhoneDisplay] = useState('');
+  const [editAlternatePhone, setEditAlternatePhone] = useState('');
+  const [editCnic, setEditCnic] = useState('');
+  const [editArea, setEditArea] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editStatus, setEditStatus] = useState<any>('active');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadCustomers = async () => {
     if (!activeTenant) return;
@@ -114,6 +128,64 @@ export const CustomersPage: React.FC = () => {
       await loadCustomers();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenEditCustomer = (c: Customer) => {
+    setEditingCustomer(c);
+    setEditFullName(c.fullName);
+    setEditPhoneDisplay(c.phoneDisplay || '');
+    setEditAlternatePhone(c.alternatePhone || '');
+    setEditCnic(c.cnic || '');
+    setEditArea(c.area || '');
+    setEditCity(c.city || '');
+    setEditAddress(c.address || '');
+    setEditNotes(c.notes || '');
+    setEditStatus(c.status || 'active');
+  };
+
+  const handleSaveEditCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !currentUser || !editingCustomer || !editFullName) return;
+
+    setSavingEdit(true);
+    try {
+      await CustomerRepository.updateCustomer(
+        activeTenant.tenantId,
+        editingCustomer.customerId,
+        {
+          fullName: editFullName,
+          phoneDisplay: editPhoneDisplay,
+          alternatePhone: editAlternatePhone,
+          cnic: editCnic,
+          area: editArea,
+          city: editCity,
+          address: editAddress,
+          notes: editNotes,
+          status: editStatus,
+        },
+        currentUser.uid,
+        isDemoUser
+      );
+
+      setEditingCustomer(null);
+      await loadCustomers();
+      if (selectedCustomer?.customerId === editingCustomer.customerId) {
+        setSelectedCustomer({
+          ...selectedCustomer,
+          fullName: editFullName,
+          phoneDisplay: editPhoneDisplay,
+          alternatePhone: editAlternatePhone,
+          cnic: editCnic,
+          area: editArea,
+          city: editCity,
+          address: editAddress,
+          notes: editNotes,
+          status: editStatus,
+        });
+      }
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -211,12 +283,25 @@ export const CustomersPage: React.FC = () => {
                       <StatusBadge status={c.status} />
                     </td>
                     <td>
-                      <button
-                        onClick={() => setSelectedCustomer(c)}
-                        className="btn btn-sm btn-outline"
-                      >
-                        {t('common.view')}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                        <button
+                          onClick={() => setSelectedCustomer(c)}
+                          className="btn btn-sm btn-outline"
+                          style={{ padding: '0.25rem 0.5rem' }}
+                        >
+                          {t('common.view')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCustomer(c)}
+                          className="btn btn-sm btn-outline text-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem' }}
+                          title={language === 'ur' ? 'گاہک کی معلومات درست کریں' : 'Edit Customer'}
+                        >
+                          <Edit3 size={12} />
+                          <span>{language === 'ur' ? 'درستی' : 'Edit'}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -452,7 +537,16 @@ export const CustomersPage: React.FC = () => {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => handleOpenEditCustomer(selectedCustomer)}
+                className="btn btn-outline text-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+              >
+                <Edit3 size={14} />
+                <span>{language === 'ur' ? 'گاہک کی درستی' : 'Edit Customer'}</span>
+              </button>
               <button
                 onClick={() => setSelectedCustomer(null)}
                 className="btn btn-secondary"
@@ -460,6 +554,152 @@ export const CustomersPage: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {editingCustomer && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: '580px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">{language === 'ur' ? 'گاہک کی معلومات کی درستی' : 'Edit Customer Profile'}</h3>
+              <button
+                onClick={() => setEditingCustomer(null)}
+                className="btn btn-icon btn-outline"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCustomer}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>{t('customers.name')}</span>
+                    <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">
+                      <span>{t('customers.phone')}</span>
+                      <span className="required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editPhoneDisplay}
+                      onChange={(e) => setEditPhoneDisplay(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('customers.alternatePhone')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editAlternatePhone}
+                      onChange={(e) => setEditAlternatePhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{t('customers.cnic')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editCnic}
+                      onChange={(e) => setEditCnic(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('common.status')}</label>
+                    <select
+                      className="form-select"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                    >
+                      <option value="active">Active (فعال)</option>
+                      <option value="inactive">Inactive (غیر فعال)</option>
+                      <option value="defaulter">Defaulter (نادہندہ)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{t('customers.area')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editArea}
+                      onChange={(e) => setEditArea(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{t('customers.city')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editCity}
+                      onChange={(e) => setEditCity(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{t('customers.address')}</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={editAddress}
+                    onChange={(e) => setEditAddress(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Notes (نوٹس)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingCustomer(null)}
+                  className="btn btn-secondary"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingEdit}
+                >
+                  <CheckCircle size={16} />
+                  <span>{savingEdit ? t('common.loading') : (language === 'ur' ? 'تبدیلی محفوظ کریں' : 'Save Changes')}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

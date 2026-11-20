@@ -23,6 +23,7 @@ import {
   Briefcase,
   Calculator,
   Navigation,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
@@ -41,30 +42,90 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [availableStaff, setAvailableStaff] = useState<StaffMemberRecord[]>([]);
+  interface ShopStaffGroup {
+    tenantId: string;
+    businessName: string;
+    businessNameUr: string;
+    isReference: boolean;
+    staff: StaffMemberRecord[];
+  }
+  const [shopGroups, setShopGroups] = useState<ShopStaffGroup[]>([]);
+  const [selectedShopTag, setSelectedShopTag] = useState<string>('');
   const [showEvaluationAccounts, setShowEvaluationAccounts] = useState(false);
 
   useEffect(() => {
-    // Load current staff members for this demo shop
-    const loadStaff = async () => {
+    // Load all shops and their active staff members dynamically
+    const loadAllShopsAndStaff = async () => {
       try {
-        const staffList = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
-        setAvailableStaff(staffList);
+        const groups: ShopStaffGroup[] = [];
+
+        // 1. Reference Shop (tenant-demo-ryk-01)
+        const refStaff = await StaffRepository.getStaffMembers('tenant-demo-ryk-01', true);
+        groups.push({
+          tenantId: 'tenant-demo-ryk-01',
+          businessName: 'Malik Electronics & Installments',
+          businessNameUr: 'مالک الیکٹرانکس اینڈ انسٹالمنٹس (ریفرنس ڈیمو دکان)',
+          isReference: true,
+          staff: refStaff,
+        });
+
+        // 2. Fresh Clean Shop (tenant-fresh-02)
+        const freshStaff = await StaffRepository.getStaffMembers('tenant-fresh-02', true);
+        groups.push({
+          tenantId: 'tenant-fresh-02',
+          businessName: 'Al-Noor Electronics',
+          businessNameUr: 'ال نور الیکٹرانکس (خالی ڈیمو دکان)',
+          isReference: false,
+          staff: freshStaff,
+        });
+
+        // 3. Any additional registered shops created in Super-Admin
+        const stored = localStorage.getItem('qistflow_registered_shops');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              for (const s of parsed) {
+                if (s.tenantId !== 'tenant-demo-ryk-01' && s.tenantId !== 'tenant-fresh-02') {
+                  const sStaff = await StaffRepository.getStaffMembers(s.tenantId, true);
+                  groups.push({
+                    tenantId: s.tenantId,
+                    businessName: s.businessName || 'Custom Shop',
+                    businessNameUr: s.businessNameUr || s.businessName || 'کسٹم دکان',
+                    isReference: false,
+                    staff: sStaff,
+                  });
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        setShopGroups(groups);
+        setAvailableStaff(refStaff);
       } catch (e) {
         const stored = localStorage.getItem('qistflow_demo_staff_tenant-demo-ryk-01');
         if (stored) {
           try {
-            setAvailableStaff(JSON.parse(stored));
+            const parsed = JSON.parse(stored);
+            setAvailableStaff(parsed);
           } catch (err) {}
         }
       }
     };
-    loadStaff();
+    loadAllShopsAndStaff();
   }, []);
 
-  const handleFillCredentials = (role: UserRole, identifier: string, pass: string = 'Pak@12345') => {
+  const handleFillCredentials = (
+    role: UserRole,
+    identifier: string,
+    pass: string = 'Pak@12345',
+    shopNameLabel?: string
+  ) => {
     setSelectedRole(role);
     setLoginIdentifier(identifier);
     setPassword(pass);
+    setSelectedShopTag(shopNameLabel || '');
     setError(null);
   };
 
@@ -122,35 +183,15 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      // 2. Check other registered shops' owners (multi-shop isolation)
+      // 2. Check other registered shops' owners & staff (multi-shop isolation)
       let registeredShops = [
         {
-          tenantId: 'tenant-sqb-03',
-          businessName: 'Sadiqabad Fans & Home Appliances',
-          businessNameUr: 'صادق آباد فینز اینڈ ہوم اپلائنسز',
-          ownerName: 'Zahid Hussain',
-          email: 'zahid.fans@sadiqabad.pk',
-          phone: '0302-3344556',
-          password: 'Pak@12345',
-          city: 'Sadiqabad',
-        },
-        {
-          tenantId: 'tenant-kp-02',
-          businessName: 'Khanpur Solar & Electric Mart',
-          businessNameUr: 'خانپور سولر اینڈ الیکٹرک مارٹ',
-          ownerName: 'Chaudhry Nadeem',
-          email: 'nadeem.solar@khanpur.pk',
-          phone: '0301-9876543',
-          password: 'Pak@12345',
-          city: 'Khanpur',
-        },
-        {
-          tenantId: 'tenant-ryk-04',
-          businessName: 'Al-Madina Motorbike Center',
-          businessNameUr: 'المدینہ موٹر بائیک سینٹر',
-          ownerName: 'Muhammad Arshad',
-          email: 'arshad.motors@ryk.pk',
-          phone: '0303-7788990',
+          tenantId: 'tenant-fresh-02',
+          businessName: 'Al-Noor Electronics',
+          businessNameUr: 'النور الیکٹرانکس (خالی ڈیمو دکان)',
+          ownerName: 'Mian Muhammad Usman',
+          email: 'usman.owner@alnoor.pk',
+          phone: '0300-7654321',
           password: 'Pak@12345',
           city: 'Rahim Yar Khan',
         },
@@ -161,61 +202,105 @@ export const LoginPage: React.FC = () => {
         try {
           const parsed = JSON.parse(storedShops);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            registeredShops = parsed.map((p) => ({
-              tenantId: p.tenantId,
-              businessName: p.businessName,
-              businessNameUr: p.businessNameUr || p.businessName,
-              ownerName: p.ownerName,
-              email: p.ownerEmail || p.email,
-              phone: p.phone,
-              password: p.ownerPassword || p.password || 'Pak@12345',
-              city: p.city,
-            }));
+            registeredShops = parsed
+              .filter((p: any) => !['tenant-kp-02', 'tenant-sqb-03', 'tenant-ryk-04'].includes(p.tenantId))
+              .map((p: any) => ({
+                tenantId: p.tenantId,
+                businessName: p.businessName,
+                businessNameUr: p.businessNameUr || p.businessName,
+                ownerName: p.ownerName,
+                email: p.ownerEmail || p.email,
+                phone: p.phone,
+                password: p.ownerPassword || p.password || 'Pak@12345',
+                city: p.city,
+              }));
           }
         } catch (e) {}
       }
 
-      const matchedOtherShop = registeredShops.find((shop) =>
-        matchesIdentifier({ email: shop.email, phone: shop.phone, displayName: shop.ownerName })
-      );
+      // Check all registered other shops
+      for (const shop of registeredShops) {
+        if (shop.tenantId === 'tenant-demo-ryk-01') continue;
 
-      if (matchedOtherShop) {
-        if (password !== matchedOtherShop.password && password !== 'Pak@12345') {
-          setError(language === 'ur' ? 'غلط پاس ورڈ درج کیا گیا ہے۔' : 'Invalid password.');
-          setSubmitting(false);
+        const isOwnerMatch =
+          matchesIdentifier({ email: shop.email, phone: shop.phone, displayName: shop.ownerName }) ||
+          (rawInput === 'usman' && shop.tenantId === 'tenant-fresh-02') ||
+          (rawInput === 'alnoor' && shop.tenantId === 'tenant-fresh-02');
+
+        if (isOwnerMatch) {
+          if (password !== shop.password && password !== 'Pak@12345') {
+            setError(language === 'ur' ? 'غلط پاس ورڈ درج کیا گیا ہے۔' : 'Invalid password.');
+            setSubmitting(false);
+            return;
+          }
+
+          const tenantPayload = JSON.stringify({
+            tenantId: shop.tenantId,
+            schemaVersion: 1,
+            businessName: shop.businessName,
+            businessNameUr: shop.businessNameUr,
+            phone: shop.phone,
+            city: shop.city,
+            address: shop.city,
+            currency: 'PKR',
+            timezone: 'Asia/Karachi',
+            defaultLanguage: 'ur',
+            subscriptionStatus: 'active',
+            createdAt: '2026-11-19',
+            createdBy: shop.tenantId + '_owner',
+            updatedAt: '2026-11-19',
+            updatedBy: shop.tenantId + '_owner',
+          });
+          sessionStorage.setItem('qistflow_demo_tenant', tenantPayload);
+          localStorage.setItem('qistflow_demo_tenant', tenantPayload);
+
+          enableDemoMode('owner', {
+            userId: shop.tenantId + '_owner',
+            displayName: shop.ownerName,
+            email: shop.email,
+            role: 'owner',
+            phone: shop.phone,
+          });
+          navigate('/dashboard');
           return;
         }
 
-        // Set active tenant to this shop (isolated per tab)
-        const tenantPayload = JSON.stringify({
-          tenantId: matchedOtherShop.tenantId,
-          schemaVersion: 1,
-          businessName: matchedOtherShop.businessName,
-          businessNameUr: matchedOtherShop.businessNameUr,
-          phone: matchedOtherShop.phone,
-          city: matchedOtherShop.city,
-          address: matchedOtherShop.city,
-          currency: 'PKR',
-          timezone: 'Asia/Karachi',
-          defaultLanguage: 'ur',
-          subscriptionStatus: 'active',
-          createdAt: '2026-09-15',
-          createdBy: matchedOtherShop.tenantId + '_owner',
-          updatedAt: '2026-09-15',
-          updatedBy: matchedOtherShop.tenantId + '_owner',
-        });
-        sessionStorage.setItem('qistflow_demo_tenant', tenantPayload);
-        localStorage.setItem('qistflow_demo_tenant', tenantPayload);
+        // Check if employee in this shop
+        const otherStaff = await StaffRepository.getStaffMembers(shop.tenantId, true);
+        const matchedOtherStaff = otherStaff.find((s) => matchesIdentifier(s));
+        if (matchedOtherStaff) {
+          const expectedPass = matchedOtherStaff.password || 'Pak@12345';
+          if (password !== expectedPass && password !== 'Pak@12345') {
+            setError(language === 'ur' ? 'غلط پاس ورڈ درج کیا گیا ہے۔' : 'Invalid password.');
+            setSubmitting(false);
+            return;
+          }
 
-        enableDemoMode('owner', {
-          userId: matchedOtherShop.tenantId + '_owner',
-          displayName: matchedOtherShop.ownerName,
-          email: matchedOtherShop.email,
-          role: 'owner',
-          phone: matchedOtherShop.phone,
-        });
-        navigate('/dashboard');
-        return;
+          const tenantPayload = JSON.stringify({
+            tenantId: shop.tenantId,
+            schemaVersion: 1,
+            businessName: shop.businessName,
+            businessNameUr: shop.businessNameUr,
+            phone: shop.phone,
+            city: shop.city,
+            address: shop.city,
+            currency: 'PKR',
+            timezone: 'Asia/Karachi',
+            defaultLanguage: 'ur',
+            subscriptionStatus: 'active',
+            createdAt: '2026-11-19',
+            createdBy: shop.tenantId + '_owner',
+            updatedAt: '2026-11-19',
+            updatedBy: shop.tenantId + '_owner',
+          });
+          sessionStorage.setItem('qistflow_demo_tenant', tenantPayload);
+          localStorage.setItem('qistflow_demo_tenant', tenantPayload);
+
+          enableDemoMode(matchedOtherStaff.role, matchedOtherStaff);
+          if (matchedOtherStaff.role === 'recovery') navigate('/recovery');
+          else navigate('/dashboard');
+          return;
+        }
       }
 
       // 3. Default Shop: Malik Electronics & Installments (tenant-demo-ryk-01)
@@ -266,8 +351,25 @@ export const LoginPage: React.FC = () => {
         }
 
         // Set tenant context to main shop
-        sessionStorage.removeItem('qistflow_demo_tenant');
-        localStorage.removeItem('qistflow_demo_tenant'); // defaults to Malik Electronics
+        const mainTenantPayload = JSON.stringify({
+          tenantId: 'tenant-demo-ryk-01',
+          schemaVersion: 1,
+          businessName: 'Malik Electronics & Installments',
+          businessNameUr: 'ملک الیکٹرانکس اینڈ اقساط سینٹر',
+          phone: '0300-1234567',
+          city: 'Rahim Yar Khan',
+          address: 'Shahi Road, Near City Chowk, Rahim Yar Khan',
+          currency: 'PKR',
+          timezone: 'Asia/Karachi',
+          defaultLanguage: 'ur',
+          subscriptionStatus: 'active',
+          createdAt: '2026-10-01',
+          createdBy: 'demo-owner-101',
+          updatedAt: '2026-10-01',
+          updatedBy: 'demo-owner-101',
+        });
+        sessionStorage.setItem('qistflow_demo_tenant', mainTenantPayload);
+        localStorage.setItem('qistflow_demo_tenant', mainTenantPayload);
 
         enableDemoMode(matchedStaff.role, matchedStaff);
 
@@ -414,6 +516,37 @@ export const LoginPage: React.FC = () => {
             </select>
           </div>
 
+          {/* Target Shop Indicator if selected via Auto-Fill */}
+          {selectedShopTag && (
+            <div
+              style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '6px',
+                padding: '0.4rem 0.6rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '0.75rem',
+                fontSize: '0.75rem',
+                color: '#1e40af',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                <Building2 size={13} />
+                <span>{language === 'ur' ? `منتخب دکان: ${selectedShopTag}` : `Target Shop: ${selectedShopTag}`}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedShopTag('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0 }}
+                title={language === 'ur' ? 'ہٹائیں' : 'Clear'}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
           {/* Email / Phone / Username input */}
           <div className="form-group mb-3">
             <label className="form-label" style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
@@ -550,8 +683,8 @@ export const LoginPage: React.FC = () => {
                 overflowY: 'auto',
               }}
             >
-              {/* Dynamic rendering of all staff members in the shop */}
-              {availableStaff.map((member) => {
+              {/* Render dynamic accounts grouped by Shop */}
+              {shopGroups.map((group) => {
                 const getRoleBadge = (role: UserRole) => {
                   switch (role) {
                     case 'owner':
@@ -589,38 +722,97 @@ export const LoginPage: React.FC = () => {
 
                 return (
                   <div
-                    key={member.userId}
+                    key={group.tenantId}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid #edf2f7',
-                      paddingBottom: '0.4rem',
-                      gap: '0.5rem',
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      padding: '0.5rem',
+                      marginBottom: '0.5rem',
                     }}
                   >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        {getRoleBadge(member.role)}
-                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{member.displayName}</span>
-                        {member.designation && member.designation !== member.role.toUpperCase() && (
-                          <span className="text-muted" style={{ fontSize: '0.6875rem' }}>({member.designation})</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#334155', marginTop: '0.1rem', wordBreak: 'break-all' }}>{member.email}</div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
-                        {member.phone ? <span dir="ltr">{member.phone} • </span> : ''}
-                        <span>Pass: <strong style={{ fontFamily: 'monospace' }}>{member.password || 'Pak@12345'}</strong></span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleFillCredentials(member.role, member.email, member.password || 'Pak@12345')}
-                      className="btn btn-sm btn-outline"
-                      style={{ fontSize: '0.6875rem', padding: '0.2rem 0.5rem', flexShrink: 0 }}
+                    {/* Shop Header Banner */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid #edf2f7',
+                        paddingBottom: '0.35rem',
+                        marginBottom: '0.4rem',
+                      }}
                     >
-                      {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
-                    </button>
+                      <span style={{ fontWeight: 700, fontSize: '0.78125rem', color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Building2 size={13} color="#2563eb" />
+                        <span>{language === 'ur' ? group.businessNameUr : group.businessName}</span>
+                      </span>
+                      <span
+                        className={`badge ${group.isReference ? 'badge-primary' : 'badge-slate'}`}
+                        style={{ fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}
+                      >
+                        {group.isReference
+                          ? (language === 'ur' ? 'ریفرنس دکان' : 'Reference Shop')
+                          : (language === 'ur' ? 'خالی دکان (Clean)' : 'Clean Slate')}
+                      </span>
+                    </div>
+
+                    {/* Staff List for this shop */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {group.staff.map((member) => (
+                        <div
+                          key={member.userId}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            borderBottom: '1px dashed #f1f5f9',
+                            paddingBottom: '0.35rem',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              {getRoleBadge(member.role)}
+                              <span style={{ fontWeight: 600, color: '#0f172a' }}>{member.displayName}</span>
+                              {member.designation && member.designation !== member.role.toUpperCase() && (
+                                <span className="text-muted" style={{ fontSize: '0.6875rem' }}>({member.designation})</span>
+                              )}
+                              <span
+                                className="badge badge-outline"
+                                style={{
+                                  fontSize: '0.625rem',
+                                  padding: '0.05rem 0.35rem',
+                                  color: group.isReference ? '#1d4ed8' : '#059669',
+                                  borderColor: group.isReference ? '#bfdbfe' : '#a7f3d0',
+                                }}
+                              >
+                                {group.businessName}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#334155', marginTop: '0.1rem', wordBreak: 'break-all' }}>{member.email}</div>
+                            <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                              {member.phone ? <span dir="ltr">{member.phone} • </span> : ''}
+                              <span>Pass: <strong style={{ fontFamily: 'monospace' }}>{member.password || 'Pak@12345'}</strong></span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleFillCredentials(
+                                member.role,
+                                member.email,
+                                member.password || 'Pak@12345',
+                                language === 'ur' ? group.businessNameUr : group.businessName
+                              )
+                            }
+                            className="btn btn-sm btn-outline"
+                            style={{ fontSize: '0.6875rem', padding: '0.2rem 0.5rem', flexShrink: 0 }}
+                          >
+                            {language === 'ur' ? 'آٹو فِل' : 'Auto-Fill'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -628,26 +820,32 @@ export const LoginPage: React.FC = () => {
               {/* Super-Admin Platform Credentials */}
               <div
                 style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  padding: '0.5rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  paddingTop: '0.2rem',
                   gap: '0.5rem',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span className="badge badge-primary" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <ShieldCheck size={11} />
-                    <span>Super-Admin</span>
-                  </span>
-                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.75rem' }}>superadmin@qistflow.pk</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <span className="badge badge-primary" style={{ fontSize: '0.6875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <ShieldCheck size={11} />
+                      <span>Super-Admin</span>
+                    </span>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>Platform Super-Admin</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#334155', marginTop: '0.1rem' }}>superadmin@qistflow.pk</div>
                   <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
-                    Platform Super-Admin • Pass: <strong style={{ fontFamily: 'monospace' }}>Pak@12345</strong>
+                    Pass: <strong style={{ fontFamily: 'monospace' }}>Pak@12345</strong>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleFillCredentials('super_admin', 'superadmin@qistflow.pk', 'Pak@12345')}
+                  onClick={() => handleFillCredentials('super_admin', 'superadmin@qistflow.pk', 'Pak@12345', 'Platform Super-Admin')}
                   className="btn btn-sm btn-outline"
                   style={{ fontSize: '0.6875rem', padding: '0.2rem 0.5rem', flexShrink: 0 }}
                 >

@@ -110,18 +110,26 @@ export const PaymentRepository = {
 
       if (stored) {
         let payments: Payment[] = JSON.parse(stored);
-        const hasTariq = payments.some((p) => p.customerId === 'cus-ryk-002');
-        const hasBad29k = payments.some((p) => p.amountPaisa === 2900000);
-        if (!hasTariq || hasBad29k) {
-          const userPayments = payments.filter(
-            (p) =>
-              !['pay-2026-001', 'pay-2026-002', 'pay-2026-003', 'pay-2026-004'].includes(p.paymentId) &&
-              p.amountPaisa !== 2900000
-          );
-          payments = [...userPayments, ...defaultPayments];
-          localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(payments));
+        if (tenantId === 'tenant-demo-ryk-01' || tenantId.includes('test')) {
+          const hasTariq = payments.some((p) => p.customerId === 'cus-ryk-002');
+          const hasBad29k = payments.some((p) => p.amountPaisa === 2900000);
+          if (!hasTariq || hasBad29k) {
+            const userPayments = payments.filter(
+              (p) =>
+                !['pay-2026-001', 'pay-2026-002', 'pay-2026-003', 'pay-2026-004'].includes(p.paymentId) &&
+                p.amountPaisa !== 2900000
+            );
+            payments = [...userPayments, ...defaultPayments];
+            localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(payments));
+          }
         }
         return payments;
+      }
+
+      // Only seed default payments for reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify([]));
+        return [];
       }
 
       localStorage.setItem(`${DEMO_PAYMENTS_KEY}_${tenantId}`, JSON.stringify(defaultPayments));

@@ -38,6 +38,8 @@ import {
   PlusCircle,
   UserPlus,
   Mail,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -71,6 +73,13 @@ export const PlatformAdminPage: React.FC = () => {
   const [showEditOwnerPass, setShowEditOwnerPass] = useState(false);
   const [savingOwnerDetails, setSavingOwnerDetails] = useState(false);
 
+  // Edit Subscription / Mistake Correction State
+  const [editingSub, setEditingSub] = useState<any | null>(null);
+  const [editSubStatus, setEditSubStatus] = useState<'paid' | 'due' | 'overdue' | 'lifetime'>('due');
+  const [editSubMonthlyFee, setEditSubMonthlyFee] = useState('');
+  const [editSubDueDate, setEditSubDueDate] = useState('');
+  const [editSubLastPaidDate, setEditSubLastPaidDate] = useState('');
+
   // New Shop Form State
   const [newShopName, setNewShopName] = useState('');
   const [newShopNameUr, setNewShopNameUr] = useState('');
@@ -81,12 +90,12 @@ export const PlatformAdminPage: React.FC = () => {
   const [newShopPhone, setNewShopPhone] = useState('0300-1234567');
   const [newShopPlan, setNewShopPlan] = useState('Professional Monthly (Rs. 3,499)');
 
-  // Sample seed platform tenants
-  const [tenants, setTenants] = useState([
+  // Platform tenants: 1 Main Reference Demo Shop + 1 Fresh Clean Empty Demo Shop
+  const defaultPlatformTenants = [
     {
       tenantId: 'tenant-demo-ryk-01',
       businessName: 'Malik Electronics & Installments',
-      businessNameUr: 'ملک الیکٹرانکس اینڈ اقساط سینٹر',
+      businessNameUr: 'ملک الیکٹرانکس اینڈ اقساط سینٹر (ریفرنس ڈیمو)',
       ownerName: 'Haji Abdul Malik',
       ownerEmail: 'owner@qistflow-demo.pk',
       ownerPassword: 'Pak@12345',
@@ -97,60 +106,27 @@ export const PlatformAdminPage: React.FC = () => {
       status: 'active',
       activeContracts: 48,
       createdAt: '2026-10-01',
-      supportNotes: 'Shop in Shahi Road RYK. Active user, 2 recovery officers.',
+      supportNotes: 'ریفرنس ڈیمو شاپ: اس میں تمام کسٹمرز، پروڈکٹس، سیلز، منیجر، اکاؤنٹنٹ اور ریکوری آفیسرز کا مکمل ریکارڈ پہلے سے موجود ہے۔',
     },
     {
-      tenantId: 'tenant-kp-02',
-      businessName: 'Khanpur Solar & Electric Mart',
-      businessNameUr: 'خانپور سولر اینڈ الیکٹرک مارٹ',
-      ownerName: 'Chaudhry Nadeem',
-      ownerEmail: 'nadeem.solar@khanpur.pk',
+      tenantId: 'tenant-fresh-02',
+      businessName: 'Al-Noor Electronics',
+      businessNameUr: 'النور الیکٹرانکس (خالی ڈیمو دکان)',
+      ownerName: 'Mian Muhammad Usman',
+      ownerEmail: 'usman.owner@alnoor.pk',
       ownerPassword: 'Pak@12345',
-      phone: '0301-9876543',
-      city: 'Khanpur',
-      plan: 'Standard Monthly (Rs. 1,999)',
-      licenceType: 'subscription',
-      status: 'trial',
-      activeContracts: 19,
-      createdAt: '2026-11-05',
-      supportNotes: 'Trial period. Requested guidance on Urdu receipt printing.',
-    },
-    {
-      tenantId: 'tenant-sqb-03',
-      businessName: 'Sadiqabad Fans & Home Appliances',
-      businessNameUr: 'صادق آباد فینز اینڈ ہوم اپلائنسز',
-      ownerName: 'Zahid Hussain',
-      ownerEmail: 'zahid.fans@sadiqabad.pk',
-      ownerPassword: 'Pak@12345',
-      phone: '0302-3344556',
-      city: 'Sadiqabad',
-      plan: 'Standard Lifetime (Rs. 34,999)',
-      licenceType: 'lifetime',
-      status: 'active',
-      activeContracts: 62,
-      createdAt: '2026-09-15',
-      supportNotes: 'Paid lifetime licence. Full data export tested.',
-    },
-    {
-      tenantId: 'tenant-ryk-04',
-      businessName: 'Al-Madina Motorbike Center',
-      businessNameUr: 'المدینہ موٹر بائیک سینٹر',
-      ownerName: 'Muhammad Arshad',
-      ownerEmail: 'arshad.motors@ryk.pk',
-      ownerPassword: 'Pak@12345',
-      phone: '0303-7788990',
+      phone: '0300-7654321',
       city: 'Rahim Yar Khan',
-      plan: 'Starter Monthly (Rs. 999)',
+      plan: 'Professional Monthly (Rs. 3,499)',
       licenceType: 'subscription',
-      status: 'grace',
-      activeContracts: 12,
-      createdAt: '2026-10-12',
-      supportNotes: 'Subscription due. In 7-day grace period; export available.',
+      status: 'active',
+      activeContracts: 0,
+      createdAt: '2026-11-19',
+      supportNotes: 'خالی ڈیمو دکان (Clean Slate): اس میں کوئی کسٹمر، پروڈکٹ یا ملازم پہلے سے شامل نہیں ہے۔ سب کچھ شروع سے خود مینوئل درج کریں۔',
     },
-  ]);
+  ];
 
-  // Shop SaaS Subscription Dues (NOT product installments!)
-  const [shopSubscriptions, setShopSubscriptions] = useState([
+  const defaultShopSubscriptions = [
     {
       subId: 'sub-01',
       tenantId: 'tenant-demo-ryk-01',
@@ -166,44 +142,21 @@ export const PlatformAdminPage: React.FC = () => {
     },
     {
       subId: 'sub-02',
-      tenantId: 'tenant-kp-02',
-      businessName: 'Khanpur Solar & Electric Mart',
-      ownerName: 'Chaudhry Nadeem',
-      phone: '0301-9876543',
-      city: 'Khanpur',
-      planName: 'Standard Monthly',
-      monthlyFeePKR: 1999,
-      dueDate: '2026-11-15',
-      status: 'due',
-      lastPaidDate: '2026-10-15',
-    },
-    {
-      subId: 'sub-03',
-      tenantId: 'tenant-ryk-04',
-      businessName: 'Al-Madina Motorbike Center',
-      ownerName: 'Muhammad Arshad',
-      phone: '0303-7788990',
+      tenantId: 'tenant-fresh-02',
+      businessName: 'Al-Noor Electronics',
+      ownerName: 'Mian Muhammad Usman',
+      phone: '0300-7654321',
       city: 'Rahim Yar Khan',
-      planName: 'Starter Monthly',
-      monthlyFeePKR: 999,
-      dueDate: '2026-11-10',
-      status: 'grace',
-      lastPaidDate: '2026-10-10',
+      planName: 'Professional Monthly',
+      monthlyFeePKR: 3499,
+      dueDate: '2026-12-15',
+      status: 'due',
+      lastPaidDate: '2026-11-19',
     },
-    {
-      subId: 'sub-04',
-      tenantId: 'tenant-sqb-03',
-      businessName: 'Sadiqabad Fans & Home Appliances',
-      ownerName: 'Zahid Hussain',
-      phone: '0302-3344556',
-      city: 'Sadiqabad',
-      planName: 'Lifetime Standard License',
-      monthlyFeePKR: 0,
-      dueDate: 'Lifetime Active (لائف ٹائم لائسنس)',
-      status: 'lifetime',
-      lastPaidDate: '2026-09-15',
-    },
-  ]);
+  ];
+
+  const [tenants, setTenants] = useState(defaultPlatformTenants);
+  const [shopSubscriptions, setShopSubscriptions] = useState(defaultShopSubscriptions);
 
   // Platform Plans Definitions (PRD Section 5)
   const [plans] = useState<PlatformPlan[]>([
@@ -290,10 +243,62 @@ export const PlatformAdminPage: React.FC = () => {
     const saved = localStorage.getItem('qistflow_registered_shops');
     if (saved) {
       try {
-        setTenants(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove legacy dummy shops
+          const cleaned = parsed.filter(
+            (t: any) => !['tenant-kp-02', 'tenant-sqb-03', 'tenant-ryk-04'].includes(t.tenantId)
+          );
+          const hasMain = cleaned.some((t: any) => t.tenantId === 'tenant-demo-ryk-01');
+          const hasFresh = cleaned.some((t: any) => t.tenantId === 'tenant-fresh-02');
+          const finalShops = [
+            ...(hasMain ? [] : [defaultPlatformTenants[0]]),
+            ...(hasFresh ? [] : [defaultPlatformTenants[1]]),
+            ...cleaned,
+          ];
+          setTenants(finalShops);
+          localStorage.setItem('qistflow_registered_shops', JSON.stringify(finalShops));
+          return;
+        }
       } catch (e) {}
     }
+    setTenants(defaultPlatformTenants);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(defaultPlatformTenants));
   }, []);
+
+  const handleDeleteTenant = (tenantId: string) => {
+    if (tenantId === 'tenant-demo-ryk-01') {
+      alert(language === 'ur' ? 'مرکزی ریفرنس ڈیمو شاپ کو حذف نہیں کیا جا سکتا۔' : 'Cannot delete the primary reference demo shop.');
+      return;
+    }
+    const target = tenants.find((t) => t.tenantId === tenantId);
+    if (!window.confirm(language === 'ur' ? `کیا آپ واقعی دکان (${target?.businessName}) کو حذف کرنا چاہتے ہیں؟ اس کا تمام ڈیٹا ختم ہو جائے گا۔` : `Delete shop ${target?.businessName}?`)) {
+      return;
+    }
+
+    const updated = tenants.filter((t) => t.tenantId !== tenantId);
+    setTenants(updated);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
+
+    setShopSubscriptions((prev) => prev.filter((s) => s.tenantId !== tenantId));
+
+    // Clean up all local cache for that shop
+    localStorage.removeItem(`qistflow_demo_staff_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_products_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_customers_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_contracts_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_sales_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_assignments_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_visits_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_expenses_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_suppliers_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_purchases_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_branches_${tenantId}`);
+    localStorage.removeItem(`qistflow_demo_payments_${tenantId}`);
+
+    setActionSuccess(language === 'ur' ? 'دکان کامیابی سے سسٹم سے ختم کر دی گئی ہے۔' : 'Shop removed successfully.');
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
 
   const handleOpenEditOwnerCredentials = (tenant: any) => {
     setEditingTenantOwner(tenant);
@@ -462,6 +467,51 @@ export const PlatformAdminPage: React.FC = () => {
       prev.map((s) => (s.subId === subId ? { ...s, status: 'paid', lastPaidDate: new Date().toISOString().split('T')[0] } : s))
     );
     setActionSuccess('Subscription payment recorded as paid!');
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
+
+  const handleOpenEditSub = (sub: any) => {
+    setEditingSub(sub);
+    setEditSubStatus(sub.status);
+    setEditSubMonthlyFee(sub.monthlyFeePKR.toString());
+    setEditSubDueDate(sub.dueDate);
+    setEditSubLastPaidDate(sub.lastPaidDate || new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSaveEditSub = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSub) return;
+    const fee = parseInt(editSubMonthlyFee, 10) || 0;
+    setShopSubscriptions((prev) =>
+      prev.map((s) =>
+        s.subId === editingSub.subId
+          ? {
+              ...s,
+              status: editSubStatus,
+              monthlyFeePKR: fee,
+              annualCalculatedPKR: fee * 12,
+              dueDate: editSubDueDate,
+              lastPaidDate: editSubLastPaidDate,
+            }
+          : s
+      )
+    );
+    setActionSuccess(
+      language === 'ur'
+        ? 'سبسکرپشن ریکارڈ کی کامیابی سے تصحیح کر دی گئی ہے۔'
+        : 'Subscription record successfully updated.'
+    );
+    setEditingSub(null);
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
+
+  const handleUndoPaidSub = (subId: string) => {
+    setShopSubscriptions((prev) =>
+      prev.map((s) => (s.subId === subId ? { ...s, status: 'due' } : s))
+    );
+    setActionSuccess(
+      language === 'ur' ? 'فیس کی وصولی منسوخ (Undo) کر دی گئی۔' : 'Fee collection undone.'
+    );
     setTimeout(() => setActionSuccess(null), 3000);
   };
 
@@ -707,6 +757,18 @@ export const PlatformAdminPage: React.FC = () => {
                             <Edit size={13} />
                             <span>{language === 'ur' ? 'لائسنس' : 'Manage'}</span>
                           </button>
+                          {t.tenantId !== 'tenant-demo-ryk-01' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTenant(t.tenantId)}
+                              className="btn btn-sm btn-outline"
+                              title={language === 'ur' ? 'دکان حذف کریں' : 'Delete Shop'}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: '#dc2626', borderColor: '#fca5a5' }}
+                            >
+                              <Trash2 size={13} />
+                              <span>{language === 'ur' ? 'حذف' : 'Delete'}</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -849,7 +911,7 @@ export const PlatformAdminPage: React.FC = () => {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
                             {sub.status !== 'paid' && sub.status !== 'lifetime' ? (
                               <>
                                 <button
@@ -859,6 +921,14 @@ export const PlatformAdminPage: React.FC = () => {
                                 >
                                   <CheckCircle2 size={14} />
                                   <span>{language === 'ur' ? 'فیس وصول' : 'Collect Fee'}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditSub(sub)}
+                                  className="btn btn-sm btn-outline"
+                                  title="Edit subscription details"
+                                >
+                                  <Edit2 size={13} />
+                                  <span>{language === 'ur' ? 'درستی' : 'Edit'}</span>
                                 </button>
                                 <a
                                   href={`https://wa.me/?text=${encodeURIComponent(reminderMessage)}`}
@@ -872,9 +942,30 @@ export const PlatformAdminPage: React.FC = () => {
                                 </a>
                               </>
                             ) : (
-                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                {language === 'ur' ? 'کھاتہ اپ ٹو ڈیٹ ہے' : 'Up-to-date'}
-                              </span>
+                              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                                <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                                  {language === 'ur' ? 'کھاتہ اپ ٹو ڈیٹ ہے' : 'Up-to-date'}
+                                </span>
+                                <button
+                                  onClick={() => handleOpenEditSub(sub)}
+                                  className="btn btn-sm btn-outline"
+                                  title="Edit subscription details"
+                                >
+                                  <Edit2 size={12} />
+                                  <span>{language === 'ur' ? 'درستی' : 'Edit'}</span>
+                                </button>
+                                {sub.status === 'paid' && (
+                                  <button
+                                    onClick={() => handleUndoPaidSub(sub.subId)}
+                                    className="btn btn-sm btn-ghost text-danger"
+                                    title="Undo paid status if clicked by mistake"
+                                    style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                                  >
+                                    <RotateCcw size={12} />
+                                    <span>Undo</span>
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1418,6 +1509,89 @@ export const PlatformAdminPage: React.FC = () => {
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Subscription Modal for Super Admin (Mistake Correction / Undo) */}
+      {editingSub && (
+        <div className="modal-overlay" style={{ zIndex: 75 }}>
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CreditCard size={18} className="text-primary" />
+                <h3 className="modal-title">
+                  {language === 'ur' ? 'سبسکرپشن فیس کھاتہ میں ترمیم' : 'Edit Shop Subscription & Billing'}
+                </h3>
+              </div>
+              <button onClick={() => setEditingSub(null)} className="btn btn-icon btn-outline">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditSub}>
+              <div className="modal-body">
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
+                  <div className="font-semibold" style={{ color: '#0f172a' }}>{editingSub.shopName}</div>
+                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>Plan: {editingSub.planName}</div>
+                </div>
+
+                <div className="form-group mb-3">
+                  <label className="form-label">{language === 'ur' ? 'سبسکرپشن کیفیت (Status)' : 'Status'}</label>
+                  <select
+                    className="form-select"
+                    value={editSubStatus}
+                    onChange={(e: any) => setEditSubStatus(e.target.value)}
+                  >
+                    <option value="paid">{language === 'ur' ? 'ادا شدہ (Paid / Up-to-date)' : 'Paid / Up-to-date'}</option>
+                    <option value="due">{language === 'ur' ? 'واجب الادا (Due)' : 'Due'}</option>
+                    <option value="overdue">{language === 'ur' ? 'تاخیر کا شکار (Overdue)' : 'Overdue'}</option>
+                    <option value="lifetime">{language === 'ur' ? 'لائف ٹائم لائسنس (Lifetime)' : 'Lifetime'}</option>
+                  </select>
+                </div>
+
+                <div className="form-group mb-3">
+                  <label className="form-label">{language === 'ur' ? 'ماہانہ فیس (روپے)' : 'Monthly Fee (PKR)'}</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={editSubMonthlyFee}
+                    onChange={(e) => setEditSubMonthlyFee(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-3">
+                  <label className="form-label">{language === 'ur' ? 'اگلی مقررہ تاریخ (Due Date)' : 'Next Due Date'}</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editSubDueDate}
+                    onChange={(e) => setEditSubDueDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group mb-2">
+                  <label className="form-label">{language === 'ur' ? 'آخری ادائیگی کی تاریخ (Last Paid Date)' : 'Last Paid Date'}</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={editSubLastPaidDate}
+                    onChange={(e) => setEditSubLastPaidDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={() => setEditingSub(null)} className="btn btn-secondary">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {language === 'ur' ? 'تبدیلیاں محفوظ کریں' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

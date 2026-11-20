@@ -33,6 +33,13 @@ import {
   ArrowRightLeft,
   Smartphone,
   Laptop,
+  TrendingUp,
+  ChevronRight,
+  BarChart3,
+  HelpCircle,
+  Lock,
+  Users,
+  Sparkles,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -69,6 +76,10 @@ export const RecoveryPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'assigned' | 'visits' | 'audit' | 'leaderboard'>('assigned');
   const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'completed'>('all');
   const [selectedOfficerFilter, setSelectedOfficerFilter] = useState<string>('all');
+  const [leaderboardTimeframe, setLeaderboardTimeframe] = useState<'today' | 'yesterday' | 'date' | 'month' | 'all'>('today');
+  const [selectedAuditDate, setSelectedAuditDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [leaderboardFrequency, setLeaderboardFrequency] = useState<'all' | 'daily' | 'monthly'>('all');
+  const [selectedOfficerForDetails, setSelectedOfficerForDetails] = useState<any | null>(null);
   const [cards, setCards] = useState<RecoveryCardData[]>([]);
   const [visits, setVisits] = useState<RecoveryVisit[]>([]);
   const [customersList, setCustomersList] = useState<Customer[]>([]);
@@ -310,14 +321,15 @@ export const RecoveryPortalPage: React.FC = () => {
     try {
       let createdPaymentId: string | undefined;
 
-      // If collected on spot with amount > 0, record the payment
-      if (outcome === 'collected' && collectAmountRupees && targetCard.contract) {
+      // If collected on spot with amount > 0, record the payment against contract
+      const targetContract = targetCard.contract || contractsList.find((c) => c.customerId === targetCard.customer?.customerId && c.status === 'active');
+      if (outcome === 'collected' && collectAmountRupees && targetContract) {
         const amountPaisa = rupeesToPaisa(collectAmountRupees);
         const payRes = await PaymentRepository.recordPayment({
           tenantId: activeTenant.tenantId,
           userId: currentUser.uid,
           customerId: targetCard.customer?.customerId || '',
-          contractId: targetCard.contract.contractId,
+          contractId: targetContract.contractId,
           amountPaisa,
           method: 'cash',
           paymentKind: 'installment',
@@ -331,9 +343,9 @@ export const RecoveryPortalPage: React.FC = () => {
           receiptNumber: payRes.receipt.receiptNumber,
           customerName: targetCard.customer?.fullName || 'Customer',
           customerPhone: targetCard.customer?.phoneDisplay,
-          contractCode: targetCard.contract.contractCode,
+          contractCode: targetContract.contractCode,
           amountPaisa,
-          remainingBalancePaisa: Math.max(0, targetCard.contract.outstandingPaisa - amountPaisa),
+          remainingBalancePaisa: Math.max(0, targetContract.outstandingPaisa - amountPaisa),
           paymentMethod: 'cash',
           date: new Date().toISOString(),
           receivedBy: currentUser.displayName || 'Field Officer',
@@ -345,7 +357,7 @@ export const RecoveryPortalPage: React.FC = () => {
         userId: currentUser.uid,
         assignmentId: targetCard.assignment.assignmentId,
         customerId: targetCard.customer?.customerId || '',
-        contractId: targetCard.contract?.contractId,
+        contractId: targetContract?.contractId,
         outcome,
         amountCollectedPaisa: outcome === 'collected' && collectAmountRupees ? rupeesToPaisa(collectAmountRupees) : undefined,
         note: visitNote,
@@ -411,39 +423,223 @@ export const RecoveryPortalPage: React.FC = () => {
     return true;
   });
 
-  // Recovery Officers Performance Leaderboard calculation
-  const targetStaffForLeaderboard = recoveryStaff.length > 0 ? recoveryStaff : staffMembers;
+  // Recovery Officers Performance Leaderboard calculation (Multi-Officer Daily & Monthly Analytics)
+  const targetStaffForLeaderboard = recoveryStaff.length > 0 ? recoveryStaff : staffMembers.filter((s) => s.role === 'recovery');
+  const currentMonthStr = new Date().toISOString().slice(0, 7); // e.g. '2026-11'
+  const yesterdayDateStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  const activeAuditDateStr =
+    leaderboardTimeframe === 'today'
+      ? todayStr
+      : leaderboardTimeframe === 'yesterday'
+      ? yesterdayDateStr
+      : leaderboardTimeframe === 'date'
+      ? selectedAuditDate
+      : null;
 
   const leaderboardStats = targetStaffForLeaderboard
     .map((officer) => {
-      const officerCards = cards.filter((c) => c.assignment.employeeId === officer.userId);
-      const assignedCount = officerCards.length;
-      const officerVisits = visits.filter((v) => v.employeeId === officer.userId);
-      const visitsTodayCount = officerVisits.filter((v) => {
-        const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
-        return vDate === todayStr || v.visitedAt === 'Today';
-      }).length;
+      // 1. Filter assignments belonging to this officer
+      let officerCards = cards.filter((c) => c.assignment.employeeId === officer.userId);
+      if (leaderboardFrequency !== 'all') {
+        officerCards = officerCards.filter((c) => (c.contract?.frequency || 'monthly') === leaderboardFrequency);
+      }
+      const assignedTargetCount = officerCards.length;
+
+      // 2. Filter visits belonging to this officer according to timeframe / active date
+      let officerVisits = visits.filter((v) => v.employeeId === officer.userId);
+      if (activeAuditDateStr) {
+        officerVisits = officerVisits.filter((v) => {
+          const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
+          return vDate === activeAuditDateStr || (activeAuditDateStr === todayStr && v.visitedAt === 'Today');
+        });
+      } else if (leaderboardTimeframe === 'month') {
+        officerVisits = officerVisits.filter((v) => {
+          const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
+          return vDate.startsWith(currentMonthStr) || vDate === todayStr || v.visitedAt === 'Today';
+        });
+      }
+
+      // If frequency filter is active, only consider visits for customers with matching frequency
+      if (leaderboardFrequency !== 'all') {
+        officerVisits = officerVisits.filter((v) => {
+          return officerCards.some((c) => c.customer?.customerId === v.customerId);
+        });
+      }
+
+      // 3. Calculate Fulfilled, Pending & Doorstep outcomes
+      const collectedVisits = officerVisits.filter((v) => v.outcome === 'collected');
+      const fulfilledCustomerIds = new Set(collectedVisits.map((v) => v.customerId));
+      const fulfilledCount = officerCards.filter((c) => fulfilledCustomerIds.has(c.customer?.customerId || '')).length;
+      const pendingCount = Math.max(0, assignedTargetCount - fulfilledCount);
+
+      const unavailableCount = officerVisits.filter((v) => v.outcome === 'unavailable').length;
+      const promisedCount = officerVisits.filter((v) => v.outcome === 'promised').length;
+      const refusedCount = officerVisits.filter((v) => v.outcome === 'refused').length;
       const verifiedVisitsCount = officerVisits.filter((v) => !!v.locationGeo || !!v.photoProofUrl).length;
-      const collectedPaisa = officerVisits
-        .filter((v) => v.outcome === 'collected')
-        .reduce((sum, v) => sum + (v.amountCollectedPaisa || 0), 0);
+
+      // 4. Calculate Rupee amounts
+      const collectedPaisa = collectedVisits.reduce((sum, v) => sum + (v.amountCollectedPaisa || 0), 0);
+      const targetAmountPaisa = officerCards.reduce((sum, c) => {
+        const instAmount = c.contract?.financedAmountPaisa && c.contract.durationCount
+          ? Math.round(c.contract.financedAmountPaisa / c.contract.durationCount)
+          : (c.contract?.outstandingPaisa || 500000);
+        return sum + instAmount;
+      }, 0);
+      const pendingAmountPaisa = Math.max(0, targetAmountPaisa - collectedPaisa);
+
+      // 5. Completion Rate (%)
       const completionRate =
-        assignedCount > 0
-          ? Math.round((visitsTodayCount / assignedCount) * 100)
-          : visitsTodayCount > 0
-          ? 100
+        assignedTargetCount > 0
+          ? Math.round((fulfilledCount / assignedTargetCount) * 100)
           : 0;
+
+      // 6. Build customer queue & reasons breakdown
+      const customerBreakdown = officerCards.map((c) => {
+        const custVisits = officerVisits.filter((v) => v.customerId === c.customer?.customerId);
+        const latestVisit = custVisits.length > 0 ? custVisits[0] : null;
+        const isCollected = latestVisit?.outcome === 'collected' || fulfilledCustomerIds.has(c.customer?.customerId || '');
+
+        let status: 'collected' | 'unavailable' | 'promised' | 'refused' | 'pending' = 'pending';
+        if (isCollected) status = 'collected';
+        else if (latestVisit?.outcome === 'unavailable') status = 'unavailable';
+        else if (latestVisit?.outcome === 'promised') status = 'promised';
+        else if (latestVisit?.outcome === 'refused') status = 'refused';
+
+        return {
+          card: c,
+          customer: c.customer,
+          contract: c.contract,
+          status,
+          latestVisit,
+          note: latestVisit?.note || (language === 'ur' ? 'ابھی وزٹ باقی ہے (پینڈنگ)' : 'Visit Pending / Queued'),
+          followUpDate: latestVisit?.nextFollowUpAt,
+          verified: !!(latestVisit?.locationGeo || latestVisit?.photoProofUrl),
+          amountPaisa: latestVisit?.amountCollectedPaisa || (c.contract?.financedAmountPaisa && c.contract.durationCount ? Math.round(c.contract.financedAmountPaisa / c.contract.durationCount) : 500000),
+        };
+      });
+
+      // Recent notes / reasons for display
+      const recentNotes = officerVisits
+        .filter((v) => v.note && v.note.trim().length > 0)
+        .slice(0, 3)
+        .map((v) => ({
+          customerName: customersList.find((c) => c.customerId === v.customerId)?.fullName || 'Customer',
+          outcome: v.outcome,
+          note: v.note,
+          followUpDate: v.nextFollowUpAt,
+          date: typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : 'Today',
+        }));
 
       return {
         officer,
-        assignedCount,
-        visitsTodayCount,
+        assignedTargetCount,
+        fulfilledCount,
+        pendingCount,
+        unavailableCount,
+        promisedCount,
+        refusedCount,
         verifiedVisitsCount,
         collectedPaisa,
+        targetAmountPaisa,
+        pendingAmountPaisa,
         completionRate,
+        customerBreakdown,
+        recentNotes,
       };
     })
-    .sort((a, b) => b.collectedPaisa - a.collectedPaisa || b.visitsTodayCount - a.visitsTodayCount);
+    .sort((a, b) => b.completionRate - a.completionRate || b.collectedPaisa - a.collectedPaisa || b.fulfilledCount - a.fulfilledCount);
+
+  // Overall Shop Recovery Aggregations for Leadership
+  const totalShopTargets = leaderboardStats.reduce((sum, s) => sum + s.assignedTargetCount, 0);
+  const totalShopFulfilled = leaderboardStats.reduce((sum, s) => sum + s.fulfilledCount, 0);
+  const totalShopPending = leaderboardStats.reduce((sum, s) => sum + s.pendingCount, 0);
+  const totalShopCollectedPaisa = leaderboardStats.reduce((sum, s) => sum + s.collectedPaisa, 0);
+  const totalShopTargetPaisa = leaderboardStats.reduce((sum, s) => sum + s.targetAmountPaisa, 0);
+  const totalShopUnavailable = leaderboardStats.reduce((sum, s) => sum + s.unavailableCount, 0);
+  const totalShopPromised = leaderboardStats.reduce((sum, s) => sum + s.promisedCount, 0);
+  const totalShopRefused = leaderboardStats.reduce((sum, s) => sum + s.refusedCount, 0);
+  const overallShopRate = totalShopTargets > 0 ? Math.round((totalShopFulfilled / totalShopTargets) * 100) : 0;
+
+  // Historical Comparison & Trend Analysis Calculation (بہتری آئی یا کمی آئی)
+  const pastComparisonDate = (activeAuditDateStr && activeAuditDateStr !== todayStr) ? activeAuditDateStr : yesterdayDateStr;
+
+  const pastOfficerStats = targetStaffForLeaderboard.map((officer) => {
+    let officerCards = cards.filter((c) => c.assignment.employeeId === officer.userId);
+    if (leaderboardFrequency !== 'all') {
+      officerCards = officerCards.filter((c) => (c.contract?.frequency || 'monthly') === leaderboardFrequency);
+    }
+    const targetCount = officerCards.length;
+    const pastVisits = visits.filter((v) => {
+      if (v.employeeId !== officer.userId) return false;
+      const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
+      return vDate === pastComparisonDate;
+    });
+    const colVisits = pastVisits.filter((v) => v.outcome === 'collected');
+    const fulfilledIds = new Set(colVisits.map((v) => v.customerId));
+    const fulfilledCount = officerCards.filter((c) => fulfilledIds.has(c.customer?.customerId || '')).length;
+    const rate = targetCount > 0 ? Math.round((fulfilledCount / targetCount) * 100) : 0;
+    return {
+      officerId: officer.userId,
+      displayName: officer.displayName,
+      targetCount,
+      fulfilledCount,
+      rate,
+    };
+  });
+
+  const todayOfficerStats = targetStaffForLeaderboard.map((officer) => {
+    let officerCards = cards.filter((c) => c.assignment.employeeId === officer.userId);
+    if (leaderboardFrequency !== 'all') {
+      officerCards = officerCards.filter((c) => (c.contract?.frequency || 'monthly') === leaderboardFrequency);
+    }
+    const targetCount = officerCards.length;
+    const todayVisits = visits.filter((v) => {
+      if (v.employeeId !== officer.userId) return false;
+      const vDate = typeof v.visitedAt === 'string' ? v.visitedAt.split('T')[0] : '';
+      return vDate === todayStr || v.visitedAt === 'Today';
+    });
+    const colVisits = todayVisits.filter((v) => v.outcome === 'collected');
+    const fulfilledIds = new Set(colVisits.map((v) => v.customerId));
+    const fulfilledCount = officerCards.filter((c) => fulfilledIds.has(c.customer?.customerId || '')).length;
+    const rate = targetCount > 0 ? Math.round((fulfilledCount / targetCount) * 100) : 0;
+    return {
+      officerId: officer.userId,
+      displayName: officer.displayName,
+      targetCount,
+      fulfilledCount,
+      rate,
+    };
+  });
+
+  const totalPastTargets = pastOfficerStats.reduce((s, o) => s + o.targetCount, 0);
+  const totalPastFulfilled = pastOfficerStats.reduce((s, o) => s + o.fulfilledCount, 0);
+  const pastOverallRate = totalPastTargets > 0 ? Math.round((totalPastFulfilled / totalPastTargets) * 100) : 0;
+
+  const totalCurrentTargets = todayOfficerStats.reduce((s, o) => s + o.targetCount, 0);
+  const totalCurrentFulfilled = todayOfficerStats.reduce((s, o) => s + o.fulfilledCount, 0);
+  const currentOverallRate = totalCurrentTargets > 0 ? Math.round((totalCurrentFulfilled / totalCurrentTargets) * 100) : 0;
+
+  const trendDiff = currentOverallRate - pastOverallRate;
+
+  const officerTrends = targetStaffForLeaderboard.map((officer) => {
+    const past = pastOfficerStats.find((p) => p.officerId === officer.userId);
+    const curr = todayOfficerStats.find((c) => c.officerId === officer.userId);
+    const pastRate = past?.rate || 0;
+    const currRate = curr?.rate || 0;
+    const diff = currRate - pastRate;
+    return {
+      officerId: officer.userId,
+      displayName: officer.displayName,
+      pastFulfilled: past?.fulfilledCount || 0,
+      pastTarget: past?.targetCount || 0,
+      pastRate,
+      currFulfilled: curr?.fulfilledCount || 0,
+      currTarget: curr?.targetCount || 0,
+      currRate,
+      diff,
+    };
+  });
 
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '3rem' }}>
@@ -537,7 +733,7 @@ export const RecoveryPortalPage: React.FC = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
               >
                 <ShieldCheck size={14} className={activeTab === 'audit' ? 'text-white' : 'text-success'} />
-                <span>{language === 'ur' ? 'فیلڈ آڈٹ مانیٹر' : 'Audit Monitor'}</span>
+                <span>{language === 'ur' ? 'ریکوری لوکیشن و وزٹ ریکارڈ (Live GPS)' : 'Doorstep GPS & Audit Trail'}</span>
               </button>
               <button
                 onClick={() => setActiveTab('leaderboard')}
@@ -862,7 +1058,7 @@ export const RecoveryPortalPage: React.FC = () => {
                   <th>Customer</th>
                   {(isOwner || isManager) && <th>Recovery Officer</th>}
                   <th>Outcome</th>
-                  <th>Verification Proof</th>
+                  <th>{language === 'ur' ? 'لوکیشن و ثبوت (GPS & Photo)' : 'Verification Proof (GPS)'}</th>
                   <th>Note</th>
                   <th>Next Follow-up</th>
                   <th>{t('common.actions')}</th>
@@ -877,7 +1073,7 @@ export const RecoveryPortalPage: React.FC = () => {
                   </tr>
                 ) : (
                   scopedVisits.map((v) => {
-                    const hasGps = !!v.locationGeo;
+                    const hasGps = !!v.locationGeo && typeof v.locationGeo.latitude === 'number';
                     const hasPhoto = !!v.photoProofUrl;
                     const cus = customersList.find((c) => c.customerId === v.customerId);
 
@@ -915,22 +1111,36 @@ export const RecoveryPortalPage: React.FC = () => {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
                             {hasGps && (
                               <a
                                 href={`https://maps.google.com/?q=${v.locationGeo?.latitude},${v.locationGeo?.longitude}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="badge badge-info"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none' }}
-                                title="Click to view on Google Maps"
+                                className="btn btn-xs"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  color: '#1d4ed8',
+                                  border: '1px solid #93c5fd',
+                                  background: '#eff6ff',
+                                  padding: '0.2rem 0.5rem',
+                                  borderRadius: '0.375rem',
+                                  textDecoration: 'none',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                }}
+                                title={`Click to open Google Maps (${v.locationGeo?.latitude.toFixed(4)}, ${v.locationGeo?.longitude.toFixed(4)})`}
                               >
-                                <Navigation size={10} />
-                                <span>GPS</span>
+                                <MapPin size={12} color="#2563eb" />
+                                <span>{language === 'ur' ? 'گوگل میپ لوکیشن' : 'Live GPS'}</span>
+                                <ExternalLink size={10} />
                               </a>
                             )}
                             {hasPhoto && (
                               <button
+                                type="button"
                                 onClick={() =>
                                   setZoomedPhoto({
                                     url: v.photoProofUrl!,
@@ -939,12 +1149,24 @@ export const RecoveryPortalPage: React.FC = () => {
                                     time: typeof v.visitedAt === 'string' ? v.visitedAt : 'Recent',
                                   })
                                 }
-                                className="badge badge-success"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', cursor: 'pointer', border: 'none' }}
-                                title="Click to inspect doorstep photo"
+                                className="btn btn-xs"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  color: '#15803d',
+                                  border: '1px solid #86efac',
+                                  background: '#f0fdf4',
+                                  padding: '0.2rem 0.5rem',
+                                  borderRadius: '0.375rem',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                }}
+                                title="Click to view doorstep photo"
                               >
-                                <Camera size={10} />
-                                <span>Photo</span>
+                                <Camera size={12} color="#16a34a" />
+                                <span>{language === 'ur' ? 'تصویر ثبوت' : 'Photo'}</span>
                               </button>
                             )}
                             {!hasGps && !hasPhoto && (
@@ -1170,35 +1392,509 @@ export const RecoveryPortalPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: Owner & Manager Recovery Officer Daily Performance & Leaderboard */}
+      {/* TAB 4: Owner & Manager Multi-Recovery Officer Targets, Leaderboard & Audit Report */}
       {activeTab === 'leaderboard' && (isOwner || isManager) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Header Card */}
-          <div className="card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#fff', padding: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          {/* Header Card with Timeframe & Frequency Controls */}
+          <div
+            className="card"
+            style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              color: '#fff',
+              padding: '1.25rem',
+              borderRadius: '0.75rem',
+              border: '1px solid #334155',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ padding: '0.625rem', background: 'rgba(234, 179, 8, 0.2)', borderRadius: '0.5rem', color: '#facc15' }}>
+                <div
+                  style={{
+                    padding: '0.625rem',
+                    background: 'rgba(234, 179, 8, 0.2)',
+                    borderRadius: '0.5rem',
+                    color: '#facc15',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <Trophy size={28} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                    {language === 'ur' ? 'ریکوری آفیسرز روزانہ کارکردگی و درجہ بندی (Leaderboard)' : 'Daily Recovery Officer Leaderboard & Ranking'}
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                    {language === 'ur'
+                      ? 'ریکوری آفیسرز اہداف، کارکردگی اور رینکنگ لیڈر بورڈ'
+                      : 'Recovery Officers Targets, Performance & Ranking Leaderboard'}
                   </h3>
                   <p style={{ fontSize: '0.8125rem', opacity: 0.8, margin: 0 }}>
                     {language === 'ur'
-                      ? 'مکمل وزٹ، نقد وصولی اور جی پی ایس تصدیق کی بنیاد پر شفاف رینکنگ'
-                      : 'Rankings calculated from completed visits, cash collected, and verified doorstep audits.'}
+                      ? 'ہر ریکوری آفیسر کے انفرادی اہداف، وصول شدہ اقساط، پینڈنگ اور گاہکوں کی وجوہات کی مکمل رپورٹ'
+                      : 'Comprehensive view of individual officer targets, fulfilled collections, pending dues, and doorstep audit reasons.'}
                   </p>
                 </div>
               </div>
-              <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '0.4rem 0.75rem' }}>
-                {targetStaffForLeaderboard.length} {language === 'ur' ? 'آفیسرز فعال' : 'Active Officers'}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="badge badge-success" style={{ fontSize: '0.8125rem', padding: '0.35rem 0.65rem' }}>
+                  <Users size={13} style={{ marginRight: '0.25rem' }} />
+                  {targetStaffForLeaderboard.length} {language === 'ur' ? 'آفیسرز شامل' : 'Officers Tracked'}
+                </span>
+              </div>
+            </div>
+
+            {/* Timeframe & Frequency Filter Toolbar */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                background: 'rgba(255, 255, 255, 0.07)',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              {/* Daily, Yesterday, Custom Date vs Monthly Timeframe Toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8, marginRight: '0.25rem' }}>
+                  {language === 'ur' ? 'رپورٹ تاریخ:' : 'Date Audit:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTimeframe('today')}
+                  className={`btn btn-sm ${leaderboardTimeframe === 'today' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.625rem',
+                    backgroundColor: leaderboardTimeframe === 'today' ? '#0284c7' : 'transparent',
+                    borderColor: leaderboardTimeframe === 'today' ? '#0284c7' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  <Clock size={12} style={{ marginRight: '0.25rem' }} />
+                  {language === 'ur' ? 'آج کی ریکوری' : 'Today'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTimeframe('yesterday')}
+                  className={`btn btn-sm ${leaderboardTimeframe === 'yesterday' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.625rem',
+                    backgroundColor: leaderboardTimeframe === 'yesterday' ? '#0284c7' : 'transparent',
+                    borderColor: leaderboardTimeframe === 'yesterday' ? '#0284c7' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  <Calendar size={12} style={{ marginRight: '0.25rem' }} />
+                  {language === 'ur' ? 'گزشتہ کل' : 'Yesterday'}
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.25)', padding: '0.15rem 0.4rem', borderRadius: '0.375rem', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <input
+                    type="date"
+                    value={selectedAuditDate}
+                    onChange={(e) => {
+                      setSelectedAuditDate(e.target.value);
+                      setLeaderboardTimeframe('date');
+                    }}
+                    style={{
+                      background: 'transparent',
+                      color: '#fff',
+                      border: 'none',
+                      fontSize: '0.75rem',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                    title={language === 'ur' ? 'کیلنڈر سے مخصوص تاریخ منتخب کریں' : 'Pick custom audit date'}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTimeframe('month')}
+                  className={`btn btn-sm ${leaderboardTimeframe === 'month' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.625rem',
+                    backgroundColor: leaderboardTimeframe === 'month' ? '#0284c7' : 'transparent',
+                    borderColor: leaderboardTimeframe === 'month' ? '#0284c7' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  <Calendar size={12} style={{ marginRight: '0.25rem' }} />
+                  {language === 'ur' ? 'اس مہینے' : 'This Month'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardTimeframe('all')}
+                  className={`btn btn-sm ${leaderboardTimeframe === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.625rem',
+                    backgroundColor: leaderboardTimeframe === 'all' ? '#0284c7' : 'transparent',
+                    borderColor: leaderboardTimeframe === 'all' ? '#0284c7' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  {language === 'ur' ? 'تمام ریکارڈ' : 'All Time'}
+                </button>
+              </div>
+
+              {/* Installment Type (Daily vs Monthly Dues) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8, marginRight: '0.25rem' }}>
+                  {language === 'ur' ? 'قسط کی قسم:' : 'Frequency:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardFrequency('all')}
+                  className={`btn btn-sm ${leaderboardFrequency === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: leaderboardFrequency === 'all' ? '#10b981' : 'transparent',
+                    borderColor: leaderboardFrequency === 'all' ? '#10b981' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  {language === 'ur' ? 'تمام اقساط' : 'All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardFrequency('daily')}
+                  className={`btn btn-sm ${leaderboardFrequency === 'daily' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: leaderboardFrequency === 'daily' ? '#10b981' : 'transparent',
+                    borderColor: leaderboardFrequency === 'daily' ? '#10b981' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  {language === 'ur' ? 'روزانہ قسطیں' : 'Daily Dues'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaderboardFrequency('monthly')}
+                  className={`btn btn-sm ${leaderboardFrequency === 'monthly' ? 'btn-primary' : 'btn-outline'}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: leaderboardFrequency === 'monthly' ? '#10b981' : 'transparent',
+                    borderColor: leaderboardFrequency === 'monthly' ? '#10b981' : 'rgba(255,255,255,0.25)',
+                    color: '#fff',
+                  }}
+                >
+                  {language === 'ur' ? 'ماہانہ قسطیں' : 'Monthly Dues'}
+                </button>
+              </div>
+            </div>
+
+            {/* Historical Comparison & Trend Analysis Banner (بہتری آئی یا کمی آئی) */}
+            <div
+              style={{
+                marginTop: '0.875rem',
+                background: trendDiff >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                border: `1px solid ${trendDiff >= 0 ? '#10b981' : '#f59e0b'}`,
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <TrendingUp size={20} style={{ color: trendDiff >= 0 ? '#34d399' : '#fbbf24', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#f8fafc' }}>
+                      {language === 'ur'
+                        ? `تاریخی کارکردگی کا موازنہ و ٹرینڈ (${activeAuditDateStr === todayStr ? 'گزشتہ کل بمقابلہ آج' : `${pastComparisonDate} بمقابلہ آج`}):`
+                        : `Target Achievement Trend (${activeAuditDateStr === todayStr ? 'Yesterday vs Today' : `${pastComparisonDate} vs Today`}):`}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.9, marginTop: '0.125rem', color: '#e2e8f0' }}>
+                      {language === 'ur'
+                        ? `فلاں تاریخ (${pastComparisonDate}) کو کل ${totalPastTargets} ٹارگٹ تھے جن میں سے ${totalPastFulfilled} مکمل ہوئے تھے (${pastOverallRate}%)۔ اب آج کل ${totalCurrentTargets} ٹارگٹ میں سے ${totalCurrentFulfilled} مکمل ہوئے ہیں (${currentOverallRate}%)۔`
+                        : `On ${pastComparisonDate}, ${totalPastFulfilled}/${totalPastTargets} were fulfilled (${pastOverallRate}%). Today, ${totalCurrentFulfilled}/${totalCurrentTargets} are fulfilled (${currentOverallRate}%).`}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <span
+                    className={`badge ${trendDiff > 0 ? 'badge-success' : trendDiff < 0 ? 'badge-warning' : 'badge-outline'}`}
+                    style={{ fontSize: '0.8125rem', fontWeight: 800, padding: '0.35rem 0.65rem' }}
+                  >
+                    {trendDiff > 0
+                      ? `+${trendDiff}% ${language === 'ur' ? 'بہتری آئی ہے 📈' : 'Improvement 📈'}`
+                      : trendDiff < 0
+                      ? `${trendDiff}% ${language === 'ur' ? 'کمی واقع ہوئی ہے 📉' : 'Decline 📉'}`
+                      : language === 'ur'
+                      ? 'برابر رہی ہے ⚖️'
+                      : 'Maintained ⚖️'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Officer-by-Officer Trend Comparison Badges */}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.625rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+                {officerTrends.map((ot) => (
+                  <div
+                    key={ot.officerId}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '0.25rem',
+                      fontSize: '0.6875rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{ot.displayName}:</span>
+                    <span style={{ opacity: 0.8, color: '#cbd5e1' }}>{ot.pastRate}% ➔ {ot.currRate}%</span>
+                    <strong style={{ color: ot.diff >= 0 ? '#4ade80' : '#f87171' }}>
+                      ({ot.diff >= 0 ? `+${ot.diff}%` : `${ot.diff}%`} {ot.diff >= 0 ? (language === 'ur' ? 'بہتری' : 'Up') : (language === 'ur' ? 'کمی' : 'Down')})
+                    </strong>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Leaderboard Cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {/* Shop-Level Leadership KPI Aggregate Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card" style={{ padding: '0.875rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <Target size={14} className="text-primary" />
+                <span>{language === 'ur' ? 'کل تفویض شدہ اہداف' : 'Total Assigned Targets'}</span>
+              </div>
+              <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#0f172a' }}>
+                {totalShopTargets} <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#64748b' }}>{language === 'ur' ? 'گاہک' : 'customers'}</span>
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#64748b', marginTop: '0.25rem' }}>
+                {language === 'ur' ? 'مختلف آفیسرز میں تقسیم' : 'Split across officers'}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '0.875rem', background: '#f0fdf4', border: '1px solid #86efac' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#166534', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <CheckCircle2 size={14} className="text-success" />
+                <span>{language === 'ur' ? 'مکمل وصول شدہ اقساط' : 'Fulfilled Collections'}</span>
+              </div>
+              <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#15803d' }}>
+                {totalShopFulfilled} <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>({overallShopRate}%)</span>
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#166534', marginTop: '0.25rem' }}>
+                {language === 'ur' ? 'کامیاب وصولی مکمل' : 'Successfully fulfilled'}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '0.875rem', background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#92400e', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <Clock size={14} className="text-warning" />
+                <span>{language === 'ur' ? 'باقی پینڈنگ اقساط' : 'Pending Collections'}</span>
+              </div>
+              <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#b45309' }}>
+                {totalShopPending} <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#92400e' }}>{language === 'ur' ? 'باقی' : 'pending'}</span>
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#b45309', marginTop: '0.25rem' }}>
+                {totalShopUnavailable > 0 && `🔒 ${totalShopUnavailable} ${language === 'ur' ? 'تالا' : 'locked'}`}
+                {totalShopPromised > 0 && ` • 🤝 ${totalShopPromised} ${language === 'ur' ? 'وعدہ' : 'promised'}`}
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '0.875rem', background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#065f46', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                <Coins size={14} className="text-emerald-600" />
+                <span>{language === 'ur' ? 'وصول شدہ نقد رقم' : 'Total Cash Collected'}</span>
+              </div>
+              <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#047857' }}>
+                <MoneyDisplay paisa={totalShopCollectedPaisa} />
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: '#065f46', marginTop: '0.25rem' }}>
+                {language === 'ur' ? 'ہدف رقم: ' : 'Target: '} <MoneyDisplay paisa={totalShopTargetPaisa} />
+              </div>
+            </div>
+          </div>
+
+          {/* Side-by-Side Comparative Ranking Table (سائیڈ بائی سائیڈ موازنہ ٹیبل) */}
+          <div className="card" style={{ padding: '1rem', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <BarChart3 size={18} className="text-primary" />
+                <h4 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+                  {language === 'ur' ? 'آفیسرز کی کارکردگی و رینکنگ کا موازنہ' : 'Side-by-Side Officer Performance & Rankings'}
+                </h4>
+              </div>
+              <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                {language === 'ur'
+                  ? 'تفصیل دیکھنے اور ہر گاہک کی وجہ پڑھنے کے لیے بٹن پر کلک کریں'
+                  : 'Click on any officer to inspect customer breakdown and doorstep visit notes'}
+              </span>
+            </div>
+
+            <table className="table" style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: language === 'ur' ? 'right' : 'left' }}>
+                  <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'پوزیشن' : 'Rank'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'ریکوری آفیسر' : 'Officer'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'کل ہدف' : 'Assigned'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'وصول شدہ' : 'Fulfilled'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'پینڈنگ' : 'Pending'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'دروازے کے نتائج و وجوہات' : 'Doorstep Outcomes'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'right' }}>{language === 'ur' ? 'نقد وصولی' : 'Collected (PKR)'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'شرح' : 'Rate'}</th>
+                  <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'تفصیل و وجوہات' : 'Action'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboardStats.map((item, index) => {
+                  const rank = index + 1;
+                  let rankIcon = <Medal size={16} className="text-slate-400" />;
+                  let rankTitle = `#${rank}`;
+                  let rankColor = '#475569';
+
+                  if (rank === 1) {
+                    rankIcon = <Trophy size={18} style={{ color: '#eab308' }} />;
+                    rankTitle = language === 'ur' ? '🥇 پوزیشن #1 (ٹاپ پرفارمر)' : '🥇 Rank #1 (Top)';
+                    rankColor = '#b45309';
+                  } else if (rank === 2) {
+                    rankIcon = <Medal size={18} style={{ color: '#0284c7' }} />;
+                    rankTitle = language === 'ur' ? '🥈 پوزیشن #2' : '🥈 Rank #2';
+                    rankColor = '#0369a1';
+                  } else if (rank === 3) {
+                    rankIcon = <Award size={18} style={{ color: '#d97706' }} />;
+                    rankTitle = language === 'ur' ? '🥉 پوزیشن #3' : '🥉 Rank #3';
+                    rankColor = '#92400e';
+                  }
+
+                  const sessCount = SessionTrackerService.getUserSessionCount(item.officer.userId);
+
+                  return (
+                    <tr
+                      key={item.officer.userId}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        background: rank === 1 ? '#fffdf5' : '#ffffff',
+                      }}
+                    >
+                      <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 700, color: rankColor }}>
+                          {rankIcon}
+                          <span>{rankTitle}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.officer.displayName}</div>
+                        <div style={{ fontSize: '0.71875rem', color: '#64748b' }}>
+                          {item.officer.phone || item.officer.email}
+                        </div>
+                        <div style={{ marginTop: '0.125rem' }}>
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '0.625rem',
+                              padding: '0.1rem 0.35rem',
+                              background: sessCount > 1 ? '#dcfce7' : '#f1f5f9',
+                              color: sessCount > 1 ? '#15803d' : '#475569',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
+                            }}
+                          >
+                            <Smartphone size={10} />
+                            <span>{sessCount} {language === 'ur' ? 'ڈیوائس' : 'dev'}</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle', fontWeight: 700 }}>
+                        <span className="badge badge-outline" style={{ fontSize: '0.8125rem' }}>
+                          {item.assignedTargetCount}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <span className="badge badge-success" style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                          {item.fulfilledCount} / {item.assignedTargetCount}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <span
+                          className={`badge ${item.pendingCount > 0 ? 'badge-warning' : 'badge-outline'}`}
+                          style={{ fontSize: '0.8125rem', fontWeight: 700 }}
+                        >
+                          {item.pendingCount}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.71875rem' }}>
+                          {item.unavailableCount > 0 && (
+                            <span style={{ color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Lock size={11} /> {item.unavailableCount} {language === 'ur' ? 'تالا لگا تھا / موجود نہیں' : 'Locked Gate'}
+                            </span>
+                          )}
+                          {item.promisedCount > 0 && (
+                            <span style={{ color: '#0369a1', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Clock size={11} /> {item.promisedCount} {language === 'ur' ? 'اگلی تاریخ کا وعدہ' : 'Promised Date'}
+                            </span>
+                          )}
+                          {item.refusedCount > 0 && (
+                            <span style={{ color: '#b91c1c', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <AlertCircle size={11} /> {item.refusedCount} {language === 'ur' ? 'ادائیگی سے انکار' : 'Refused'}
+                            </span>
+                          )}
+                          {item.unavailableCount === 0 && item.promisedCount === 0 && item.refusedCount === 0 && (
+                            <span className="text-muted">{language === 'ur' ? 'تمام وزٹ کلیئر' : 'All clear / on track'}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, color: '#16a34a' }}>
+                        <MoneyDisplay paisa={item.collectedPaisa} />
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.875rem', color: item.completionRate >= 80 ? '#16a34a' : item.completionRate >= 50 ? '#d97706' : '#dc2626' }}>
+                          {item.completionRate}%
+                        </div>
+                        <div style={{ width: '48px', height: '4px', background: '#e2e8f0', borderRadius: '2px', margin: '0.2rem auto 0' }}>
+                          <div
+                            style={{
+                              width: `${item.completionRate}%`,
+                              height: '100%',
+                              background: item.completionRate >= 80 ? '#10b981' : item.completionRate >= 50 ? '#f59e0b' : '#dc2626',
+                              borderRadius: '2px',
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOfficerForDetails(item)}
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            fontSize: '0.71875rem',
+                            padding: '0.25rem 0.5rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <Eye size={12} className="text-primary" />
+                          <span>{language === 'ur' ? 'تفصیل و وجوہات' : 'View Audit'}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Detailed Individual Officer Cards with Doorstep Notes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <h4 style={{ margin: '0.25rem 0 0', fontSize: '0.9375rem', fontWeight: 700, color: '#1e293b' }}>
+              {language === 'ur' ? 'انفرادی آفیسرز کی کارکردگی اور موقع کی وجوہات (Field Visit Notes)' : 'Individual Officer Breakdown & Doorstep Notes'}
+            </h4>
+
             {leaderboardStats.map((item, index) => {
               const rank = index + 1;
               let rankBadge = {
@@ -1215,13 +1911,13 @@ export const RecoveryPortalPage: React.FC = () => {
                   icon: <Trophy size={22} style={{ color: '#eab308' }} />,
                   label: 'Rank #1',
                   badgeClass: 'badge-warning',
-                  perfText: language === 'ur' ? 'ٹاپ پرفارمر (سب سے آگے)' : 'Top Performer',
+                  perfText: language === 'ur' ? 'ٹاپ پرفارمر (سب سے بہترین کارکردگی)' : 'Top Performer',
                   bg: '#fffbeb',
                   border: '#fde68a',
                 };
               } else if (rank === 2) {
                 rankBadge = {
-                  icon: <Medal size={22} style={{ color: '#94a3b8' }} />,
+                  icon: <Medal size={22} style={{ color: '#0284c7' }} />,
                   label: 'Rank #2',
                   badgeClass: 'badge-info',
                   perfText: language === 'ur' ? 'بہترین کارکردگی' : 'Good Performance',
@@ -1239,6 +1935,8 @@ export const RecoveryPortalPage: React.FC = () => {
                 };
               }
 
+              const sessCount = SessionTrackerService.getUserSessionCount(item.officer.userId);
+
               return (
                 <div
                   key={item.officer.userId}
@@ -1246,89 +1944,102 @@ export const RecoveryPortalPage: React.FC = () => {
                   style={{
                     backgroundColor: rankBadge.bg,
                     border: `1.5px solid ${rankBadge.border}`,
-                    padding: '1.25rem',
+                    padding: '1.125rem',
+                    borderRadius: '0.75rem',
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px' }}>
                         {rankBadge.icon}
-                        <span style={{ fontWeight: 800, fontSize: '0.9375rem', marginTop: '0.125rem' }}>{rankBadge.label}</span>
+                        <span style={{ fontWeight: 800, fontSize: '0.875rem', marginTop: '0.125rem' }}>{rankBadge.label}</span>
                       </div>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
                             {item.officer.displayName}
                           </h4>
                           <span className={`badge ${rankBadge.badgeClass}`}>{rankBadge.perfText}</span>
                         </div>
-                        <div className="text-muted" style={{ fontSize: '0.8125rem', marginTop: '0.125rem' }}>
+                        <div className="text-muted" style={{ fontSize: '0.78125rem', marginTop: '0.125rem' }}>
                           {item.officer.phone || item.officer.email} • {item.officer.designation || 'Recovery Officer'}
                         </div>
-                        {(() => {
-                          const sessCount = SessionTrackerService.getUserSessionCount(item.officer.userId);
-                          return (
-                            <div style={{ marginTop: '0.35rem' }}>
-                              <span
-                                className={`badge ${sessCount > 1 ? 'badge-primary' : sessCount === 1 ? 'badge-success' : 'badge-outline text-muted'}`}
-                                style={{
-                                  fontSize: '0.6875rem',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  background: sessCount > 1 ? '#ecfdf5' : undefined,
-                                  color: sessCount > 1 ? '#047857' : undefined,
-                                  border: sessCount > 1 ? '1px solid #86efac' : undefined,
-                                  padding: '0.15rem 0.45rem',
-                                }}
-                              >
-                                <Smartphone size={11} />
-                                <span>
-                                  {sessCount === 0
-                                    ? (language === 'ur' ? 'آف لائن (0 ڈیوائسز)' : '0 Active Devices')
-                                    : sessCount === 1
-                                    ? (language === 'ur' ? '1 ایکٹو ڈیوائس لاگ ان' : '1 Active Device')
-                                    : (language === 'ur' ? `${sessCount} ڈیوائسز پر آن لائن لاگ ان` : `${sessCount} Concurrent Active Devices`)}
-                                </span>
-                              </span>
-                            </div>
-                          );
-                        })()}
+                        <div style={{ marginTop: '0.25rem' }}>
+                          <span
+                            className={`badge ${sessCount > 1 ? 'badge-primary' : sessCount === 1 ? 'badge-success' : 'badge-outline text-muted'}`}
+                            style={{
+                              fontSize: '0.6875rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              background: sessCount > 1 ? '#ecfdf5' : undefined,
+                              color: sessCount > 1 ? '#047857' : undefined,
+                              border: sessCount > 1 ? '1px solid #86efac' : undefined,
+                              padding: '0.125rem 0.45rem',
+                            }}
+                          >
+                            <Smartphone size={11} />
+                            <span>
+                              {sessCount === 0
+                                ? (language === 'ur' ? 'آف لائن (0 ڈیوائسز)' : '0 Active Devices')
+                                : sessCount === 1
+                                ? (language === 'ur' ? '1 ایکٹو ڈیوائس لاگ ان' : '1 Active Device')
+                                : (language === 'ur' ? `${sessCount} ڈیوائسز پر آن لائن لاگ ان` : `${sessCount} Concurrent Active Devices`)}
+                            </span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: language === 'ur' ? 'left' : 'right' }}>
                       <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                        {language === 'ur' ? 'کل وصولی (آج)' : 'Total Collected Today'}
+                        {language === 'ur' ? 'نقد وصولی' : 'Collected Cash'}
                       </div>
                       <MoneyDisplay paisa={item.collectedPaisa} className="font-bold text-success" style={{ fontSize: '1.25rem' }} />
-                    </div>
-                  </div>
-
-                  {/* Progress & Target Stats Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4" style={{ backgroundColor: '#ffffff', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-                    <div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>تفویض شدہ اہداف (Assigned)</div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{item.assignedCount}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>آج مکمل وزٹ (Completed)</div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#16a34a' }}>{item.visitsTodayCount}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>جی پی ایس تصدیق (Verified Proof)</div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0284c7' }}>{item.verifiedVisitsCount}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>ٹارگٹ شرح (Completion %)</div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: item.completionRate >= 80 ? '#16a34a' : '#d97706' }}>
-                        {item.completionRate}%
+                      <div className="text-muted" style={{ fontSize: '0.6875rem', marginTop: '0.125rem' }}>
+                        {language === 'ur' ? 'ٹارگٹ رقم: ' : 'Target: '} <MoneyDisplay paisa={item.targetAmountPaisa} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Target Completion Progress bar */}
+                  {/* 4-Stat Grid for This Officer */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3" style={{ backgroundColor: '#ffffff', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                        {language === 'ur' ? 'تفویض شدہ اہداف' : 'Assigned Target'}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.0625rem', color: '#0f172a' }}>
+                        {item.assignedTargetCount} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{language === 'ur' ? 'گاہک' : 'dues'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                        {language === 'ur' ? 'مکمل وصول شدہ' : 'Fulfilled'}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.0625rem', color: '#16a34a' }}>
+                        {item.fulfilledCount} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>({item.completionRate}%)</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                        {language === 'ur' ? 'باقی پینڈنگ' : 'Pending'}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.0625rem', color: item.pendingCount > 0 ? '#b45309' : '#16a34a' }}>
+                        {item.pendingCount} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{language === 'ur' ? 'باقی' : 'pending'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                        {language === 'ur' ? 'جی پی ایس تصدیق' : 'Doorstep Verified'}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.0625rem', color: '#0284c7' }}>
+                        {item.verifiedVisitsCount} <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{language === 'ur' ? 'وزٹ' : 'visits'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
                   <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginTop: '0.75rem' }}>
                     <div
                       style={{
@@ -1339,6 +2050,68 @@ export const RecoveryPortalPage: React.FC = () => {
                         transition: 'width 0.4s ease',
                       }}
                     />
+                  </div>
+
+                  {/* Recent Doorstep Reasons / Notes logged from Field */}
+                  {item.recentNotes.length > 0 && (
+                    <div style={{ marginTop: '0.75rem', backgroundColor: '#f8fafc', padding: '0.625rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '0.71875rem', fontWeight: 700, color: '#475569', marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <MapPin size={12} className="text-primary" />
+                        <span>{language === 'ur' ? 'موقع پر درج کی گئی تازہ ترین وجوہات و ریمارکس:' : 'Recent Doorstep Audit Reasons:'}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {item.recentNotes.map((rn: any, idx: number) => (
+                          <div key={idx} style={{ fontSize: '0.75rem', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                            <div>
+                              <strong style={{ color: '#0f172a' }}>{rn.customerName}:</strong>{' '}
+                              <span>{rn.note}</span>
+                              {rn.followUpDate && (
+                                <span style={{ color: '#0369a1', marginLeft: '0.35rem', fontWeight: 600 }}>
+                                  ({language === 'ur' ? 'وعدہ تاریخ:' : 'Follow-up:'} {rn.followUpDate})
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={`badge ${
+                                rn.outcome === 'collected'
+                                  ? 'badge-success'
+                                  : rn.outcome === 'unavailable'
+                                  ? 'badge-warning'
+                                  : rn.outcome === 'promised'
+                                  ? 'badge-info'
+                                  : 'badge-danger'
+                              }`}
+                              style={{ fontSize: '0.625rem', whiteSpace: 'nowrap' }}
+                            >
+                              {rn.outcome === 'collected'
+                                ? (language === 'ur' ? 'وصول' : 'Collected')
+                                : rn.outcome === 'unavailable'
+                                ? (language === 'ur' ? 'تالا لگا تھا' : 'Locked')
+                                : rn.outcome === 'promised'
+                                ? (language === 'ur' ? 'وعدہ' : 'Promised')
+                                : (language === 'ur' ? 'انکار' : 'Refused')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Button to open complete customer modal */}
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOfficerForDetails(item)}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+                    >
+                      <Users size={13} className="text-primary" />
+                      <span>
+                        {language === 'ur'
+                          ? `گاہکوں کی تفصیلی لسٹ و وجوہات (${item.assignedTargetCount} گاہک)`
+                          : `View Full Customer Audit (${item.assignedTargetCount} Customers)`}
+                      </span>
+                    </button>
                   </div>
                 </div>
               );
@@ -1732,6 +2505,212 @@ export const RecoveryPortalPage: React.FC = () => {
           {...collectReceipt}
           onClose={() => setCollectReceipt(null)}
         />
+      )}
+
+      {/* Customer Audit Breakdown & Reasons Modal for Selected Officer */}
+      {selectedOfficerForDetails && (
+        <div className="modal-overlay" style={{ zIndex: 68 }} onClick={() => setSelectedOfficerForDetails(null)}>
+          <div
+            className="modal-box"
+            style={{ maxWidth: '820px', width: '95%', maxHeight: '88vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.875rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h3 className="modal-title" style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>
+                    {selectedOfficerForDetails.officer.displayName} — {language === 'ur' ? 'تفویض کردہ گاہک و وزٹ وجوہات' : 'Assigned Customers & Visit Audit'}
+                  </h3>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                    {selectedOfficerForDetails.completionRate}% {language === 'ur' ? 'شرح کامیابی' : 'Completed'}
+                  </span>
+                </div>
+                <p className="text-muted" style={{ fontSize: '0.8125rem', margin: '0.25rem 0 0' }}>
+                  {selectedOfficerForDetails.officer.phone || selectedOfficerForDetails.officer.email} • {selectedOfficerForDetails.officer.designation || 'Recovery Officer'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOfficerForDetails(null)}
+                className="btn btn-icon btn-outline btn-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '1rem 0' }}>
+              {/* Summary Metrics Bar inside Modal */}
+              <div
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4"
+                style={{
+                  background: '#f8fafc',
+                  padding: '0.75rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{language === 'ur' ? 'کل اہداف' : 'Total Targets'}</div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>
+                    {selectedOfficerForDetails.assignedTargetCount} {language === 'ur' ? 'گاہک' : 'customers'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{language === 'ur' ? 'وصول شدہ' : 'Fulfilled'}</div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#16a34a' }}>
+                    {selectedOfficerForDetails.fulfilledCount} ({selectedOfficerForDetails.completionRate}%)
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{language === 'ur' ? 'پینڈنگ / باقی' : 'Pending'}</div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: selectedOfficerForDetails.pendingCount > 0 ? '#b45309' : '#16a34a' }}>
+                    {selectedOfficerForDetails.pendingCount} {language === 'ur' ? 'باقی' : 'pending'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted" style={{ fontSize: '0.6875rem' }}>{language === 'ur' ? 'نقد وصولی' : 'Cash Collected'}</div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#047857' }}>
+                    <MoneyDisplay paisa={selectedOfficerForDetails.collectedPaisa} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Outcome Badges Row */}
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.75rem' }}>
+                <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <CheckCircle2 size={12} /> {selectedOfficerForDetails.fulfilledCount} {language === 'ur' ? 'وصول ہو گئی' : 'Collected'}
+                </span>
+                {selectedOfficerForDetails.unavailableCount > 0 && (
+                  <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Lock size={12} /> {selectedOfficerForDetails.unavailableCount} {language === 'ur' ? 'گھر پر تالا لگا تھا / موجود نہیں' : 'Locked / Unavailable'}
+                  </span>
+                )}
+                {selectedOfficerForDetails.promisedCount > 0 && (
+                  <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Clock size={12} /> {selectedOfficerForDetails.promisedCount} {language === 'ur' ? 'اگلی تاریخ کا وعدہ کیا' : 'Promised Follow-up'}
+                  </span>
+                )}
+                {selectedOfficerForDetails.refusedCount > 0 && (
+                  <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <AlertCircle size={12} /> {selectedOfficerForDetails.refusedCount} {language === 'ur' ? 'ادائیگی سے انکار' : 'Refused'}
+                  </span>
+                )}
+              </div>
+
+              {/* Customer List Table */}
+              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}>
+                <table className="table" style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: language === 'ur' ? 'right' : 'left' }}>
+                      <th style={{ padding: '0.625rem 0.75rem' }}>#</th>
+                      <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'گاہک کا نام و علاقہ' : 'Customer & Area'}</th>
+                      <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'قسط رقم' : 'Due Amount'}</th>
+                      <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'نتیجہ / اسٹیٹس' : 'Status'}</th>
+                      <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'آفیسر کی وجہ و ریمارکس (Doorstep Reason)' : 'Visit Reason & Remarks'}</th>
+                      <th style={{ padding: '0.625rem 0.75rem', textAlign: 'center' }}>{language === 'ur' ? 'تصدیق' : 'Proof'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedOfficerForDetails.customerBreakdown.map((item: any, cIdx: number) => {
+                      const isCol = item.status === 'collected';
+                      const isUnav = item.status === 'unavailable';
+                      const isProm = item.status === 'promised';
+                      const isRef = item.status === 'refused';
+
+                      let badgeClass = 'badge-slate';
+                      let statusText = language === 'ur' ? 'پینڈنگ' : 'Pending';
+
+                      if (isCol) {
+                        badgeClass = 'badge-success';
+                        statusText = language === 'ur' ? 'وصول ہو گئی' : 'Collected';
+                      } else if (isUnav) {
+                        badgeClass = 'badge-warning';
+                        statusText = language === 'ur' ? 'تالا لگا تھا' : 'Locked';
+                      } else if (isProm) {
+                        badgeClass = 'badge-info';
+                        statusText = language === 'ur' ? 'اگلی تاریخ کا وعدہ' : 'Promised';
+                      } else if (isRef) {
+                        badgeClass = 'badge-danger';
+                        statusText = language === 'ur' ? 'انکار' : 'Refused';
+                      }
+
+                      return (
+                        <tr
+                          key={item.card.assignment.assignmentId || cIdx}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            background: isCol ? '#f0fdf4' : isUnav ? '#fffdf0' : isProm ? '#f0f9ff' : '#ffffff',
+                          }}
+                        >
+                          <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle', fontWeight: 600, color: '#64748b' }}>
+                            {cIdx + 1}
+                          </td>
+                          <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle' }}>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                              {item.customer?.fullName || 'Customer'}
+                            </div>
+                            <div style={{ fontSize: '0.71875rem', color: '#64748b' }}>
+                              {item.customer?.phoneDisplay} • {item.customer?.area || item.card.assignment.area || 'Rahim Yar Khan'}
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle' }}>
+                            <MoneyDisplay paisa={item.amountPaisa} className="font-semibold" />
+                            <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                              {(item.contract?.frequency || 'monthly') === 'daily'
+                                ? (language === 'ur' ? 'روزانہ قسط' : 'Daily Due')
+                                : (language === 'ur' ? 'ماہانہ قسط' : 'Monthly Due')}
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                            <span className={`badge ${badgeClass}`} style={{ fontSize: '0.6875rem' }}>
+                              {statusText}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.625rem 0.75rem', verticalAlign: 'middle', maxWidth: '300px' }}>
+                            <div style={{ color: '#1e293b', fontSize: '0.78125rem', lineHeight: 1.4 }}>
+                              {item.note}
+                            </div>
+                            {item.followUpDate && (
+                              <div style={{ fontSize: '0.6875rem', color: '#0369a1', marginTop: '0.2rem', fontWeight: 600 }}>
+                                📅 {language === 'ur' ? 'اگلا وعدہ:' : 'Follow-up:'} {item.followUpDate}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.625rem 0.75rem', textAlign: 'center', verticalAlign: 'middle' }}>
+                            {item.verified ? (
+                              <span
+                                className="badge badge-success"
+                                title="GPS Geolocation or Photo Proof Captured"
+                                style={{ fontSize: '0.625rem', padding: '0.15rem 0.35rem' }}
+                              >
+                                ✓ {language === 'ur' ? 'تصدیق شدہ' : 'Verified'}
+                              </span>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: '0.6875rem' }}>
+                                —
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedOfficerForDetails(null)}
+                className="btn btn-secondary"
+              >
+                {t('common.close') || 'بند کریں (Close)'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -525,8 +525,8 @@ export const AppLayout: React.FC = () => {
               <span>{t('app.switchLanguage')}</span>
             </button>
 
-            {/* Quick POS action button (only for Owner & Manager) */}
-            {(isOwner || isManager) && (
+            {/* Quick POS action button (only for Shop Owner & Manager, never for Platform Super-Admin) */}
+            {!isSuperAdmin && (isOwner || isManager) && (
               <button
                 onClick={() => navigate('/sales/new')}
                 className="btn btn-sm btn-primary"

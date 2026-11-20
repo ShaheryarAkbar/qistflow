@@ -13,6 +13,8 @@ import {
   X,
   CreditCard,
   Clock,
+  Award,
+  Edit3,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -24,12 +26,11 @@ import { CertificateRepository } from '@/repositories/certificate.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PrintableCertificate } from '@/components/shared/PrintableCertificate';
-import { Award } from 'lucide-react';
 
 export const ContractsPage: React.FC = () => {
   const { t, language } = useI18n();
   const { activeTenant } = useTenant();
-  const { isDemoUser } = useAuth();
+  const { currentUser, isDemoUser } = useAuth();
   const navigate = useNavigate();
 
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -48,6 +49,13 @@ export const ContractsPage: React.FC = () => {
     contract: Contract;
     customer?: Customer;
   } | null>(null);
+
+  // Edit Contract Modal State
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [editStatus, setEditStatus] = useState<any>('active');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editFirstDueDate, setEditFirstDueDate] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadData = async () => {
     if (!activeTenant) return;
@@ -98,6 +106,38 @@ export const ContractsPage: React.FC = () => {
       setActiveCertData({ cert, contract, customer });
     } catch (err: any) {
       alert(err?.message || 'Failed to issue clearance certificate.');
+    }
+  };
+
+  const handleOpenEditContract = (c: Contract) => {
+    setEditingContract(c);
+    setEditStatus(c.status);
+    setEditStartDate(c.startDateKey || '');
+    setEditFirstDueDate(c.firstDueDateKey || '');
+  };
+
+  const handleSaveEditContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !currentUser || !editingContract) return;
+
+    setSavingEdit(true);
+    try {
+      await SaleRepository.updateContract(
+        activeTenant.tenantId,
+        editingContract.contractId,
+        {
+          status: editStatus,
+          startDateKey: editStartDate,
+          firstDueDateKey: editFirstDueDate,
+        },
+        currentUser.uid,
+        isDemoUser
+      );
+
+      setEditingContract(null);
+      await loadData();
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -216,13 +256,25 @@ export const ContractsPage: React.FC = () => {
                         <StatusBadge status={c.status} />
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.375rem' }}>
+                        <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
                           <button
                             onClick={() => viewSchedule(c)}
                             className="btn btn-sm btn-outline"
+                            style={{ padding: '0.25rem 0.5rem' }}
                           >
                             <Calendar size={13} />
                             <span>Schedule</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditContract(c)}
+                            className="btn btn-sm btn-outline text-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem' }}
+                            title={language === 'ur' ? 'معاہدہ کی درستی' : 'Edit Contract'}
+                          >
+                            <Edit3 size={12} />
+                            <span>{language === 'ur' ? 'درستی' : 'Edit'}</span>
                           </button>
 
                           {(c.outstandingPaisa === 0 || c.status === 'fully_paid') && (
@@ -230,6 +282,7 @@ export const ContractsPage: React.FC = () => {
                               onClick={() => handleIssueCertificate(c)}
                               className="btn btn-sm btn-primary"
                               title="Issue Clearance Certificate"
+                              style={{ padding: '0.25rem 0.5rem' }}
                             >
                               <Award size={13} />
                               <span>Clearance</span>
@@ -319,6 +372,91 @@ export const ContractsPage: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contract Modal */}
+      {editingContract && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">{language === 'ur' ? 'اقساط معاہدہ کی درستی' : 'Edit Installment Contract'}</h3>
+              <button
+                onClick={() => setEditingContract(null)}
+                className="btn btn-icon btn-outline"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditContract}>
+              <div className="modal-body">
+                <div style={{ background: '#f8fafc', padding: '0.875rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e2e8f0' }}>
+                  <div className="font-semibold text-slate-900">{editingContract.contractCode}</div>
+                  <div className="text-muted" style={{ fontSize: '0.8125rem' }}>
+                    Customer: {getCustomer(editingContract.customerId)?.fullName || editingContract.customerId}
+                  </div>
+                  <div style={{ marginTop: '0.375rem', fontSize: '0.8125rem' }}>
+                    <span>Outstanding: </span>
+                    <MoneyDisplay paisa={editingContract.outstandingPaisa} className="font-bold text-primary" />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{language === 'ur' ? 'معاہدہ کی کیفیت (اسٹیٹس)' : 'Contract Status'}</label>
+                  <select
+                    className="form-select"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                  >
+                    <option value="active">Active (فعال - جاری)</option>
+                    <option value="fully_paid">Fully Paid (مکمل ادا شدہ)</option>
+                    <option value="defaulted">Defaulted (نادہندہ / ڈیفالٹ)</option>
+                    <option value="cancelled">Cancelled (منسوخ)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{language === 'ur' ? 'شروع کی تاریخ' : 'Start Date'}</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{language === 'ur' ? 'پہلی قسط کی تاریخ' : 'First Due Date'}</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editFirstDueDate}
+                      onChange={(e) => setEditFirstDueDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingContract(null)}
+                  className="btn btn-secondary"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingEdit}
+                >
+                  <CheckCircle size={16} />
+                  <span>{savingEdit ? t('common.loading') : (language === 'ur' ? 'تبدیلی محفوظ کریں' : 'Save Changes')}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

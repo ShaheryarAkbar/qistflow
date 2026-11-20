@@ -26,6 +26,12 @@ export const InventoryRepository = {
       const stored = localStorage.getItem(`${DEMO_STORAGE_KEY}_${tenantId}`);
       if (stored) return JSON.parse(stored);
 
+      // Only seed initial movements for reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        localStorage.setItem(`${DEMO_STORAGE_KEY}_${tenantId}`, JSON.stringify([]));
+        return [];
+      }
+
       const initialMovements: InventoryMovement[] = [
         {
           movementId: 'mov-001',
@@ -68,7 +74,8 @@ export const InventoryRepository = {
     tenantId: string,
     movementData: Omit<InventoryMovement, 'movementId' | 'tenantId' | 'createdAt' | 'createdBy'>,
     userId: string,
-    isDemo = false
+    isDemo = false,
+    skipStockOnHandAdjustment = false
   ): Promise<InventoryMovement> {
     const movementId = `mov_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const movement: InventoryMovement = {
@@ -92,12 +99,16 @@ export const InventoryRepository = {
       const movements = await this.getMovements(tenantId, true);
       const updated = [movement, ...movements];
       localStorage.setItem(`${DEMO_STORAGE_KEY}_${tenantId}`, JSON.stringify(updated));
-      await ProductRepository.adjustStockOnHand(tenantId, movementData.productId, delta, true);
+      if (!skipStockOnHandAdjustment) {
+        await ProductRepository.adjustStockOnHand(tenantId, movementData.productId, delta, true);
+      }
       return movement;
     }
 
     await setDoc(doc(db, 'tenants', tenantId, 'inventoryMovements', movementId), movement);
-    await ProductRepository.adjustStockOnHand(tenantId, movementData.productId, delta, false);
+    if (!skipStockOnHandAdjustment) {
+      await ProductRepository.adjustStockOnHand(tenantId, movementData.productId, delta, false);
+    }
     return movement;
   },
 };

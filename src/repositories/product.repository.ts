@@ -26,6 +26,12 @@ export const ProductRepository = {
       const stored = localStorage.getItem(`${DEMO_STORAGE_KEY}_${tenantId}`);
       if (stored) return JSON.parse(stored);
 
+      // Only seed initial demo products for the reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        localStorage.setItem(`${DEMO_STORAGE_KEY}_${tenantId}`, JSON.stringify([]));
+        return [];
+      }
+
       const initialProducts: Product[] = [
         {
           productId: 'prd-sa-240',
@@ -151,6 +157,40 @@ export const ProductRepository = {
     return newProduct;
   },
 
+  async updateProduct(
+    tenantId: string,
+    productId: string,
+    data: Partial<Omit<Product, 'productId' | 'tenantId' | 'createdAt' | 'createdBy'>>,
+    userId: string,
+    isDemo = false
+  ): Promise<Product | null> {
+    if (isDemo) {
+      const products = await this.getProducts(tenantId, true);
+      const idx = products.findIndex((p) => p.productId === productId);
+      if (idx !== -1) {
+        const updated: Product = {
+          ...products[idx],
+          ...data,
+          updatedAt: new Date().toISOString(),
+          updatedBy: userId,
+        };
+        products[idx] = updated;
+        localStorage.setItem(`${DEMO_STORAGE_KEY}_${tenantId}`, JSON.stringify(products));
+        return updated;
+      }
+      return null;
+    }
+
+    const productRef = doc(db, 'tenants', tenantId, 'products', productId);
+    await updateDoc(productRef, {
+      ...data,
+      updatedAt: serverTimestamp(),
+      updatedBy: userId,
+    });
+    const snap = await getDoc(productRef);
+    return snap.exists() ? ({ ...snap.data(), productId: snap.id } as Product) : null;
+  },
+
   async adjustStockOnHand(
     tenantId: string,
     productId: string,
@@ -177,6 +217,62 @@ export const ProductRepository = {
       return updated;
     }
     return 0;
+  },
+
+  async findOrCreateProductByName(
+    tenantId: string,
+    params: {
+      name: string;
+      brand?: string;
+      costPriceRupees: number;
+    },
+    userId: string,
+    isDemo = false
+  ): Promise<Product> {
+    const products = await this.getProducts(tenantId, isDemo);
+    const normalizedTarget = params.name.toLowerCase().trim();
+    const existing = products.find(
+      (p) =>
+        p.name.toLowerCase().trim() === normalizedTarget ||
+        (p.model && p.model.toLowerCase().trim() === normalizedTarget) ||
+        p.name.toLowerCase().includes(normalizedTarget) ||
+        normalizedTarget.includes(p.name.toLowerCase())
+    );
+    if (existing) return existing;
+
+    // Infer category
+    let category = 'Appliances';
+    if (normalizedTarget.includes('ac') || normalizedTarget.includes('inverter') || normalizedTarget.includes('air')) {
+      category = 'Air Conditioners';
+    } else if (normalizedTarget.includes('fridge') || normalizedTarget.includes('refrigerator') || normalizedTarget.includes('freezer')) {
+      category = 'Refrigerators';
+    } else if (normalizedTarget.includes('wash') || normalizedTarget.includes('dryer')) {
+      category = 'Washing Machines';
+    } else if (normalizedTarget.includes('solar') || normalizedTarget.includes('panel')) {
+      category = 'Solar Systems';
+    }
+
+    const costPaisa = Math.round(params.costPriceRupees * 100);
+    const cashPaisa = Math.round(costPaisa * 1.15);
+    const instPaisa = Math.round(costPaisa * 1.35);
+
+    return await this.saveProduct(
+      tenantId,
+      {
+        productCode: `PRD-${Math.floor(100 + Math.random() * 900)}`,
+        name: params.name,
+        brand: params.brand || 'General',
+        category,
+        costPricePaisa: costPaisa,
+        cashPricePaisa: cashPaisa,
+        installmentPricePaisa: instPaisa,
+        stockOnHand: 0,
+        reorderLevel: 2,
+        status: 'active',
+      },
+      userId,
+      isDemo
+    );
   },
 };
 

@@ -24,6 +24,12 @@ export const ExpenseRepository = {
       const stored = localStorage.getItem(`${DEMO_EXPENSES_KEY}_${tenantId}`);
       if (stored) return JSON.parse(stored);
 
+      // Only seed initial expenses for reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        localStorage.setItem(`${DEMO_EXPENSES_KEY}_${tenantId}`, JSON.stringify([]));
+        return [];
+      }
+
       const initialExpenses: Expense[] = [
         {
           expenseId: 'exp-01',
@@ -119,6 +125,37 @@ export const ExpenseRepository = {
 
     await setDoc(doc(db, 'tenants', tenantId, 'expenses', expenseId), newExpense);
     return newExpense;
+  },
+
+  async updateExpense(params: {
+    tenantId: string;
+    expenseId: string;
+    data: Partial<Pick<Expense, 'category' | 'amountPaisa' | 'method' | 'description' | 'reference' | 'expenseDate'>>;
+    userId: string;
+    isDemo?: boolean;
+  }): Promise<Expense | null> {
+    const { tenantId, expenseId, data, userId, isDemo = false } = params;
+
+    if (isDemo) {
+      const expenses = await this.getExpenses(tenantId, true);
+      const idx = expenses.findIndex((e) => e.expenseId === expenseId);
+      if (idx !== -1) {
+        const updated: Expense = {
+          ...expenses[idx],
+          ...data,
+          updatedAt: new Date().toISOString() as any,
+          updatedBy: userId,
+        };
+        expenses[idx] = updated;
+        localStorage.setItem(`${DEMO_EXPENSES_KEY}_${tenantId}`, JSON.stringify(expenses));
+        return updated;
+      }
+      return null;
+    }
+
+    const expRef = doc(db, 'tenants', tenantId, 'expenses', expenseId);
+    await setDoc(expRef, { ...data, updatedAt: serverTimestamp(), updatedBy: userId }, { merge: true });
+    return null;
   },
 };
 

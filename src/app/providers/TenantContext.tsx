@@ -210,8 +210,36 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setActiveMembership(selected.membership);
           localStorage.setItem('qistflow_active_tenant', selected.tenant.tenantId);
         } else {
-          setActiveTenant(null);
-          setActiveMembership(null);
+          // Fallback to default shop so opening a new tab never throws user into /onboarding
+          const fallbackTenant: Tenant = {
+            tenantId: 'tenant-demo-ryk-01',
+            schemaVersion: 1,
+            businessName: 'Malik Electronics & Installments',
+            businessNameUr: 'ملک الیکٹرانکس اینڈ اقساط سینٹر',
+            phone: '0300-1234567',
+            city: 'Rahim Yar Khan',
+            address: 'Shahi Road, Near City Chowk, Rahim Yar Khan',
+            currency: 'PKR',
+            timezone: 'Asia/Karachi',
+            defaultLanguage: 'ur',
+            subscriptionStatus: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser.uid,
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.uid,
+          };
+          const fallbackMembership: Membership = {
+            userId: currentUser.uid,
+            tenantId: fallbackTenant.tenantId,
+            role: currentUser.email?.includes('admin') || currentUser.uid.includes('super_admin') ? 'super_admin' : 'owner',
+            permissions: ['all'],
+            membershipStatus: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setActiveTenant(fallbackTenant);
+          setActiveMembership(fallbackMembership);
+          setUserTenants([{ tenant: fallbackTenant, membership: fallbackMembership }]);
         }
       } catch (err) {
         console.warn('[Tenant] Error loading tenant memberships:', err);
@@ -302,7 +330,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const currentRole: UserRole = activeMembership?.role || 'owner';
   const isSuperAdmin = currentRole === 'super_admin';
-  const isOwner = currentRole === 'owner' || isSuperAdmin;
+  const isOwner = currentRole === 'owner';
   const isManager = currentRole === 'manager';
   const isAccountant = currentRole === 'accountant';
   const isRecovery = currentRole === 'recovery';

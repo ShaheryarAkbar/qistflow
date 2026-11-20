@@ -88,7 +88,7 @@ export const DueInstallmentsPage: React.FC = () => {
         const customer = customers.find((c) => c.customerId === contract.customerId);
 
         for (const entry of entries) {
-          if (entry.remainingPaisa > 0) {
+          if (entry.status !== 'paid' && entry.remainingPaisa > 0) {
             items.push({ entry, contract, customer });
           }
         }
@@ -179,8 +179,8 @@ export const DueInstallmentsPage: React.FC = () => {
 
   const filteredItems = dueItems.filter((item) => {
     // Filter type condition
-    const isOverdue = item.entry.dueDateKey < todayKey;
-    const isDueToday = item.entry.dueDateKey === todayKey;
+    const isOverdue = item.entry.dueDateKey < todayKey && item.entry.status !== 'paid' && item.entry.remainingPaisa > 0;
+    const isDueToday = item.entry.dueDateKey === todayKey && item.entry.status !== 'paid' && item.entry.remainingPaisa > 0;
 
     let matchesFilter = true;
     if (filterType === 'today') matchesFilter = isDueToday;

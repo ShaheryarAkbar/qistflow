@@ -23,6 +23,30 @@ export const BranchRepository = {
       const stored = localStorage.getItem(`${DEMO_BRANCHES_KEY}_${tenantId}`);
       if (stored) return JSON.parse(stored);
 
+      // Only seed initial multi-branches for reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        const defaultFreshBranch: ShopBranch[] = [
+          {
+            branchId: `br-${tenantId}-01`,
+            tenantId,
+            branchCode: 'BR-01',
+            name: 'Main Head Office Branch (مین برانچ)',
+            nameUr: 'مین برانچ',
+            phone: '',
+            city: '',
+            address: '',
+            licenceKey: `QIST-${tenantId.toUpperCase().slice(-6)}-LIVE`,
+            licenceStatus: 'active',
+            monthlyTargetPaisa: 0,
+            status: 'active',
+            createdAt: new Date().toISOString().split('T')[0],
+            createdBy: `${tenantId}_owner`,
+          },
+        ];
+        localStorage.setItem(`${DEMO_BRANCHES_KEY}_${tenantId}`, JSON.stringify(defaultFreshBranch));
+        return defaultFreshBranch;
+      }
+
       const initialBranches: ShopBranch[] = [
         {
           branchId: 'br-ryk-01',

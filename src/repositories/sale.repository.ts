@@ -145,6 +145,52 @@ export const getInitialDemoContracts = (tenantId: string): Contract[] => {
       updatedAt: todayKey as any,
       updatedBy: 'owner',
     },
+    // Realistic seeded contracts for multi-recovery officer testing (cus-ryk-004 to cus-ryk-025)
+    ...Array.from({ length: 22 }, (_, idx) => {
+      const num = idx + 4;
+      const cId = `cus-ryk-${num < 10 ? '00' + num : '0' + num}`;
+      const ctrId = `ctr-ryk-10${num < 10 ? '0' + num : num}`;
+      // Daily frequency for grocery/daily counter sales, monthly for electronics
+      const isDaily = [6, 7, 9, 14, 16, 21].includes(num);
+      const financed = isDaily ? 1800000 : 4500000;
+      const totalPaid = isDaily ? 600000 : 1500000;
+      const outstanding = financed - totalPaid;
+
+      return {
+        contractId: ctrId,
+        tenantId,
+        customerId: cId,
+        saleId: `sale-20${num < 10 ? '0' + num : num}`,
+        contractCode: `CTR-2026-0${num < 10 ? '0' + num : num}`,
+        itemsSnapshot: [
+          {
+            productId: isDaily ? 'prd-mbl-01' : 'prd-sa-240',
+            productNameSnapshot: isDaily ? 'Infinix Hot 40 Smartphone' : 'Super Asia Washing Machine',
+            quantity: 1,
+            cashUnitPricePaisa: isDaily ? 1600000 : 3800000,
+            agreedUnitPricePaisa: isDaily ? 2200000 : 4800000,
+            lineTotalPaisa: isDaily ? 2200000 : 4800000,
+          },
+        ],
+        cashPriceTotalPaisa: isDaily ? 1600000 : 3800000,
+        installmentPriceTotalPaisa: isDaily ? 2200000 : 4800000,
+        discountPaisa: 0,
+        advancePaisa: isDaily ? 400000 : 1200000,
+        financedAmountPaisa: financed,
+        totalPaidPaisa: totalPaid,
+        outstandingPaisa: outstanding,
+        frequency: isDaily ? ('daily' as const) : ('monthly' as const),
+        durationCount: isDaily ? 30 : 6,
+        startDateKey: oneMonthAgo,
+        firstDueDateKey: isDaily ? todayKey : oneMonthAgo,
+        schedulePolicy: { monthEndRule: 'clamp_to_last_day' as const },
+        status: 'active' as const,
+        createdAt: oneMonthAgo as any,
+        createdBy: 'owner',
+        updatedAt: todayKey as any,
+        updatedBy: 'owner',
+      };
+    }),
   ];
 };
 
@@ -167,23 +213,31 @@ export const SaleRepository = {
       const stored = localStorage.getItem(`${DEMO_CONTRACTS_KEY}_${tenantId}`);
       if (stored) {
         let contracts: Contract[] = JSON.parse(stored);
-        const hasTariq = contracts.some((c) => c.contractId === 'ctr-ryk-1002');
-        const hasZahid = contracts.some((c) => c.contractId === 'ctr-ryk-1003');
-        const hasBad29k = contracts.some(
-          (c) => c.outstandingPaisa === 2900000 || c.installmentPriceTotalPaisa === 2900000
-        );
-
-        if (!hasTariq || !hasZahid || hasBad29k) {
-          const defaults = getInitialDemoContracts(tenantId);
-          const userCreated = contracts.filter(
-            (c) =>
-              !['ctr-ryk-1001', 'ctr-ryk-1002', 'ctr-ryk-1003'].includes(c.contractId) &&
-              c.outstandingPaisa !== 2900000
+        if (tenantId === 'tenant-demo-ryk-01' || tenantId.includes('test')) {
+          const hasTariq = contracts.some((c) => c.contractId === 'ctr-ryk-1002');
+          const hasZahid = contracts.some((c) => c.contractId === 'ctr-ryk-1003');
+          const hasBad29k = contracts.some(
+            (c) => c.outstandingPaisa === 2900000 || c.installmentPriceTotalPaisa === 2900000
           );
-          contracts = [...defaults, ...userCreated];
-          localStorage.setItem(`${DEMO_CONTRACTS_KEY}_${tenantId}`, JSON.stringify(contracts));
+
+          if (!hasTariq || !hasZahid || hasBad29k || (tenantId === 'tenant-demo-ryk-01' && contracts.length < 10)) {
+            const defaults = getInitialDemoContracts(tenantId);
+            const userCreated = contracts.filter(
+              (c) =>
+                !['ctr-ryk-1001', 'ctr-ryk-1002', 'ctr-ryk-1003'].includes(c.contractId) &&
+                c.outstandingPaisa !== 2900000
+            );
+            contracts = [...defaults, ...userCreated];
+            localStorage.setItem(`${DEMO_CONTRACTS_KEY}_${tenantId}`, JSON.stringify(contracts));
+          }
         }
         return contracts;
+      }
+
+      // Only seed initial demo contracts for the reference demo shop 'tenant-demo-ryk-01' (or test runners)
+      if (tenantId !== 'tenant-demo-ryk-01' && !tenantId.includes('test')) {
+        localStorage.setItem(`${DEMO_CONTRACTS_KEY}_${tenantId}`, JSON.stringify([]));
+        return [];
       }
 
       const initialContracts = getInitialDemoContracts(tenantId);
@@ -589,6 +643,35 @@ export const SaleRepository = {
     }
 
     return { sale: newSale, contract: newContract, scheduleEntries };
+  },
+
+  async updateContract(
+    tenantId: string,
+    contractId: string,
+    data: Partial<Omit<Contract, 'contractId' | 'tenantId' | 'createdAt' | 'createdBy'>>,
+    userId: string,
+    isDemo = false
+  ): Promise<Contract | null> {
+    if (isDemo) {
+      const contracts = await this.getContracts(tenantId, true);
+      const idx = contracts.findIndex((c) => c.contractId === contractId);
+      if (idx !== -1) {
+        const updated: Contract = {
+          ...contracts[idx],
+          ...data,
+          updatedAt: new Date().toISOString() as any,
+          updatedBy: userId,
+        };
+        contracts[idx] = updated;
+        localStorage.setItem(`${DEMO_CONTRACTS_KEY}_${tenantId}`, JSON.stringify(contracts));
+        return updated;
+      }
+      return null;
+    }
+
+    const docRef = doc(db, 'tenants', tenantId, 'contracts', contractId);
+    await setDoc(docRef, { ...data, updatedAt: serverTimestamp(), updatedBy: userId }, { merge: true });
+    return null;
   },
 };
 

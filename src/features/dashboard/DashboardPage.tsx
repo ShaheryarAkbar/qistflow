@@ -32,6 +32,8 @@ import { SaleRepository } from '@/repositories/sale.repository';
 import { CustomerRepository } from '@/repositories/customer.repository';
 import { PaymentRepository } from '@/repositories/payment.repository';
 import { ProductRepository } from '@/repositories/product.repository';
+import { StaffRepository } from '@/repositories/staff.repository';
+import { RecoveryRepository } from '@/repositories/recovery.repository';
 import { PrintableReceipt } from '@/components/shared/PrintableReceipt';
 import { rupeesToPaisa } from '@/domain/money/paisa';
 
@@ -57,6 +59,7 @@ interface DueTableItem {
   amountPaisa: number;
   dueDate: string;
   status: ScheduleEntryStatus;
+  assignedOfficerName?: string;
 }
 
 interface CollectedTableItem {
@@ -70,6 +73,7 @@ interface CollectedTableItem {
   amountPaisa: number;
   method: PaymentMethod;
   paidAt: string;
+  receivedByName: string;
 }
 
 export const DashboardPage: React.FC = () => {
@@ -112,15 +116,26 @@ export const DashboardPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const [contracts, customers, payments, products] = await Promise.all([
+      const [contracts, customers, payments, products, staffList, asgList] = await Promise.all([
         SaleRepository.getContracts(activeTenant.tenantId, isDemoUser),
         CustomerRepository.getCustomers(activeTenant.tenantId, isDemoUser),
         PaymentRepository.getPayments(activeTenant.tenantId, isDemoUser),
         ProductRepository.getProducts(activeTenant.tenantId, isDemoUser),
+        StaffRepository.getStaffMembers(activeTenant.tenantId, isDemoUser),
+        RecoveryRepository.getAssignments(activeTenant.tenantId, undefined, isDemoUser),
       ]);
 
       const customerMap = new Map<string, Customer>();
       customers.forEach((c) => customerMap.set(c.customerId, c));
+
+      const staffMap = new Map<string, string>();
+      staffList.forEach((s) => staffMap.set(s.userId, s.displayName));
+
+      const asgMap = new Map<string, string>();
+      asgList.forEach((a) => {
+        const officerName = staffMap.get(a.employeeId) || 'Kamran (Recovery)';
+        asgMap.set(a.customerId, officerName);
+      });
 
       // Calculate payments received today
       const todayPayments = payments.filter((p) => {
@@ -186,6 +201,7 @@ export const DashboardPage: React.FC = () => {
               amountPaisa: remainingForEntry,
               dueDate: entry.dueDateKey,
               status: entry.status,
+              assignedOfficerName: asgMap.get(contract.customerId) || (language === 'ur' ? 'کامران (ریکوری آفیسر)' : 'Kamran (Officer)'),
             });
           }
         }
@@ -202,6 +218,12 @@ export const DashboardPage: React.FC = () => {
           contract?.itemsSnapshot?.[0]?.productNameSnapshot ||
           (contract ? `Contract #${contract.contractCode || contract.contractId}` : 'Installment Payment');
 
+        const collectorStaff = staffMap.get(p.receivedBy);
+        const displayCollector =
+          collectorStaff ||
+          (p.receivedBy === 'owner' ? (language === 'ur' ? 'مالک دکان' : 'Shop Owner') : p.receivedBy) ||
+          'Field Officer';
+
         return {
           paymentId: p.paymentId,
           receiptNumber: p.reference?.startsWith('RCP-') ? p.reference : `RCP-${p.paymentId.slice(-6).toUpperCase()}`,
@@ -213,6 +235,7 @@ export const DashboardPage: React.FC = () => {
           amountPaisa: p.amountPaisa,
           method: p.method,
           paidAt: typeof p.paidAt === 'string' ? p.paidAt : new Date().toISOString(),
+          receivedByName: displayCollector,
         };
       });
 
@@ -582,6 +605,7 @@ export const DashboardPage: React.FC = () => {
                     <th>{t('payments.amount')}</th>
                     <th>{t('common.date')}</th>
                     <th>{t('common.status')}</th>
+                    <th>{language === 'ur' ? 'ریکوری آفیسر' : 'Assigned Officer'}</th>
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -614,6 +638,11 @@ export const DashboardPage: React.FC = () => {
                       </td>
                       <td>
                         <StatusBadge status={item.status} />
+                      </td>
+                      <td>
+                        <span className="badge badge-outline" style={{ fontSize: '0.75rem', color: '#0369a1' }}>
+                          {item.assignedOfficerName}
+                        </span>
                       </td>
                       <td>
                         <button
@@ -649,6 +678,7 @@ export const DashboardPage: React.FC = () => {
                     <th>{language === 'ur' ? 'وصول شدہ رقم' : 'Amount Received'}</th>
                     <th>{language === 'ur' ? 'طریقہ ادائیگی' : 'Method'}</th>
                     <th>{language === 'ur' ? 'رسید نمبر' : 'Receipt #'}</th>
+                    <th>{language === 'ur' ? 'وصول کنندہ (اسٹاف)' : 'Collected By'}</th>
                     <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
@@ -682,6 +712,11 @@ export const DashboardPage: React.FC = () => {
                         </span>
                       </td>
                       <td>
+                        <span className="font-semibold text-primary" style={{ fontSize: '0.8125rem' }}>
+                          {col.receivedByName}
+                        </span>
+                      </td>
+                      <td>
                         <button
                           onClick={() => handleViewCollectedReceipt(col)}
                           className="btn btn-sm btn-outline"
@@ -700,10 +735,10 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Collect Modal on Dashboard */}
+      {/* Quick Collect Modal on Dashboard with Standard .modal-overlay & .modal-box */}
       {collectModalItem && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Receipt className="text-primary" size={20} />

@@ -12,15 +12,17 @@ import {
   X,
   CheckCircle,
   Barcode,
+  Edit3,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { useAuth } from '@/app/providers/AuthContext';
 import { Product } from '@/types';
 import { ProductRepository } from '@/repositories/product.repository';
+import { InventoryRepository } from '@/repositories/inventory.repository';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { rupeesToPaisa } from '@/domain/money/paisa';
+import { rupeesToPaisa, paisaToRupees } from '@/domain/money/paisa';
 
 export const ProductsPage: React.FC = () => {
   const { t, language } = useI18n();
@@ -45,6 +47,20 @@ export const ProductsPage: React.FC = () => {
   const [installmentPriceRupees, setInstallmentPriceRupees] = useState('');
   const [initialStock, setInitialStock] = useState('5');
   const [reorderLevel, setReorderLevel] = useState('2');
+
+  // Edit Product Modal State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editBrand, setEditBrand] = useState('');
+  const [editModel, setEditModel] = useState('');
+  const [editCostPriceRupees, setEditCostPriceRupees] = useState('');
+  const [editCashPriceRupees, setEditCashPriceRupees] = useState('');
+  const [editInstallmentPriceRupees, setEditInstallmentPriceRupees] = useState('');
+  const [editStockOnHand, setEditStockOnHand] = useState('');
+  const [editReorderLevel, setEditReorderLevel] = useState('2');
+  const [editStatus, setEditStatus] = useState<'active' | 'inactive'>('active');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadProducts = async () => {
     if (!activeTenant) return;
@@ -71,7 +87,8 @@ export const ProductsPage: React.FC = () => {
 
     setSaving(true);
     try {
-      await ProductRepository.saveProduct(
+      const initialQty = parseInt(initialStock, 10) || 0;
+      const savedProd = await ProductRepository.saveProduct(
         activeTenant.tenantId,
         {
           name,
@@ -83,13 +100,32 @@ export const ProductsPage: React.FC = () => {
           costPricePaisa: rupeesToPaisa(costPriceRupees || 0),
           cashPricePaisa: rupeesToPaisa(cashPriceRupees),
           installmentPricePaisa: rupeesToPaisa(installmentPriceRupees),
-          stockOnHand: parseInt(initialStock, 10) || 0,
+          stockOnHand: initialQty,
           reorderLevel: parseInt(reorderLevel, 10) || 2,
           status: 'active',
         },
         currentUser.uid,
         isDemoUser
       );
+
+      // Record opening inventory movement so Inventory tab immediately reflects the stock
+      if (initialQty > 0) {
+        await InventoryRepository.recordMovement(
+          activeTenant.tenantId,
+          {
+            productId: savedProd.productId,
+            movementType: 'adjustment_in',
+            quantity: initialQty,
+            movementDate: new Date().toISOString(),
+            referenceType: 'adjustment',
+            referenceId: savedProd.productId,
+            reason: 'افتتاحی اسٹاک اندراج (Initial Opening Stock Balance)',
+          },
+          currentUser.uid,
+          isDemoUser,
+          true
+        );
+      }
 
       // Reset
       setName('');
@@ -103,6 +139,52 @@ export const ProductsPage: React.FC = () => {
       await loadProducts();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenEditProduct = (p: Product) => {
+    setEditingProduct(p);
+    setEditName(p.name);
+    setEditCategory(p.category || 'General');
+    setEditBrand(p.brand || '');
+    setEditModel(p.model || '');
+    setEditCostPriceRupees(paisaToRupees(p.costPricePaisa).toString());
+    setEditCashPriceRupees(paisaToRupees(p.cashPricePaisa).toString());
+    setEditInstallmentPriceRupees(paisaToRupees(p.installmentPricePaisa).toString());
+    setEditStockOnHand(p.stockOnHand.toString());
+    setEditReorderLevel((p.reorderLevel || 2).toString());
+    setEditStatus(p.status);
+  };
+
+  const handleSaveEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenant || !currentUser || !editingProduct || !editName) return;
+
+    setSavingEdit(true);
+    try {
+      await ProductRepository.updateProduct(
+        activeTenant.tenantId,
+        editingProduct.productId,
+        {
+          name: editName,
+          category: editCategory,
+          brand: editBrand || undefined,
+          model: editModel || undefined,
+          costPricePaisa: rupeesToPaisa(editCostPriceRupees),
+          cashPricePaisa: rupeesToPaisa(editCashPriceRupees),
+          installmentPricePaisa: rupeesToPaisa(editInstallmentPriceRupees),
+          stockOnHand: parseInt(editStockOnHand, 10) || 0,
+          reorderLevel: parseInt(editReorderLevel, 10) || 2,
+          status: editStatus,
+        },
+        currentUser.uid,
+        isDemoUser
+      );
+
+      setEditingProduct(null);
+      await loadProducts();
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -187,18 +269,19 @@ export const ProductsPage: React.FC = () => {
                 <th>{t('products.installmentPrice')}</th>
                 <th>{t('products.stock')}</th>
                 <th>{t('common.status')}</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center" style={{ padding: '2rem' }}>
+                  <td colSpan={8} className="text-center" style={{ padding: '2rem' }}>
                     {t('common.loading')}
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted" style={{ padding: '2rem' }}>
+                  <td colSpan={8} className="text-center text-muted" style={{ padding: '2rem' }}>
                     {t('common.noData')}
                   </td>
                 </tr>
@@ -242,6 +325,18 @@ export const ProductsPage: React.FC = () => {
                       </td>
                       <td>
                         <StatusBadge status={p.status} />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditProduct(p)}
+                          className="btn btn-sm btn-outline text-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem' }}
+                          title={language === 'ur' ? 'پراڈکٹ کی درستی' : 'Edit Product'}
+                        >
+                          <Edit3 size={12} />
+                          <span>{language === 'ur' ? 'درستی' : 'Edit'}</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -405,6 +500,156 @@ export const ProductsPage: React.FC = () => {
                 >
                   <CheckCircle size={16} />
                   <span>{saving ? t('common.loading') : t('common.save')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">{language === 'ur' ? 'پراڈکٹ کی تفصیلات و قیمتیں درست کریں' : 'Edit Product Details & Pricing'}</h3>
+              <button
+                onClick={() => setEditingProduct(null)}
+                className="btn btn-icon btn-outline"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditProduct}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">
+                    <span>{t('products.name')}</span>
+                    <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{t('products.category')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{t('products.brand')}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editBrand}
+                      onChange={(e) => setEditBrand(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">{t('products.model')}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editModel}
+                    onChange={(e) => setEditModel(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">Cost Price (Rs.)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editCostPriceRupees}
+                      onChange={(e) => setEditCostPriceRupees(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Cash Price (Rs.)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editCashPriceRupees}
+                      onChange={(e) => setEditCashPriceRupees(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Installment Price (Rs.)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editInstallmentPriceRupees}
+                      onChange={(e) => setEditInstallmentPriceRupees(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="form-group">
+                    <label className="form-label">{t('products.stock')}</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editStockOnHand}
+                      onChange={(e) => setEditStockOnHand(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{t('products.reorderLevel')}</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={editReorderLevel}
+                      onChange={(e) => setEditReorderLevel(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{t('common.status')}</label>
+                    <select
+                      className="form-select"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as 'active' | 'inactive')}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="btn btn-secondary"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingEdit}
+                >
+                  <CheckCircle size={16} />
+                  <span>{savingEdit ? t('common.loading') : (language === 'ur' ? 'تبدیلی محفوظ کریں' : 'Save Changes')}</span>
                 </button>
               </div>
             </form>

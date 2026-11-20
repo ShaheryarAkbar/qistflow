@@ -238,6 +238,9 @@ export interface Purchase {
   paidPaisa: number;
   balancePaisa: number;
   status: 'draft' | 'posted' | 'partially_paid' | 'paid' | 'cancelled';
+  receiptImageUrl?: string;
+  supplierNameSnapshot?: string;
+  notes?: string;
   createdAt: any;
   createdBy: string;
 }
@@ -418,6 +421,8 @@ export interface Expense {
   status: 'posted' | 'voided';
   createdAt: any;
   createdBy: string;
+  updatedAt?: any;
+  updatedBy?: string;
 }
 
 export interface RecoveryAssignment {

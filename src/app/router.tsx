@@ -296,7 +296,9 @@ export const router = createBrowserRouter([
     path: '*',
     element: <RoleLandingRedirect />,
   },
-]);
+], {
+  basename: import.meta.env.BASE_URL,
+});
 
 export const AppRouter: React.FC = () => {
   return <RouterProvider router={router} />;

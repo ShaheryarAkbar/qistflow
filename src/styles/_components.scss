@@ -5,6 +5,13 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 
+// --- Global Icon Shrinkage Defense ---
+svg,
+.lucide,
+[class^="lucide-"] {
+  flex-shrink: 0 !important;
+}
+
 // --- Buttons ---
 .btn {
   display: inline-flex;
@@ -167,6 +174,7 @@ select {
   background-position: right 1rem center;
   background-size: 1.125rem 1.125rem;
   cursor: pointer;
+  min-width: 140px;
 
   &::-ms-expand {
     display: none;
@@ -253,6 +261,7 @@ input[type='radio'] {
   border-radius: $radius-input;
   padding: 0.5rem 1rem;
   min-height: 44px;
+  min-width: 200px;
   transition: all $transition-fast;
   box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
   width: 100%;
@@ -415,7 +424,9 @@ input[type='radio'] {
       font-size: 0.8125rem;
       color: $slate-500;
       margin-bottom: 0.25rem;
-      @include truncate;
+      white-space: normal;
+      line-height: 1.35;
+      word-break: break-word;
     }
 
     .stat-value {
@@ -423,7 +434,7 @@ input[type='radio'] {
       font-weight: 700;
       color: $slate-900;
       line-height: 1.2;
-      @include truncate;
+      word-break: break-word;
     }
   }
 }
@@ -594,7 +605,13 @@ input[type='radio'] {
   backdrop-filter: blur(2px);
   z-index: 1000;
   @include flex-center;
-  padding: 1rem;
+  padding: 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  @media (min-width: 640px) {
+    padding: 1.5rem;
+  }
 
   .modal-box {
     background-color: #ffffff;
@@ -602,8 +619,12 @@ input[type='radio'] {
     box-shadow: $shadow-xl;
     width: 100%;
     max-width: 540px;
-    max-height: 90vh;
+    max-height: calc(100dvh - 28px);
+    max-height: calc(100vh - 28px);
     overflow-y: auto;
+    overflow-x: hidden;
+    margin: auto;
+    word-break: break-word;
     @include scrollbar-style;
 
     .modal-header {

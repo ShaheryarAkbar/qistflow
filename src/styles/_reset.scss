@@ -58,8 +58,14 @@ table {
   width: 100%;
 }
 
-img, svg {
+img {
   display: block;
   max-width: 100%;
+}
+
+svg,
+.lucide,
+[class^="lucide-"] {
+  flex-shrink: 0 !important;
 }
 

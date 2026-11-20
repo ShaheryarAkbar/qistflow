@@ -211,10 +211,17 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 85 }} onClick={onClose}>
+    <div className="modal-overlay" style={{ zIndex: 85, padding: '14px' }} onClick={onClose}>
       <div
         className="modal-box"
-        style={{ maxWidth: '920px', width: '96%', maxHeight: '92vh', overflowY: 'auto' }}
+        style={{
+          maxWidth: '920px',
+          width: '100%',
+          maxHeight: 'calc(100dvh - 28px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          margin: 'auto',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -334,10 +341,13 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
                         alignItems: 'flex-start',
                         gap: '0.2rem',
                         background: '#ffffff',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        width: '100%',
                       }}
                     >
-                      <strong style={{ color: '#0f172a' }}>{sample.title}</strong>
-                      <span className="text-muted" style={{ fontSize: '0.6875rem' }}>{sample.itemsSummary}</span>
+                      <strong style={{ color: '#0f172a', whiteSpace: 'normal', wordBreak: 'break-word' }}>{sample.title}</strong>
+                      <span className="text-muted" style={{ fontSize: '0.6875rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>{sample.itemsSummary}</span>
                     </button>
                   ))}
                 </div>
@@ -382,6 +392,8 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
                   gap: '0.625rem',
                   fontSize: '0.8125rem',
                   color: '#92400e',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
                 }}
               >
                 <ShieldCheck size={20} style={{ flexShrink: 0, color: '#d97706' }} />
@@ -679,12 +691,20 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
       {isPhotoZoomed && scannedResult && (
         <div
           className="modal-overlay"
-          style={{ zIndex: 90 }}
+          style={{ zIndex: 90, padding: '14px' }}
           onClick={() => setIsPhotoZoomed(false)}
         >
           <div
             className="modal-box"
-            style={{ maxWidth: '780px', width: '95%', backgroundColor: '#0f172a', color: '#fff', padding: '1rem' }}
+            style={{
+              maxWidth: '780px',
+              width: '100%',
+              maxHeight: 'calc(100dvh - 28px)',
+              margin: 'auto',
+              backgroundColor: '#0f172a',
+              color: '#fff',
+              padding: '1rem',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>

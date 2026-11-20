@@ -303,16 +303,18 @@ export const ReceiptArchiveGallery: React.FC<ReceiptArchiveGalleryProps> = ({
       {activeSlidePurchase && selectedSlideIndex !== null && (
         <div
           className="modal-overlay"
-          style={{ zIndex: 95 }}
+          style={{ zIndex: 95, padding: '14px' }}
           onClick={() => setSelectedSlideIndex(null)}
         >
           <div
             className="modal-box"
             style={{
               maxWidth: '880px',
-              width: '96%',
-              maxHeight: '92vh',
+              width: '100%',
+              maxHeight: 'calc(100dvh - 28px)',
               overflowY: 'auto',
+              overflowX: 'hidden',
+              margin: 'auto',
               background: '#0f172a',
               color: '#fff',
               padding: '1.25rem',

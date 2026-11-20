@@ -592,337 +592,337 @@ export const StaffPage: React.FC = () => {
         const displayedStaff = isManager
           ? staff.filter((m) => m.role !== 'owner' && m.role !== 'manager')
           : isOwner
-          ? staff.filter((m) => m.role !== 'owner')
-          : staff;
+            ? staff.filter((m) => m.role !== 'owner')
+            : staff;
 
         return (
-        <div>
-          {/* Staff Credentials & Passwords Vault Info Card */}
-          <div
-            className="card mb-4"
-            style={{
-              background: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              borderLeft: '5px solid #2563eb',
-              padding: '1rem',
-              borderRadius: '0.625rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <KeyRound size={22} className="text-primary" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
-                  {language === 'ur'
-                    ? 'ملازمین کے لاگ انز و پاس ورڈز والٹ (Staff Credentials & Handover Vault)'
-                    : 'Staff Credentials & Handover Vault'}
-                </h4>
-                <p style={{ fontSize: '0.8125rem', color: '#475569', margin: 0 }}>
-                  {language === 'ur'
-                    ? isOwner
-                      ? 'دکان کا مالک مینیجر، اکاؤنٹنٹ، اور تمام ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے دیکھ سکتے ہیں، تبدیل کر سکتے ہیں اور براہ راست ملازم کو واٹس ایپ پر بھیج سکتے ہیں۔'
-                      : 'دکان کا مینیجر اکاؤنٹنٹ اور فیلڈ ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے منظم کر سکتا ہے اور واٹس ایپ پر بھیج سکتا ہے۔'
-                    : 'Shop leadership has visibility over subordinate staff credentials. You can view, reset, and hand over credentials directly via WhatsApp/SMS.'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Owner Business Identity Banner (Visible strictly to Owner, hidden from Manager) */}
-          {isOwner && ownerMember && (
+          <div>
+            {/* Staff Credentials & Passwords Vault Info Card */}
             <div
+              className="card mb-4"
               style={{
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                padding: '0.75rem 1rem',
-                borderRadius: '0.5rem',
-                marginBottom: '1rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderLeft: '5px solid #2563eb',
+                padding: '1rem',
+                borderRadius: '0.625rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Building2 size={22} className="text-success" />
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <KeyRound size={22} className="text-primary" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#166534' }}>
-                    {language === 'ur' ? 'دکان دار و چیف ایڈمنسٹریٹر (Shop Owner & Founder)' : 'Shop Owner & Founder'}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
-                    {ownerMember.displayName} • {ownerMember.email} • <span dir="ltr">{ownerMember.phone || '0300-1234567'}</span>
-                  </div>
+                  <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
+                    {language === 'ur'
+                      ? 'ملازمین کے لاگ انز و پاس ورڈز والٹ (Staff Credentials & Handover Vault)'
+                      : 'Staff Credentials & Handover Vault'}
+                  </h4>
+                  <p style={{ fontSize: '0.8125rem', color: '#475569', margin: 0 }}>
+                    {language === 'ur'
+                      ? isOwner
+                        ? 'دکان کا مالک مینیجر، اکاؤنٹنٹ، اور تمام ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے دیکھ سکتے ہیں، تبدیل کر سکتے ہیں اور براہ راست ملازم کو واٹس ایپ پر بھیج سکتے ہیں۔'
+                        : 'دکان کا مینیجر اکاؤنٹنٹ اور فیلڈ ریکوری افسران کے لاگ ان ای میلز اور پاس ورڈز یہاں سے منظم کر سکتا ہے اور واٹس ایپ پر بھیج سکتا ہے۔'
+                      : 'Shop leadership has visibility over subordinate staff credentials. You can view, reset, and hand over credentials directly via WhatsApp/SMS.'}
+                  </p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span className="badge badge-success" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <Smartphone size={11} />
-                  <span>{language === 'ur' ? '1 ایکٹو ڈیوائس (آن لائن)' : '1 Active Device'}</span>
-                </span>
-                <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                  Full Business Control (کامل اختیارات)
-                </span>
-              </div>
             </div>
-          )}
 
-          <div className="card">
-            <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Staff Member</th>
-                    <th>Assigned Role</th>
-                    <th>Designation</th>
-                    <th>Monthly Salary</th>
-                    <th>Permissions & Scope</th>
-                    <th>Login Email & Password</th>
-                    <th>{language === 'ur' ? 'ایکٹو ڈیوائسز / لاگ انز' : 'Active Devices / Logins'}</th>
-                    <th>Phone</th>
-                    <th>Joined Date</th>
-                    <th>{t('common.status')}</th>
-                    {canManageStaff && <th>{t('common.actions')}</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={11} className="text-center" style={{ padding: '2rem' }}>
-                        {t('common.loading')}
-                      </td>
-                    </tr>
-                  ) : displayedStaff.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="text-center text-muted" style={{ padding: '2rem' }}>
-                        {language === 'ur' ? 'کوئی ملازم ریکارڈ موجود نہیں' : 'No staff members found'}
-                      </td>
-                    </tr>
-                  ) : displayedStaff.map((member) => {
-                    const roleBadge = getRoleBadge(member.role);
-                    const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+            {/* Owner Business Identity Banner (Visible strictly to Owner, hidden from Manager) */}
+            {isOwner && ownerMember && (
+              <div
+                style={{
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.5rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Building2 size={22} className="text-success" />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#166534' }}>
+                      {language === 'ur' ? 'دکان دار و چیف ایڈمنسٹریٹر (Shop Owner & Founder)' : 'Shop Owner & Founder'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#15803d' }}>
+                      {ownerMember.displayName} • {ownerMember.email} • <span dir="ltr">{ownerMember.phone || '0300-1234567'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Smartphone size={11} />
+                    <span>{language === 'ur' ? '1 ایکٹو ڈیوائس (آن لائن)' : '1 Active Device'}</span>
+                  </span>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                    Full Business Control (کامل اختیارات)
+                  </span>
+                </div>
+              </div>
+            )}
 
-                    return (
-                      <tr key={member.userId}>
-                        <td>
-                          <div className="font-semibold">{member.displayName}</div>
-                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            ID: {member.userId}
-                          </div>
+            <div className="card">
+              <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Staff Member</th>
+                      <th>Assigned Role</th>
+                      <th>Designation</th>
+                      <th>Monthly Salary</th>
+                      <th>Permissions & Scope</th>
+                      <th>Login Email & Password</th>
+                      <th>{language === 'ur' ? 'ایکٹو ڈیوائسز / لاگ انز' : 'Active Devices / Logins'}</th>
+                      <th>Phone</th>
+                      <th>Joined Date</th>
+                      <th>{t('common.status')}</th>
+                      {canManageStaff && <th>{t('common.actions')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={11} className="text-center" style={{ padding: '2rem' }}>
+                          {t('common.loading')}
                         </td>
-                        <td>
-                          <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
+                      </tr>
+                    ) : displayedStaff.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="text-center text-muted" style={{ padding: '2rem' }}>
+                          {language === 'ur' ? 'کوئی ملازم ریکارڈ موجود نہیں' : 'No staff members found'}
                         </td>
-                        <td>
-                          <span className="font-semibold text-slate-700" style={{ fontSize: '0.8125rem' }}>
-                            {member.designation || member.role.toUpperCase()}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <MoneyDisplay paisa={member.monthlySalaryPaisa || 0} className="font-bold text-primary" />
-                            {canManageStaff && (
-                              <button
-                                onClick={() => handleOpenEditSalary(member)}
-                                className="btn btn-icon btn-sm btn-outline"
-                                title={language === 'ur' ? 'تنخواہ تبدیل کریں' : 'Edit salary'}
-                                style={{ padding: '0.2rem', width: '22px', height: '22px' }}
-                              >
-                                <Edit2 size={11} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          {member.role === 'owner' ? (
-                            <span className="badge badge-success">Full Business Access</span>
-                          ) : member.role === 'recovery' ? (
-                            <span className="badge badge-slate">Restricted Mobile Field</span>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                              <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
-                                {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
-                              </span>
-                              {canConfigureThisMember && (
-                                <button
-                                  onClick={() => handleOpenPermissionsModal(member)}
-                                  className="btn btn-outline btn-sm"
-                                  style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                  title="Owner Configure Permissions"
-                                >
-                                  <Sliders size={12} />
-                                  <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
-                                </button>
-                              )}
+                      </tr>
+                    ) : displayedStaff.map((member) => {
+                      const roleBadge = getRoleBadge(member.role);
+                      const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+
+                      return (
+                        <tr key={member.userId}>
+                          <td>
+                            <div className="font-semibold">{member.displayName}</div>
+                            <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                              ID: {member.userId}
                             </div>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '0.8125rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
-                              <Mail size={12} className="text-primary" />
-                              <strong className="text-slate-900">{member.email}</strong>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              <KeyRound size={12} className="text-amber-600" />
-                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>
-                                {showPasswords[member.userId] ? (member.password || 'Pak@12345') : '••••••••'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => toggleShowPassword(member.userId)}
-                                className="btn btn-icon btn-sm btn-outline"
-                                style={{ padding: '0.1rem', width: '20px', height: '20px' }}
-                                title={showPasswords[member.userId] ? 'Hide' : 'Show password'}
-                              >
-                                {showPasswords[member.userId] ? <EyeOff size={11} /> : <Eye size={11} />}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(member.password || 'Pak@12345');
-                                  showToast(language === 'ur' ? 'پاس ورڈ کاپی ہو گیا!' : 'Password copied!');
-                                }}
-                                className="btn btn-icon btn-sm btn-outline"
-                                style={{ padding: '0.1rem', width: '20px', height: '20px' }}
-                                title="Copy password"
-                              >
-                                <Copy size={11} />
-                              </button>
+                          </td>
+                          <td>
+                            <span className={`badge ${roleBadge.bg}`}>{roleBadge.label}</span>
+                          </td>
+                          <td>
+                            <span className="font-semibold text-slate-700" style={{ fontSize: '0.8125rem' }}>
+                              {member.designation || member.role.toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <MoneyDisplay paisa={member.monthlySalaryPaisa || 0} className="font-bold text-primary" />
                               {canManageStaff && (
                                 <button
-                                  type="button"
-                                  onClick={() => handleOpenEditStaff(member)}
-                                  className="btn btn-icon btn-sm btn-outline text-primary"
-                                  style={{ padding: '0.1rem', width: '20px', height: '20px' }}
-                                  title={language === 'ur' ? 'ملازم کی تفصیلات و پاس ورڈ تبدیل کریں' : 'Edit staff credentials & password'}
+                                  onClick={() => handleOpenEditSalary(member)}
+                                  className="btn btn-icon btn-sm btn-outline"
+                                  title={language === 'ur' ? 'تنخواہ تبدیل کریں' : 'Edit salary'}
+                                  style={{ padding: '0.2rem', width: '22px', height: '22px' }}
                                 >
                                   <Edit2 size={11} />
                                 </button>
                               )}
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          {(() => {
-                            const memberSessions = activeSessions.filter((s) => s.userId === member.userId);
-                            const count = memberSessions.length;
-                            if (count === 0) {
-                              return (
-                                <span
-                                  className="badge badge-outline text-muted"
-                                  style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-                                >
-                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }}></span>
-                                  <span>{language === 'ur' ? 'آف لائن (0)' : 'Offline'}</span>
-                                </span>
-                              );
-                            }
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => setInspectingStaffSessions({ member, sessions: memberSessions })}
-                                className={`badge ${count > 1 ? 'badge-primary' : 'badge-success'}`}
-                                style={{
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  border: count > 1 ? '1px solid #86efac' : 'none',
-                                  background: count > 1 ? '#f0fdf4' : undefined,
-                                  color: count > 1 ? '#15803d' : undefined,
-                                  fontSize: '0.75rem',
-                                  padding: '0.25rem 0.5rem',
-                                  fontWeight: 600,
-                                }}
-                                title={language === 'ur' ? 'ایکٹو ڈیوائسز اور لاگ انز کی تفصیل دیکھیں' : 'View active device logins'}
-                              >
-                                <Smartphone size={12} />
-                                <span>
-                                  {count === 1
-                                    ? (language === 'ur' ? '1 ڈیوائس (آن لائن)' : '1 Active Device')
-                                    : (language === 'ur' ? `${count} ڈیوائسز (آن لائن)` : `${count} Active Devices`)}
-                                </span>
-                              </button>
-                            );
-                          })()}
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '0.8125rem' }}>
-                            {member.phone ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <Phone size={12} className="text-muted" />
-                                <span dir="ltr">{member.phone}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted">—</span>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
-                        <td>
-                          <StatusBadge status={member.status} />
-                        </td>
-                        {canManageStaff && (
+                          </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenShareHandover(member)}
-                                className="btn btn-sm btn-outline text-success"
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', borderColor: '#86efac', background: '#f0fdf4' }}
-                                title={language === 'ur' ? 'لاگ ان کی تفصیلات واٹس ایپ پر بھیجیں' : 'Share credentials with employee'}
-                              >
-                                <Share2 size={12} />
-                                <span>{language === 'ur' ? 'لاگ ان بھیجیں' : 'Share'}</span>
-                              </button>
-                              {isDemoUser && (
+                            {member.role === 'owner' ? (
+                              <span className="badge badge-success">Full Business Access</span>
+                            ) : member.role === 'recovery' ? (
+                              <span className="badge badge-slate">Restricted Mobile Field</span>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                                  {member.permissions ? `${member.permissions.length} Active Rules` : 'Default Scope'}
+                                </span>
+                                {canConfigureThisMember && (
+                                  <button
+                                    onClick={() => handleOpenPermissionsModal(member)}
+                                    className="btn btn-outline btn-sm"
+                                    style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                    title="Owner Configure Permissions"
+                                  >
+                                    <Sliders size={12} />
+                                    <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.8125rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.25rem' }}>
+                                <Mail size={12} className="text-primary" />
+                                <strong className="text-slate-900">{member.email}</strong>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <KeyRound size={12} className="text-amber-600" />
+                                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>
+                                  {showPasswords[member.userId] ? (member.password || 'Pak@12345') : '••••••••'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleShowPassword(member.userId)}
+                                  className="btn btn-icon btn-sm btn-outline"
+                                  style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                  title={showPasswords[member.userId] ? 'Hide' : 'Show password'}
+                                >
+                                  {showPasswords[member.userId] ? <EyeOff size={11} /> : <Eye size={11} />}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    switchDemoStaff(member);
-                                    if (member.role === 'recovery') navigate('/recovery');
-                                    else if (member.role === 'super_admin') navigate('/admin');
-                                    else navigate('/dashboard');
+                                    navigator.clipboard.writeText(member.password || 'Pak@12345');
+                                    showToast(language === 'ur' ? 'پاس ورڈ کاپی ہو گیا!' : 'Password copied!');
                                   }}
-                                  className="btn btn-sm btn-outline text-primary"
-                                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                  title={language === 'ur' ? `${member.displayName} کا لاگ ان ویو ٹیسٹ کریں` : `Test view as ${member.displayName}`}
+                                  className="btn btn-icon btn-sm btn-outline"
+                                  style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                  title="Copy password"
                                 >
-                                  <Eye size={12} />
-                                  <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test View'}</span>
+                                  <Copy size={11} />
                                 </button>
-                              )}
-                              {canConfigureThisMember && (
+                                {canManageStaff && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditStaff(member)}
+                                    className="btn btn-icon btn-sm btn-outline text-primary"
+                                    style={{ padding: '0.1rem', width: '20px', height: '20px' }}
+                                    title={language === 'ur' ? 'ملازم کی تفصیلات و پاس ورڈ تبدیل کریں' : 'Edit staff credentials & password'}
+                                  >
+                                    <Edit2 size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            {(() => {
+                              const memberSessions = activeSessions.filter((s) => s.userId === member.userId);
+                              const count = memberSessions.length;
+                              if (count === 0) {
+                                return (
+                                  <span
+                                    className="badge badge-outline text-muted"
+                                    style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                  >
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }}></span>
+                                    <span>{language === 'ur' ? 'آف لائن (0)' : 'Offline'}</span>
+                                  </span>
+                                );
+                              }
+                              return (
                                 <button
-                                  onClick={() => handleOpenPermissionsModal(member)}
-                                  className="btn btn-sm btn-outline text-primary"
-                                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                  type="button"
+                                  onClick={() => setInspectingStaffSessions({ member, sessions: memberSessions })}
+                                  className={`badge ${count > 1 ? 'badge-primary' : 'badge-success'}`}
+                                  style={{
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    border: count > 1 ? '1px solid #86efac' : 'none',
+                                    background: count > 1 ? '#f0fdf4' : undefined,
+                                    color: count > 1 ? '#15803d' : undefined,
+                                    fontSize: '0.75rem',
+                                    padding: '0.25rem 0.5rem',
+                                    fontWeight: 600,
+                                  }}
+                                  title={language === 'ur' ? 'ایکٹو ڈیوائسز اور لاگ انز کی تفصیل دیکھیں' : 'View active device logins'}
                                 >
-                                  <Sliders size={13} />
-                                  <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
+                                  <Smartphone size={12} />
+                                  <span>
+                                    {count === 1
+                                      ? (language === 'ur' ? '1 ڈیوائس (آن لائن)' : '1 Active Device')
+                                      : (language === 'ur' ? `${count} ڈیوائسز (آن لائن)` : `${count} Active Devices`)}
+                                  </span>
                                 </button>
-                              )}
-                              {member.role !== 'owner' ? (
-                                <button
-                                  onClick={() => handleToggleStatus(member)}
-                                  className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
-                                >
-                                  {member.status === 'active' ? 'Suspend' : 'Activate'}
-                                </button>
+                              );
+                            })()}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.8125rem' }}>
+                              {member.phone ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <Phone size={12} className="text-muted" />
+                                  <span dir="ltr">{member.phone}</span>
+                                </div>
                               ) : (
-                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
+                                <span className="text-muted">—</span>
                               )}
                             </div>
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          <td style={{ fontSize: '0.8125rem' }}>{member.joinedAt}</td>
+                          <td>
+                            <StatusBadge status={member.status} />
+                          </td>
+                          {canManageStaff && (
+                            <td>
+                              <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenShareHandover(member)}
+                                  className="btn btn-sm btn-outline text-success"
+                                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                                  title={language === 'ur' ? 'لاگ ان کی تفصیلات واٹس ایپ پر بھیجیں' : 'Share credentials with employee'}
+                                >
+                                  <Share2 size={12} />
+                                  <span>{language === 'ur' ? 'لاگ ان بھیجیں' : 'Share'}</span>
+                                </button>
+                                {isDemoUser && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      switchDemoStaff(member);
+                                      if (member.role === 'recovery') navigate('/recovery');
+                                      else if (member.role === 'super_admin') navigate('/admin');
+                                      else navigate('/dashboard');
+                                    }}
+                                    className="btn btn-sm btn-outline text-primary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                    title={language === 'ur' ? `${member.displayName} کا لاگ ان ویو ٹیسٹ کریں` : `Test view as ${member.displayName}`}
+                                  >
+                                    <Eye size={12} />
+                                    <span>{language === 'ur' ? 'ٹیسٹ لاگ ان' : 'Test View'}</span>
+                                  </button>
+                                )}
+                                {canConfigureThisMember && (
+                                  <button
+                                    onClick={() => handleOpenPermissionsModal(member)}
+                                    className="btn btn-sm btn-outline text-primary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                  >
+                                    <Sliders size={13} />
+                                    <span>{language === 'ur' ? 'اختیارات' : 'Perms'}</span>
+                                  </button>
+                                )}
+                                {member.role !== 'owner' ? (
+                                  <button
+                                    onClick={() => handleToggleStatus(member)}
+                                    className={`btn btn-sm ${member.status === 'active' ? 'btn-outline text-danger' : 'btn-outline text-success'}`}
+                                  >
+                                    {member.status === 'active' ? 'Suspend' : 'Activate'}
+                                  </button>
+                                ) : (
+                                  <span className="text-muted" style={{ fontSize: '0.75rem' }}>Owner</span>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
         );
       })()}
 
@@ -2002,7 +2002,7 @@ export const StaffPage: React.FC = () => {
                           </div>
                           <div style={{ fontSize: '0.6875rem', color: '#94a3b8', marginTop: '0.1rem' }}>
                             {language === 'ur' ? 'لاگ ان وقت: ' : 'Logged in: '}
-                            {new Date(sess.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • 
+                            {new Date(sess.loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} •
                             <span className="text-success" style={{ fontWeight: 600 }}> 🟢 {language === 'ur' ? 'آن لائن' : 'Active'}</span>
                           </div>
                         </div>

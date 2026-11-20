@@ -27,7 +27,7 @@
       border-right: none;
       border-left: 1px solid $color-border;
 
-      @media (max-width: ($bp-tablet - 1)) {
+      @media (max-width: ($bp-desktop - 1)) {
         transform: translateX(100%);
         &.sidebar-open {
           transform: translateX(0);
@@ -39,7 +39,7 @@
       margin-left: 0;
       margin-right: $sidebar-width;
 
-      @media (max-width: ($bp-tablet - 1)) {
+      @media (max-width: ($bp-desktop - 1)) {
         margin-right: 0;
       }
     }

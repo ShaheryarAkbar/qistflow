@@ -511,7 +511,7 @@ export const AppLayout: React.FC = () => {
                 title={language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}
               >
                 <Calculator size={15} />
-                <span className="hidden sm:inline">
+                <span className="hidden md:inline">
                   {language === 'ur' ? 'حساب کتاب' : 'Calc'}
                 </span>
               </button>
@@ -524,8 +524,8 @@ export const AppLayout: React.FC = () => {
               title={language === 'ur' ? 'زبان تبدیل کریں' : 'Switch Language'}
             >
               <Languages size={15} />
-              <span className="hidden sm:inline">{t('app.switchLanguage')}</span>
-              <span className="sm:hidden font-bold text-xs">{language === 'ur' ? 'EN' : 'اردو'}</span>
+              <span className="hidden md:inline">{t('app.switchLanguage')}</span>
+              <span className="md:hidden font-bold text-xs">{language === 'ur' ? 'EN' : 'اردو'}</span>
             </button>
 
             {/* Quick POS action button (only for Shop Owner & Manager, never for Platform Super-Admin) */}
@@ -547,7 +547,7 @@ export const AppLayout: React.FC = () => {
               title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
             >
               <LogOut size={15} />
-              <span className="hidden sm:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
+              <span className="hidden lg:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
             </button>
           </div>
         </header>

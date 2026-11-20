@@ -260,25 +260,27 @@ export const PaymentsPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('payments.title')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'وصولیوں کا مصدقہ لیجر، رسیدیں اور ریورسلز (Payment Allocations & Ledger)'
               : 'Audit ledger of customer installment payments, receipts and authorized reversals.'}
           </p>
         </div>
 
-        <button
-          onClick={() => setIsCollectModalOpen(true)}
-          className="btn btn-primary"
-        >
-          <PlusCircle size={16} />
-          <span>{t('payments.recordPayment')}</span>
-        </button>
+        <div className="page-action-group">
+          <button
+            onClick={() => setIsCollectModalOpen(true)}
+            className="btn btn-primary"
+          >
+            <PlusCircle size={16} />
+            <span>{t('payments.recordPayment')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}

@@ -528,20 +528,20 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setActiveTableTab('dues')}
-                className={`btn btn-sm ${
-                  activeTableTab === 'dues' ? 'btn-primary' : 'btn-ghost'
+                className={`btn btn-sm flex-1 sm:flex-initial justify-center ${
+                  activeTableTab === 'dues' ? 'btn-primary shadow-sm' : 'btn-ghost'
                 }`}
-                style={{ borderRadius: '6px', fontSize: '0.8125rem' }}
+                style={{ borderRadius: '8px', fontSize: '0.8125rem' }}
               >
                 <span>{language === 'ur' ? 'واجب الادا' : 'Pending Dues'}</span>
                 <span
                   style={{
-                    marginLeft: '0.35rem',
+                    marginInlineStart: '0.35rem',
                     padding: '1px 6px',
                     borderRadius: '999px',
                     background: activeTableTab === 'dues' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
@@ -554,15 +554,15 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTableTab('collected')}
-                className={`btn btn-sm ${
-                  activeTableTab === 'collected' ? 'btn-primary' : 'btn-ghost'
+                className={`btn btn-sm flex-1 sm:flex-initial justify-center ${
+                  activeTableTab === 'collected' ? 'btn-primary shadow-sm' : 'btn-ghost'
                 }`}
-                style={{ borderRadius: '6px', fontSize: '0.8125rem' }}
+                style={{ borderRadius: '8px', fontSize: '0.8125rem' }}
               >
-                <span>{language === 'ur' ? 'آج کی وصولیاں' : 'Collected Today'}</span>
+                <span>{language === 'ur' ? 'آج کی وصولیاں' : 'Collected'}</span>
                 <span
                   style={{
-                    marginLeft: '0.35rem',
+                    marginInlineStart: '0.35rem',
                     padding: '1px 6px',
                     borderRadius: '999px',
                     background: activeTableTab === 'collected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
@@ -576,7 +576,7 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/installments/due')}
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-outline justify-center w-full sm:w-auto"
             >
               <span>{t('common.view')} {t('common.all')}</span>
               <ArrowUpRight size={14} />

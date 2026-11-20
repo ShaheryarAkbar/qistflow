@@ -101,5 +101,15 @@
       text-align: right;
     }
   }
+
+  // Mobile sticky table action column flipped for RTL
+  @media (max-width: 768px) {
+    .table-wrapper .table thead th:last-child,
+    .table-wrapper .table tbody td:last-child {
+      left: 0 !important;
+      right: auto !important;
+      box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05) !important;
+    }
+  }
 }
 

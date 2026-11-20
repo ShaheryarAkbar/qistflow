@@ -131,29 +131,31 @@ export const ReportsPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.reports')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'مالیاتی خلاصہ، نقد بہاؤ، اخراجات اور ریکوری کارکردگی'
               : 'Business financial performance, recovery collections and net cash flow analysis.'}
           </p>
         </div>
 
-        <button
-          onClick={() => window.print()}
-          className="btn btn-outline"
-        >
-          <Printer size={16} />
-          <span>{t('common.print')} Report</span>
-        </button>
+        <div className="page-action-group">
+          <button
+            onClick={() => window.print()}
+            className="btn btn-outline"
+          >
+            <Printer size={16} />
+            <span>{t('common.print')} Report</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Highlights Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-6">
         <div className="stat-card">
           <div className="stat-icon icon-emerald">
             <TrendingUp size={22} />

@@ -157,25 +157,27 @@ export const ContractsPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.contracts')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'تمام فعال اور مکمل شدہ اقساط معاہدات کی مکمل تفصیل'
               : 'Active and settled customer installment contracts and repayment schedules.'}
           </p>
         </div>
 
-        <button
-          onClick={() => navigate('/sales/new')}
-          className="btn btn-primary"
-        >
-          <PlusCircle size={16} />
-          <span>{t('dashboard.newSale')}</span>
-        </button>
+        <div className="page-action-group">
+          <button
+            onClick={() => navigate('/sales/new')}
+            className="btn btn-primary"
+          >
+            <PlusCircle size={16} />
+            <span>{t('dashboard.newSale')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}

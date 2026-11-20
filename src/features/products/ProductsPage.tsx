@@ -205,30 +205,32 @@ export const ProductsPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('products.title')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'اشیاء کی فہرست، نقد و اقساط کی قیمتیں اور موجودہ اسٹاک'
               : 'Catalogue, cash/installment price tiers and physical stock on hand.'}
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="btn btn-primary"
-        >
-          <Plus size={16} />
-          <span>{t('products.newProduct')}</span>
-        </button>
+        <div className="page-action-group">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="btn btn-primary"
+          >
+            <Plus size={16} />
+            <span>{t('products.newProduct')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div className="search-box" style={{ flex: 1, minWidth: '240px' }}>
+      <div className="table-toolbar-responsive">
+        <div className="search-box toolbar-search">
           <Search size={18} className="search-icon" />
           <input
             type="text"
@@ -239,11 +241,11 @@ export const ProductsPage: React.FC = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Tag size={16} className="text-muted" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', maxWidth: '280px' }}>
+          <Tag size={16} className="text-muted flex-shrink-0" />
           <select
             className="form-select"
-            style={{ width: 'auto', minWidth: '180px' }}
+            style={{ width: '100%' }}
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >

@@ -247,19 +247,19 @@ export const SuppliersPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.suppliers')} & {t('nav.purchases')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'سپلائرز کی تفصیلات اور دکان کے لیے مال کی خریداری'
               : 'Vendor directory and stock procurement purchase orders.'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="page-action-group">
           <button
             onClick={() => setIsAiScannerOpen(true)}
             className="btn btn-primary"
@@ -274,7 +274,7 @@ export const SuppliersPage: React.FC = () => {
           >
             <Camera size={16} />
             <Sparkles size={14} className="text-amber-300" />
-            <span>{language === 'ur' ? 'AI انوائس سکینر (Scan Receipt)' : 'AI Receipt Scanner'}</span>
+            <span>{language === 'ur' ? 'AI انوائس سکینر (Scan)' : 'AI Scanner'}</span>
           </button>
           <button
             onClick={() => setIsAddSupplierOpen(true)}
@@ -288,13 +288,13 @@ export const SuppliersPage: React.FC = () => {
             className="btn btn-outline"
           >
             <ShoppingCart size={16} />
-            <span>{language === 'ur' ? 'نئی خریداری (Stock-In)' : 'New Purchase'}</span>
+            <span>{language === 'ur' ? 'نئی خریداری (Stock)' : 'New Purchase'}</span>
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+      {/* Tabs (Horizontal Swipeable on Mobile) */}
+      <div className="mobile-tab-scroll">
         <button
           onClick={() => setActiveTab('suppliers')}
           className={`btn ${activeTab === 'suppliers' ? 'btn-primary' : 'btn-outline'}`}

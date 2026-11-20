@@ -266,12 +266,12 @@ export const ExpensesPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.expenses')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'دکان کے تمام کاروباری اخراجات، بجلی، بلز اور ملازمین کی تنخواہیں'
               : 'Shop operational expenditures, utility bills, rent and staff salary register.'}
@@ -279,18 +279,20 @@ export const ExpensesPage: React.FC = () => {
         </div>
 
         {activeTab === 'expenses' && (
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn btn-primary"
-          >
-            <PlusCircle size={16} />
-            <span>{language === 'ur' ? 'نیا خرچہ درج کریں' : 'Record Expense'}</span>
-          </button>
+          <div className="page-action-group">
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn btn-primary"
+            >
+              <PlusCircle size={16} />
+              <span>{language === 'ur' ? 'نیا خرچہ درج کریں' : 'Record Expense'}</span>
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+      {/* Tabs (Horizontal Swipeable on Mobile) */}
+      <div className="mobile-tab-scroll" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
         <button
           onClick={() => setActiveTab('expenses')}
           className={`btn btn-sm ${activeTab === 'expenses' ? 'btn-primary' : 'btn-outline'}`}
@@ -307,7 +309,7 @@ export const ExpensesPage: React.FC = () => {
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
         >
           <Users size={14} />
-          <span>{language === 'ur' ? 'ملازمین کی تنخواہیں (Staff Payroll)' : 'Staff Salaries & Payroll'}</span>
+          <span>{language === 'ur' ? 'ملازمین کی تنخواہیں' : 'Staff Salaries'}</span>
           <span className="badge badge-slate" style={{ fontSize: '0.7rem' }}>{payrollRecords.length}</span>
         </button>
       </div>

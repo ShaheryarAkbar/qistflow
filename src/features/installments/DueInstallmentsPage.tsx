@@ -208,12 +208,12 @@ export const DueInstallmentsPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.installments')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'روزانہ، ہفتہ وار اور تاخیر شدہ اقساط کی لسٹ، فوری وصولی اور وصول شدہ اقساط'
               : 'Daily collection sheet, overdue installments, quick repayment logging and today receipts.'}
@@ -221,9 +221,9 @@ export const DueInstallmentsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      {/* Filter Tabs (Horizontal Swipeable on Mobile) & Search Bar */}
+      <div className="table-toolbar-responsive">
+        <div className="toolbar-filters mobile-tab-scroll" style={{ marginBottom: 0 }}>
           <button
             onClick={() => setFilterType('today')}
             className={`btn btn-sm ${filterType === 'today' ? 'btn-primary' : 'btn-outline'}`}
@@ -251,15 +251,15 @@ export const DueInstallmentsPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="search-box" style={{ flex: 1, minWidth: '240px' }}>
+        <div className="search-box toolbar-search">
           <Search size={16} className="search-icon" />
           <input
             type="text"
             className="form-input"
             placeholder={
               language === 'ur'
-                ? 'کسٹمر نام، فون، ایریا، رسید نمبر یا معاہدہ کوڈ سے تلاش کریں...'
-                : 'Search by customer name, phone, area, receipt # or contract code...'
+                ? 'کسٹمر نام، فون، ایریا، رسید یا کوڈ سے تلاش...'
+                : 'Search by customer name, phone, area, receipt # or code...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

@@ -462,18 +462,21 @@ export const AppLayout: React.FC = () => {
             >
               <Menu size={20} />
             </button>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <div className="header-title-block">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minWidth: 0 }}>
+                <h1
+                  className="shop-title"
+                  title={activeTenant?.businessName}
+                >
                   {isSuperAdmin
-                    ? 'QistFlow Platform Control'
+                    ? 'QistFlow Control'
                     : language === 'ur' && activeTenant?.businessNameUr
                     ? activeTenant.businessNameUr
                     : activeTenant?.businessName || t('app.name')}
                 </h1>
                 {!isSuperAdmin && (
-                  <span className="badge badge-slate" style={{ fontSize: '0.6875rem', padding: '0.1rem 0.4rem' }}>
-                    {language === 'ur' ? 'مین برانچ' : 'Main Branch'}
+                  <span className="badge badge-slate hidden md:inline-flex" style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem' }}>
+                    {language === 'ur' ? 'مین برانچ' : 'Main'}
                   </span>
                 )}
                 <span
@@ -488,13 +491,13 @@ export const AppLayout: React.FC = () => {
                       ? 'badge-danger'
                       : 'badge-slate'
                   }`}
-                  style={{ fontSize: '0.6875rem', padding: '0.1rem 0.4rem' }}
+                  style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', whiteSpace: 'nowrap' }}
                 >
                   {getRoleLabel()}
                 </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
-                {language === 'ur' ? 'لاگ ان:' : 'Logged in as:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
+              <div className="header-meta-user">
+                {language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
               </div>
             </div>
           </div>
@@ -504,13 +507,12 @@ export const AppLayout: React.FC = () => {
             {!isSuperAdmin && (
               <button
                 onClick={() => setCalculatorOpen(true)}
-                className="btn btn-sm btn-outline text-primary"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                title="Open Quick Installment Calculator"
+                className="header-btn btn btn-outline text-primary"
+                title={language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}
               >
                 <Calculator size={15} />
                 <span className="hidden sm:inline">
-                  {language === 'ur' ? 'حساب کتاب' : 'Calculator'}
+                  {language === 'ur' ? 'حساب کتاب' : 'Calc'}
                 </span>
               </button>
             )}
@@ -518,18 +520,20 @@ export const AppLayout: React.FC = () => {
             {/* Bilingual toggle button */}
             <button
               onClick={toggleLanguage}
-              className="btn btn-sm btn-outline"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              className="header-btn btn btn-outline"
+              title={language === 'ur' ? 'زبان تبدیل کریں' : 'Switch Language'}
             >
               <Languages size={15} />
-              <span>{t('app.switchLanguage')}</span>
+              <span className="hidden sm:inline">{t('app.switchLanguage')}</span>
+              <span className="sm:hidden font-bold text-xs">{language === 'ur' ? 'EN' : 'اردو'}</span>
             </button>
 
             {/* Quick POS action button (only for Shop Owner & Manager, never for Platform Super-Admin) */}
             {!isSuperAdmin && (isOwner || isManager) && (
               <button
                 onClick={() => navigate('/sales/new')}
-                className="btn btn-sm btn-primary"
+                className="header-btn btn btn-primary"
+                title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
               >
                 <PlusCircle size={15} />
                 <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
@@ -539,8 +543,7 @@ export const AppLayout: React.FC = () => {
             {/* Direct Logout Button */}
             <button
               onClick={handleLogout}
-              className="btn btn-sm btn-outline text-danger"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              className="header-btn-icon-only btn btn-outline text-danger"
               title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
             >
               <LogOut size={15} />

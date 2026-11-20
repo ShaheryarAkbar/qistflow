@@ -343,6 +343,13 @@ input[type='radio'] {
     border-bottom: 1px solid $color-border;
     @include flex-between;
 
+    @media (max-width: 640px) {
+      padding: 0.75rem 0.875rem;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.625rem;
+    }
+
     .card-title {
       font-size: 1rem;
       font-weight: 600;
@@ -432,11 +439,37 @@ input[type='radio'] {
   @include scrollbar-style;
   position: relative;
 
+  @media (max-width: 768px) {
+    border-radius: $radius-md;
+    // Mobile subtle horizontal scroll edge indicators
+    background-image: 
+      linear-gradient(to right, white 30%, rgba(255, 255, 255, 0)),
+      linear-gradient(to right, rgba(255, 255, 255, 0), white 70%),
+      radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0));
+    background-repeat: no-repeat;
+    background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+    background-position: 0 0, 100% 0, 0 0, 100% 0;
+    background-attachment: local, local, scroll, scroll;
+  }
+
   .table {
     width: 100%;
-    min-width: 640px;
+    min-width: 600px;
     text-align: left;
     font-size: 0.875rem;
+
+    @media (max-width: 768px) {
+      font-size: 0.8125rem;
+
+      thead th {
+        padding: 0.5rem 0.625rem;
+      }
+
+      tbody td {
+        padding: 0.5rem 0.625rem;
+      }
+    }
 
     thead {
       background-color: $slate-50;
@@ -451,7 +484,15 @@ input[type='radio'] {
         &:last-child {
           text-align: center;
           white-space: nowrap;
-          min-width: 120px;
+          min-width: 100px;
+
+          @media (max-width: 768px) {
+            position: sticky;
+            right: 0;
+            background-color: #f8fafc;
+            box-shadow: -3px 0 6px rgba(0, 0, 0, 0.05);
+            z-index: 3;
+          }
         }
       }
     }
@@ -476,8 +517,16 @@ input[type='radio'] {
 
           &:last-child {
             white-space: nowrap;
-            min-width: 120px;
+            min-width: 100px;
             text-align: center;
+
+            @media (max-width: 768px) {
+              position: sticky;
+              right: 0;
+              background-color: #ffffff;
+              box-shadow: -3px 0 6px rgba(0, 0, 0, 0.05);
+              z-index: 2;
+            }
 
             .btn {
               white-space: nowrap;
@@ -487,6 +536,12 @@ input[type='radio'] {
                 flex-shrink: 0;
               }
             }
+          }
+        }
+
+        &:hover td:last-child {
+          @media (max-width: 768px) {
+            background-color: $slate-50;
           }
         }
       }

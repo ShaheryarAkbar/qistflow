@@ -700,52 +700,53 @@ export const RecoveryPortalPage: React.FC = () => {
       )}
 
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('recovery.title')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.8125rem' }}>
+          <p>
             {language === 'ur'
               ? 'فیلڈ ریکوری اور تصویری و جی پی ایس تصدیقی مانیٹر (بغیر اضافی نگران کے محفوظ ریکوری)'
               : 'Mobile field collection with free GPS geo-stamp and doorstep photo proof verification.'}
           </p>
         </div>
+      </div>
 
-        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setActiveTab('assigned')}
-            className={`btn btn-sm ${activeTab === 'assigned' ? 'btn-primary' : 'btn-outline'}`}
-          >
-            {language === 'ur' ? 'اہداف و گاہک' : 'Targets'} ({scopedCards.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('visits')}
-            className={`btn btn-sm ${activeTab === 'visits' ? 'btn-primary' : 'btn-outline'}`}
-          >
-            {language === 'ur' ? 'دورے' : 'Visits'} ({scopedVisits.length})
-          </button>
-          {(isOwner || isManager) && (
-            <>
-              <button
-                onClick={() => setActiveTab('audit')}
-                className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-              >
-                <ShieldCheck size={14} className={activeTab === 'audit' ? 'text-white' : 'text-success'} />
-                <span>{language === 'ur' ? 'ریکوری لوکیشن و وزٹ ریکارڈ (Live GPS)' : 'Doorstep GPS & Audit Trail'}</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('leaderboard')}
-                className={`btn btn-sm ${activeTab === 'leaderboard' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-              >
-                <Trophy size={14} className={activeTab === 'leaderboard' ? 'text-white' : 'text-amber-500'} />
-                <span>{language === 'ur' ? 'کارکردگی درجہ بندی (لیڈر بورڈ)' : 'Leaderboard'}</span>
-              </button>
-            </>
-          )}
-        </div>
+      {/* Tabs (Horizontal Swipeable on Mobile) */}
+      <div className="mobile-tab-scroll" style={{ marginBottom: '1.25rem' }}>
+        <button
+          onClick={() => setActiveTab('assigned')}
+          className={`btn btn-sm ${activeTab === 'assigned' ? 'btn-primary' : 'btn-outline'}`}
+        >
+          {language === 'ur' ? 'اہداف و گاہک' : 'Targets'} ({scopedCards.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('visits')}
+          className={`btn btn-sm ${activeTab === 'visits' ? 'btn-primary' : 'btn-outline'}`}
+        >
+          {language === 'ur' ? 'دورے' : 'Visits'} ({scopedVisits.length})
+        </button>
+        {(isOwner || isManager) && (
+          <>
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <ShieldCheck size={14} className={activeTab === 'audit' ? 'text-white' : 'text-success'} />
+              <span>{language === 'ur' ? 'ریکوری لوکیشن و وزٹ (GPS)' : 'Live GPS Audit'}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`btn btn-sm ${activeTab === 'leaderboard' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <Trophy size={14} className={activeTab === 'leaderboard' ? 'text-white' : 'text-amber-500'} />
+              <span>{language === 'ur' ? 'کارکردگی درجہ بندی (لیڈر بورڈ)' : 'Leaderboard'}</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Daily Target Progress Bar Card */}

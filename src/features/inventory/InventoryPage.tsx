@@ -166,19 +166,19 @@ export const InventoryPage: React.FC = () => {
   return (
     <div>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
+      <div className="page-header-responsive">
+        <div className="page-title-group">
+          <h2>
             {t('nav.inventory')}
           </h2>
-          <p className="text-muted" style={{ fontSize: '0.875rem' }}>
+          <p>
             {language === 'ur'
               ? 'موجودہ گودام کا اسٹاک اور مال کی آمد و رفت کا مکمل آڈٹ لیجر (Movement-Led Inventory)'
               : 'Real-time stock balance, valuation and movement audit ledger.'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="page-action-group">
           <button
             onClick={() => setIsAiScannerOpen(true)}
             className="btn btn-primary"
@@ -193,7 +193,7 @@ export const InventoryPage: React.FC = () => {
           >
             <Camera size={16} />
             <Sparkles size={14} className="text-amber-300" />
-            <span>{language === 'ur' ? 'AI سپلائر پرچی سکینر' : 'AI Receipt Scanner'}</span>
+            <span>{language === 'ur' ? 'AI پرچی سکینر (Scan)' : 'AI Scanner'}</span>
           </button>
           <button
             onClick={() => {
@@ -205,7 +205,7 @@ export const InventoryPage: React.FC = () => {
             className="btn btn-secondary"
           >
             <PlusCircle size={16} />
-            <span>{language === 'ur' ? 'اسٹاک ایڈجسٹمنٹ (+/-)' : 'Stock Adjustment'}</span>
+            <span>{language === 'ur' ? 'اسٹاک ایڈجسٹمنٹ (+/-)' : 'Stock Adjust'}</span>
           </button>
         </div>
       </div>
@@ -269,13 +269,13 @@ export const InventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+      {/* Tabs navigation (Horizontal Swipeable on Mobile) */}
+      <div className="mobile-tab-scroll" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
         <button
           type="button"
           onClick={() => setActiveTab('stock')}
           className={`btn ${activeTab === 'stock' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          style={{ fontSize: '0.8125rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
         >
           <Layers size={16} />
           <span>{language === 'ur' ? 'موجودہ اسٹاک بیلنس' : 'Current Stock Levels'} ({products.length})</span>
@@ -285,10 +285,10 @@ export const InventoryPage: React.FC = () => {
           type="button"
           onClick={() => setActiveTab('movements')}
           className={`btn ${activeTab === 'movements' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          style={{ fontSize: '0.8125rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
         >
           <Boxes size={16} />
-          <span>{language === 'ur' ? 'اسٹاک آمد و رفت لاگ (Movements Ledger)' : 'Movement Ledger'} ({movements.length})</span>
+          <span>{language === 'ur' ? 'اسٹاک آمد و رفت لاگ' : 'Movement Ledger'} ({movements.length})</span>
         </button>
       </div>
 

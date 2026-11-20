@@ -556,11 +556,11 @@ export const PlatformAdminPage: React.FC = () => {
         </div>
 
         {/* Tab pills */}
-        <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.12)', padding: '0.25rem', borderRadius: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+        <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.12)', padding: '0.25rem', borderRadius: '0.5rem', overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch', gap: '0.25rem' }}>
           <button
             onClick={() => setActiveTab('tenants')}
             className={`btn btn-sm ${activeTab === 'tenants' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ color: activeTab === 'tenants' ? '#fff' : '#e2e8f0', fontSize: '0.75rem' }}
+            style={{ color: activeTab === 'tenants' ? '#fff' : '#e2e8f0', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <Store size={14} />
             <span>{language === 'ur' ? 'شاپس ڈائریکٹری' : 'Shops Directory'}</span>
@@ -568,7 +568,7 @@ export const PlatformAdminPage: React.FC = () => {
           <button
             onClick={() => setActiveTab('dues')}
             className={`btn btn-sm ${activeTab === 'dues' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ color: activeTab === 'dues' ? '#fff' : '#e2e8f0', fontSize: '0.75rem' }}
+            style={{ color: activeTab === 'dues' ? '#fff' : '#e2e8f0', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <CreditCard size={14} />
             <span>{language === 'ur' ? 'سبسکرپشن فیس (Dues)' : 'Shop SaaS Fees'}</span>
@@ -576,7 +576,7 @@ export const PlatformAdminPage: React.FC = () => {
           <button
             onClick={() => setActiveTab('plans')}
             className={`btn btn-sm ${activeTab === 'plans' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ color: activeTab === 'plans' ? '#fff' : '#e2e8f0', fontSize: '0.75rem' }}
+            style={{ color: activeTab === 'plans' ? '#fff' : '#e2e8f0', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <Layers size={14} />
             <span>{language === 'ur' ? 'کمرشل پلانز' : 'Plans & Pricing'}</span>
@@ -584,7 +584,7 @@ export const PlatformAdminPage: React.FC = () => {
           <button
             onClick={() => setActiveTab('health')}
             className={`btn btn-sm ${activeTab === 'health' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ color: activeTab === 'health' ? '#fff' : '#e2e8f0', fontSize: '0.75rem' }}
+            style={{ color: activeTab === 'health' ? '#fff' : '#e2e8f0', fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
           >
             <Activity size={14} />
             <span>{language === 'ur' ? 'اسپارک کوٹہ' : 'Spark Health'}</span>

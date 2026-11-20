@@ -608,12 +608,12 @@ input[type='radio'] {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.5);
+  background-color: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(2px);
   z-index: 1000;
   @include flex-center;
   padding: 14px;
-  overflow-y: auto;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
 
   @media (min-width: 640px) {
@@ -626,34 +626,75 @@ input[type='radio'] {
     box-shadow: $shadow-xl;
     width: 100%;
     max-width: 540px;
-    max-height: calc(100dvh - 28px);
-    max-height: calc(100vh - 28px);
-    overflow-y: auto;
-    overflow-x: hidden;
+    max-height: calc(100dvh - 28px) !important;
+    max-height: calc(100vh - 28px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     margin: auto;
     word-break: break-word;
-    @include scrollbar-style;
 
     .modal-header {
-      padding: 1.25rem 1.5rem;
+      flex-shrink: 0 !important;
+      padding: 1rem 1.25rem;
       border-bottom: 1px solid $color-border;
-      @include flex-between;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+      background-color: $slate-50; // Same background as footer
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 0.75rem;
+      flex-wrap: nowrap !important; // Pinned in one row
+
+      @media (max-width: 640px) {
+        padding: 0.75rem 1rem;
+      }
+
+      // Left content container handles text & badges gracefully
+      > *:not(:last-child),
+      .modal-header-left,
+      .modal-title-group {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
 
       .modal-title {
-        font-size: 1.125rem;
-        font-weight: 600;
+        font-size: 1.0625rem;
+        font-weight: 700;
         color: $slate-900;
+        margin: 0;
+        overflow-wrap: break-word;
+        word-break: normal;
+
+        @media (max-width: 640px) {
+          font-size: 0.9375rem;
+        }
+      }
+
+      // Close (cross) button always stays at the top-right
+      .modal-close-btn,
+      button:last-child {
+        flex-shrink: 0 !important;
+        margin-inline-start: auto;
       }
     }
 
     .modal-body {
-      padding: 1.5rem;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 1.25rem;
+      @include scrollbar-style;
+
+      @media (max-width: 640px) {
+        padding: 1rem;
+      }
     }
 
     .modal-footer {
-      padding: 1rem 1.5rem;
+      flex-shrink: 0 !important;
+      padding: 0.875rem 1.25rem;
       border-top: 1px solid $color-border;
       background-color: $slate-50;
       display: flex;

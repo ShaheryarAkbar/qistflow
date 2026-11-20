@@ -217,16 +217,12 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
         style={{
           maxWidth: '920px',
           width: '100%',
-          maxHeight: 'calc(100dvh - 28px)',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          margin: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.875rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0, flex: 1 }}>
             <div
               style={{
                 background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
@@ -236,17 +232,18 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
               <Sparkles size={20} />
             </div>
-            <div>
-              <h3 className="modal-title" style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h3 className="modal-title" style={{ fontSize: '1.0625rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
                 {language === 'ur'
                   ? 'AI سپلائر پرچی و انوائس سکینر (Smart OCR)'
                   : 'AI Supplier Receipt & Invoice Scanner'}
               </h3>
-              <p className="text-muted" style={{ fontSize: '0.75rem', margin: '0.125rem 0 0' }}>
+              <p className="text-muted" style={{ fontSize: '0.75rem', margin: '0.125rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {language === 'ur'
                   ? 'رسید کی تصویر اپلوڈ کریں، سسٹم خودکار طریقے سے اشیاء اور تعداد انوینٹری میں درج کرے گا'
                   : 'Snap/upload invoice photo to auto-extract supplier items, brands & quantities into inventory'}
@@ -254,12 +251,12 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
             </div>
           </div>
 
-          <button onClick={onClose} className="btn btn-icon btn-outline btn-sm">
+          <button onClick={onClose} className="btn btn-icon btn-outline btn-sm" style={{ flexShrink: 0, marginInlineStart: 'auto' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div className="modal-body" style={{ padding: '1rem 0' }}>
+        <div className="modal-body" style={{ padding: '1rem' }}>
           {/* STEP 1: UPLOAD / CAMERA SNAP / SAMPLES SELECTOR */}
           {!scannedResult && !scanning && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -642,9 +639,10 @@ export const AiReceiptScannerModal: React.FC<AiReceiptScannerModalProps> = ({
               <div
                 className="modal-footer"
                 style={{
-                  borderTop: '1px solid #e2e8f0',
-                  paddingTop: '0.875rem',
-                  marginTop: '1.25rem',
+                  position: 'sticky',
+                  bottom: '-1rem',
+                  zIndex: 10,
+                  margin: '1.25rem -1rem -1rem -1rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',

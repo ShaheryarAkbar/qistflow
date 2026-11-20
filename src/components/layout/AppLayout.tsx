@@ -500,8 +500,8 @@ export const AppLayout: React.FC = () => {
                 >
                   {getRoleLabel()}
                 </span>
-                <span className="meta-dot">•</span>
-                <span className="meta-user">
+                <span className="meta-dot hidden lg:inline">•</span>
+                <span className="meta-user hidden lg:inline">
                   {language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
                 </span>
               </div>

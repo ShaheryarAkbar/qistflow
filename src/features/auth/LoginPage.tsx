@@ -127,6 +127,7 @@ export const LoginPage: React.FC = () => {
     setPassword(pass);
     setSelectedShopTag(shopNameLabel || '');
     setError(null);
+    setShowEvaluationAccounts(false); // Automatically closes the credentials list on auto-fill selection
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

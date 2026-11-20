@@ -2513,13 +2513,13 @@ export const RecoveryPortalPage: React.FC = () => {
         <div className="modal-overlay" style={{ zIndex: 68 }} onClick={() => setSelectedOfficerForDetails(null)}>
           <div
             className="modal-box"
-            style={{ maxWidth: '820px', width: '95%', maxHeight: '88vh', overflowY: 'auto' }}
+            style={{ maxWidth: '820px', width: '95%' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.875rem' }}>
-              <div>
+            <div className="modal-header">
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <h3 className="modal-title" style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>
+                  <h3 className="modal-title" style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>
                     {selectedOfficerForDetails.officer.displayName} — {language === 'ur' ? 'تفویض کردہ گاہک و وزٹ وجوہات' : 'Assigned Customers & Visit Audit'}
                   </h3>
                   <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
@@ -2535,12 +2535,13 @@ export const RecoveryPortalPage: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedOfficerForDetails(null)}
                 className="btn btn-icon btn-outline btn-sm"
+                style={{ flexShrink: 0, marginInlineStart: 'auto' }}
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '1rem 0' }}>
+            <div className="modal-body">
               {/* Summary Metrics Bar inside Modal */}
               <div
                 className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4"
@@ -2701,7 +2702,7 @@ export const RecoveryPortalPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+            <div className="modal-footer">
               <button
                 type="button"
                 onClick={() => setSelectedOfficerForDetails(null)}

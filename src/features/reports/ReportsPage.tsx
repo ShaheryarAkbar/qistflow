@@ -154,8 +154,8 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Highlights Grid (1 col on mobile, 2 on tablet, 4 on desktop to avoid cramped prices) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      {/* KPI Highlights Grid (1 col on mobile, 2 on tablet/laptop, 4 on wide desktop to avoid cramped prices) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="stat-card">
           <div className="stat-icon icon-emerald">
             <TrendingUp size={22} />
@@ -308,7 +308,8 @@ export const ReportsPage: React.FC = () => {
         </div>
 
         <div className="card-body" style={{ padding: '0.5rem 1rem 1rem' }}>
-          <table className="table" style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+            <table className="table" style={{ width: '100%', minWidth: '700px', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: language === 'ur' ? 'right' : 'left' }}>
                 <th style={{ padding: '0.5rem 0.75rem' }}>{language === 'ur' ? 'پوزیشن' : 'Rank'}</th>
@@ -399,6 +400,7 @@ export const ReportsPage: React.FC = () => {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

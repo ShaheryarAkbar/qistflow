@@ -369,7 +369,7 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           <button
             onClick={() => navigate('/sales/new')}
             className="btn btn-primary"
@@ -388,7 +388,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* KPI Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <div className="stat-card">
           <div className="stat-icon icon-emerald">
             <TrendingUp size={22} />
@@ -528,12 +528,12 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.25rem', padding: '0.25rem', background: '#f1f5f9', borderRadius: '0.75rem' }}>
               <button
                 type="button"
                 onClick={() => setActiveTableTab('dues')}
-                className={`btn btn-sm flex-1 sm:flex-initial justify-center ${
+                className={`btn btn-sm ${
                   activeTableTab === 'dues' ? 'btn-primary shadow-sm' : 'btn-ghost'
                 }`}
                 style={{ borderRadius: '8px', fontSize: '0.8125rem' }}
@@ -544,7 +544,7 @@ export const DashboardPage: React.FC = () => {
                     marginInlineStart: '0.35rem',
                     padding: '1px 6px',
                     borderRadius: '999px',
-                    background: activeTableTab === 'dues' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                    background: activeTableTab === 'dues' ? 'rgba(255,255,255,0.25)' : '#cbd5e1',
                     fontSize: '0.75rem',
                   }}
                 >
@@ -554,7 +554,7 @@ export const DashboardPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTableTab('collected')}
-                className={`btn btn-sm flex-1 sm:flex-initial justify-center ${
+                className={`btn btn-sm ${
                   activeTableTab === 'collected' ? 'btn-primary shadow-sm' : 'btn-ghost'
                 }`}
                 style={{ borderRadius: '8px', fontSize: '0.8125rem' }}
@@ -565,7 +565,7 @@ export const DashboardPage: React.FC = () => {
                     marginInlineStart: '0.35rem',
                     padding: '1px 6px',
                     borderRadius: '999px',
-                    background: activeTableTab === 'collected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                    background: activeTableTab === 'collected' ? 'rgba(255,255,255,0.25)' : '#cbd5e1',
                     fontSize: '0.75rem',
                   }}
                 >
@@ -576,7 +576,8 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/installments/due')}
-              className="btn btn-sm btn-outline justify-center w-full sm:w-auto"
+              className="btn btn-sm btn-outline"
+              style={{ fontSize: '0.8125rem', borderRadius: '8px' }}
             >
               <span>{t('common.view')} {t('common.all')}</span>
               <ArrowUpRight size={14} />

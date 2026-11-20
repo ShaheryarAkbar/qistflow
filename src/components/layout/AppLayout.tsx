@@ -465,20 +465,22 @@ export const AppLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <div className="header-title-block">
-              {/* Line 1: Shop Name & Status Badges */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0 }}>
-                <h1
-                  className="shop-title"
-                  title={activeTenant?.businessName}
-                >
-                  {isSuperAdmin
-                    ? 'QistFlow Control'
-                    : language === 'ur' && activeTenant?.businessNameUr
-                    ? activeTenant.businessNameUr
-                    : activeTenant?.businessName || t('app.name')}
-                </h1>
+              {/* Line 1: Shop Name (Full clean width) */}
+              <h1
+                className="shop-title"
+                title={activeTenant?.businessName}
+              >
+                {isSuperAdmin
+                  ? 'QistFlow Control'
+                  : language === 'ur' && activeTenant?.businessNameUr
+                  ? activeTenant.businessNameUr
+                  : activeTenant?.businessName || t('app.name')}
+              </h1>
+
+              {/* Line 2: Status Badges & User Identity Subline */}
+              <div className="header-meta-subline">
                 {!isSuperAdmin && (
-                  <span className="badge badge-slate hidden sm:inline-flex" style={{ fontSize: '0.625rem', padding: '0.08rem 0.35rem', whiteSpace: 'nowrap' }}>
+                  <span className="badge badge-slate" style={{ fontSize: '0.625rem', padding: '0.08rem 0.35rem', whiteSpace: 'nowrap' }}>
                     {language === 'ur' ? 'مین برانچ' : 'Main'}
                   </span>
                 )}
@@ -498,11 +500,10 @@ export const AppLayout: React.FC = () => {
                 >
                   {getRoleLabel()}
                 </span>
-              </div>
-
-              {/* Line 2: Logged-in User Subline (Cleanly below Shop Name) */}
-              <div className="header-meta-user">
-                <span>{language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong></span>
+                <span className="meta-dot">•</span>
+                <span className="meta-user">
+                  {language === 'ur' ? 'لاگ ان:' : 'Logged in:'} <strong>{currentUser?.displayName || currentUser?.email}</strong>
+                </span>
               </div>
             </div>
           </div>
@@ -530,41 +531,29 @@ export const AppLayout: React.FC = () => {
                 <span>{t('app.switchLanguage')}</span>
               </button>
 
-              {!isSuperAdmin && (isOwner || isManager) && (
-                <button
-                  onClick={() => navigate('/sales/new')}
-                  className="header-btn btn btn-primary"
-                  title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
-                >
-                  <PlusCircle size={15} />
-                  <span>{t('dashboard.newSale')}</span>
-                </button>
-              )}
-
               <button
                 onClick={handleLogout}
-                className="header-btn-icon-only btn btn-outline text-danger"
+                className="header-btn btn btn-outline text-danger"
                 title={language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Log Out'}
               >
                 <LogOut size={15} />
-                <span className="hidden xl:inline">{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
+                <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Logout'}</span>
               </button>
             </div>
 
             {/* Mobile / Tablet Compact Action Bar (< 1024px) */}
             <div className="header-mobile-actions">
-              {/* Primary Quick Sale Button on mobile */}
-              {!isSuperAdmin && (isOwner || isManager) && (
-                <button
-                  onClick={() => navigate('/sales/new')}
-                  className="btn btn-primary btn-sm"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.35rem 0.6rem', fontSize: '0.75rem', fontWeight: 600 }}
-                  title={language === 'ur' ? 'نئی قسط سیل' : 'New Installment Sale'}
-                >
-                  <PlusCircle size={14} />
-                  <span className="hidden sm:inline">{t('dashboard.newSale')}</span>
-                </button>
-              )}
+              {/* Quick Language Switcher Icon on Mobile */}
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="btn btn-icon btn-outline"
+                style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', padding: 0 }}
+                title={language === 'ur' ? 'English' : 'اردو'}
+                aria-label="Switch Language"
+              >
+                <Languages size={17} />
+              </button>
 
               {/* 3-Dots Mobile Actions Toggle */}
               <button
@@ -573,7 +562,7 @@ export const AppLayout: React.FC = () => {
                 className={`btn btn-icon ${mobileActionsOpen ? 'btn-primary' : 'btn-outline'}`}
                 style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', padding: 0 }}
                 aria-label="More Actions"
-                title={language === 'ur' ? 'مزید اختیارات و کیلکولیٹر' : 'More Options'}
+                title={language === 'ur' ? 'مزید اختیارات و مینیو' : 'More Options'}
               >
                 <MoreVertical size={18} />
               </button>
@@ -627,6 +616,22 @@ export const AppLayout: React.FC = () => {
                       >
                         <Calculator size={16} className="text-primary" />
                         <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator'}</span>
+                      </button>
+                    )}
+
+                    {/* New Sale (POS) Option for Owner / Manager */}
+                    {!isSuperAdmin && (isOwner || isManager) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate('/sales/new');
+                          setMobileActionsOpen(false);
+                        }}
+                        className="btn btn-sm btn-outline text-primary"
+                        style={{ justifyContent: 'flex-start', border: 'none', background: '#f0fdf4', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%' }}
+                      >
+                        <PlusCircle size={16} className="text-primary" />
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{t('dashboard.newSale')}</span>
                       </button>
                     )}
 

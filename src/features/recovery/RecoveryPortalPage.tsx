@@ -952,14 +952,14 @@ export const RecoveryPortalPage: React.FC = () => {
                     }}
                   >
                     <div className="card-body">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ minWidth: '160px', flex: '1 1 auto' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.375rem' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
                               {customer?.fullName || 'Assigned Customer'}
                             </h3>
                             {isVisitedToday && (
-                              <span className="badge badge-success" style={{ fontSize: '0.6875rem' }}>
+                              <span className="badge badge-success" style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', whiteSpace: 'nowrap' }}>
                                 ✓ {language === 'ur' ? 'آج وزٹ مکمل' : 'Visited Today'}
                               </span>
                             )}
@@ -976,9 +976,9 @@ export const RecoveryPortalPage: React.FC = () => {
                           )}
                         </div>
 
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>Outstanding</div>
-                          <MoneyDisplay paisa={contract?.outstandingPaisa || 0} className="font-bold text-primary" style={{ fontSize: '1.125rem' }} />
+                        <div style={{ textAlign: language === 'ur' ? 'left' : 'right', flexShrink: 0, alignSelf: 'flex-start' }}>
+                          <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>{language === 'ur' ? 'بقایا رقم' : 'Outstanding'}</div>
+                          <MoneyDisplay paisa={contract?.outstandingPaisa || 0} className="font-bold text-primary" style={{ fontSize: '1rem', whiteSpace: 'nowrap' }} />
                         </div>
                       </div>
 
@@ -1734,7 +1734,7 @@ export const RecoveryPortalPage: React.FC = () => {
               </span>
             </div>
 
-            <table className="table" style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+            <table className="table" style={{ width: '100%', minWidth: '720px', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: language === 'ur' ? 'right' : 'left' }}>
                   <th style={{ padding: '0.625rem 0.75rem' }}>{language === 'ur' ? 'پوزیشن' : 'Rank'}</th>
@@ -2601,7 +2601,7 @@ export const RecoveryPortalPage: React.FC = () => {
 
               {/* Customer List Table */}
               <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}>
-                <table className="table" style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+                <table className="table" style={{ width: '100%', minWidth: '720px', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1', textAlign: language === 'ur' ? 'right' : 'left' }}>
                       <th style={{ padding: '0.625rem 0.75rem' }}>#</th>

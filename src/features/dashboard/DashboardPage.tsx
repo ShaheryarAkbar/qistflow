@@ -22,6 +22,7 @@ import {
   X,
   CreditCard,
   Coins,
+  ShieldAlert,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
@@ -337,6 +338,22 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, [activeTenant?.tenantId, language]);
+
+  if (!isOwner && isManager && !hasPermission('module_dashboard')) {
+    return (
+      <div className="container" style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+        <div className="card" style={{ maxWidth: '480px', margin: '3rem auto', padding: '2rem' }}>
+          <ShieldAlert size={40} className="text-warning" style={{ margin: '0 auto 1rem' }} />
+          <h3>{language === 'ur' ? 'ڈیش بورڈ رسائی معطل ہے' : 'Dashboard Access Restricted'}</h3>
+          <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+            {language === 'ur'
+              ? 'دکان کے مالک نے اس اکاؤنٹ کے لیے مین ڈیش بورڈ سمری کو بند کیا ہوا ہے۔ براہ کرم بائیں مینو سے اپنے مجاز ٹیبز کا استعمال کریں۔'
+              : 'The shop owner has disabled Dashboard access for your role. Please use your permitted modules from the sidebar.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

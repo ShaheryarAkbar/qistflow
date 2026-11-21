@@ -85,17 +85,25 @@ const RequireRole: React.FC<{
   if (isSuperAdmin) {
     return <Navigate to="/admin" replace />;
   }
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/" replace />;
 };
 
 // Smart default landing router by role
 const RoleLandingRedirect: React.FC = () => {
-  const { isRecovery, isSuperAdmin } = useTenant();
+  const { isRecovery, isSuperAdmin, isManager, hasPermission } = useTenant();
   if (isRecovery) {
     return <Navigate to="/recovery" replace />;
   }
   if (isSuperAdmin) {
     return <Navigate to="/admin" replace />;
+  }
+  if (isManager && !hasPermission('module_dashboard')) {
+    if (hasPermission('module_pos')) return <Navigate to="/sales/new" replace />;
+    if (hasPermission('module_customers')) return <Navigate to="/customers" replace />;
+    if (hasPermission('module_installments')) return <Navigate to="/installments/due" replace />;
+    if (hasPermission('module_payments')) return <Navigate to="/payments" replace />;
+    if (hasPermission('module_contracts')) return <Navigate to="/contracts" replace />;
+    if (hasPermission('module_recovery')) return <Navigate to="/recovery" replace />;
   }
   return <Navigate to="/dashboard" replace />;
 };

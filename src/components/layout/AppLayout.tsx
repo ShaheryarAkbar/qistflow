@@ -78,7 +78,7 @@ export const AppLayout: React.FC = () => {
       return [];
     }
 
-    // 1. Recovery Employee View (STRICTLY RESTRICTED TO FIELD RECOVERY)
+    // 1. Recovery Employee View (STRICTLY RESTRICTED TO FIELD RECOVERY BY DEFAULT, OWNER-EXPANDABLE)
     if (isRecovery) {
       const items: NavItem[] = [];
       if (hasPermission('module_recovery') || hasPermission('assigned_collections')) {
@@ -104,6 +104,16 @@ export const AppLayout: React.FC = () => {
         label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
         icon: Smartphone,
       });
+      // Optional owner additions for recovery officer
+      if (hasPermission('module_pos')) {
+        items.push({ to: '/sales/new', label: t('nav.pos'), icon: PlusCircle });
+      }
+      if (hasPermission('module_payments')) {
+        items.push({ to: '/payments', label: t('nav.payments'), icon: Receipt });
+      }
+      if (hasPermission('module_contracts')) {
+        items.push({ to: '/contracts', label: t('nav.contracts'), icon: FileText });
+      }
       return items;
     }
 
@@ -162,11 +172,13 @@ export const AppLayout: React.FC = () => {
       return items;
     }
 
-    // 4. Manager / Admin View (OPERATIONAL ACCESS & OWNER-CONFIGURABLE)
+    // 4. Manager / Admin View (OPERATIONAL ACCESS & 100% OWNER-CONFIGURABLE)
     if (isManager) {
-      const items: NavItem[] = [
-        { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-      ];
+      const items: NavItem[] = [];
+      // Dashboard (100% Owner-Governed)
+      if (hasPermission('module_dashboard')) {
+        items.push({ to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard });
+      }
       if (hasPermission('module_pos')) {
         items.push({ to: '/sales/new', label: t('nav.pos'), icon: PlusCircle, highlight: true });
       }
@@ -182,23 +194,33 @@ export const AppLayout: React.FC = () => {
       if (hasPermission('module_payments')) {
         items.push({ to: '/payments', label: t('nav.payments'), icon: Receipt });
       }
-      if (hasPermission('module_inventory') || hasPermission('manage_products')) {
+      // Product & Inventory (Individually Separated & Owner-Governed)
+      if (hasPermission('module_products') || hasPermission('manage_products')) {
         items.push({ to: '/products', label: t('nav.products'), icon: Package });
       }
       if (hasPermission('module_inventory') || hasPermission('manage_inventory')) {
         items.push({ to: '/inventory', label: t('nav.inventory'), icon: Boxes });
+      }
+      // Supplier (100% Owner-Governed)
+      if (hasPermission('module_suppliers')) {
         items.push({ to: '/suppliers', label: t('nav.suppliers'), icon: Truck });
+      }
+      // Purchase (100% Owner-Governed)
+      if (hasPermission('module_purchases')) {
         items.push({ to: '/purchases', label: t('nav.purchases'), icon: ShoppingCart });
       }
       if (hasPermission('module_expenses') || hasPermission('record_expenses')) {
         items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
       }
+      // Recovery Portal (100% Owner-Governed)
       if (hasPermission('module_recovery') || hasPermission('assign_recovery')) {
         items.push({ to: '/recovery', label: t('nav.recovery'), icon: Coins });
       }
+      // Reports (100% Owner-Governed)
       if (hasPermission('module_reports') || hasPermission('view_reports')) {
         items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
       }
+      // Staff & Roles (100% Owner-Governed)
       if (hasPermission('module_staff') || hasPermission('can_manage_staff')) {
         items.push({ to: '/staff', label: t('nav.staff'), icon: UserCheck });
       }
@@ -209,11 +231,14 @@ export const AppLayout: React.FC = () => {
           icon: Calculator,
         });
       }
-      items.push({
-        to: '/portal',
-        label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
-        icon: Smartphone,
-      });
+      // Customer Passbook (100% Owner-Governed)
+      if (hasPermission('module_portal') || hasPermission('module_passbook') || hasPermission('action_view_passbook')) {
+        items.push({
+          to: '/portal',
+          label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
+          icon: Smartphone,
+        });
+      }
       return items;
     }
 

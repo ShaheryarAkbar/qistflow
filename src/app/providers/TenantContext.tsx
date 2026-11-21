@@ -139,12 +139,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         rolePermissions = foundStaffMember.permissions;
       } else if (role === 'manager') {
         rolePermissions = [
-          'manage_products',
-          'manage_inventory',
-          'view_reports',
-          'assign_recovery',
-          'can_manage_staff',
-          'grant_discounts',
+          'module_pos',
+          'action_create_cash_sale',
+          'action_create_installment_sale',
+          'action_grant_discount',
+          'module_customers',
+          'action_add_customer',
+          'module_contracts',
+          'action_view_contracts',
+          'module_installments',
+          'action_collect_payment',
+          'module_payments',
         ];
       } else if (role === 'accountant') {
         rolePermissions = [

@@ -25,6 +25,24 @@ export interface PermissionGroup {
 
 export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
+    moduleKey: 'module_dashboard',
+    labelEn: 'Dashboard & Business Health',
+    labelUr: 'ڈیش بورڈ اور لائیو خلاصہ (Dashboard)',
+    descEn: 'Access to business health cards, live metrics, and today stats',
+    descUr: 'دکان کے بنیادی اشاریے، لائیو میٹرکس اور روزمرہ خلاصہ دیکھنا',
+    subActions: [
+      {
+        key: 'action_view_kpi_cards',
+        parentModule: 'module_dashboard',
+        isModule: false,
+        labelEn: 'View Financial Summary Cards',
+        labelUr: 'مالیاتی خلاصہ کارڈز دیکھنا',
+        descEn: 'View today collected, pending, and overdue summary cards',
+        descUr: 'آج کی وصولی اور بقایا جات کے کارڈز دیکھنا',
+      },
+    ],
+  },
+  {
     moduleKey: 'module_pos',
     labelEn: 'Point of Sale (POS / New Sale)',
     labelUr: 'نئی سیل / پوائنٹ آف سیل (POS)',
@@ -160,9 +178,45 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    moduleKey: 'module_products',
+    labelEn: 'Products & Price Catalog',
+    labelUr: 'پراڈکٹس اور ریٹ لسٹ (Products)',
+    descEn: 'Access to product list, cash & installment pricing catalog',
+    descUr: 'دکان کی پراڈکٹس، نقد و اقساط کی قیمتیں دیکھنا اور سیٹ کرنا',
+    subActions: [
+      {
+        key: 'action_add_product',
+        parentModule: 'module_products',
+        isModule: false,
+        labelEn: 'Add New Product',
+        labelUr: 'نیا پروڈکٹ شامل کرنا',
+        descEn: 'Create new catalog item',
+        descUr: 'نیا سامان سسٹم میں شامل کرنا',
+      },
+      {
+        key: 'action_edit_product',
+        parentModule: 'module_products',
+        isModule: false,
+        labelEn: 'Edit Product Details',
+        labelUr: 'سامان کی تفصیلات تبدیل کرنا',
+        descEn: 'Update prices and specifications',
+        descUr: 'قیمت اور سامان کی معلومات تبدیل کرنا',
+      },
+      {
+        key: 'manage_products',
+        parentModule: 'module_products',
+        isModule: false,
+        labelEn: 'Manage Products & Catalog',
+        labelUr: 'پراڈکٹس اور کیٹلاگ کا اختیار',
+        descEn: 'Can create and edit inventory products and retail prices',
+        descUr: 'سامان کی قیمتیں اور کیٹلاگ سیٹ کرنے کا اختیار',
+      },
+    ],
+  },
+  {
     moduleKey: 'module_inventory',
     labelEn: 'Stock & Inventory Management',
-    labelUr: 'اسٹاک و گودام مینجمنٹ',
+    labelUr: 'اسٹاک و گودام مینجمنٹ (Inventory)',
     descEn: 'Track warehouse items, stock counts, and movements',
     descUr: 'دکان اور گودام میں موجود اشیاء کی نگرانی',
     subActions: [
@@ -219,6 +273,42 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         labelUr: 'سپلائر سے مال خریداری اندراج',
         descEn: 'Post wholesale delivery invoices from suppliers',
         descUr: 'ہول سیلرز سے موصول ہونے والے اسٹاک کی انٹری',
+      },
+    ],
+  },
+  {
+    moduleKey: 'module_suppliers',
+    labelEn: 'Suppliers & Wholesalers',
+    labelUr: 'سپلائرز و ڈیلرز (Suppliers)',
+    descEn: 'Access to supplier directory, contact info and balances',
+    descUr: 'ہول سیلرز اور سپلائرز کے رابطے اور کھاتے',
+    subActions: [
+      {
+        key: 'action_add_supplier',
+        parentModule: 'module_suppliers',
+        isModule: false,
+        labelEn: 'Register Supplier',
+        labelUr: 'نیا سپلائر درج کرنا',
+        descEn: 'Add vendor details and credit terms',
+        descUr: 'سپلائر کا نام، پتہ اور رابطہ درج کرنا',
+      },
+    ],
+  },
+  {
+    moduleKey: 'module_purchases',
+    labelEn: 'Purchase Inflow Invoices',
+    labelUr: 'مال خریداری کے انوائس (Purchases)',
+    descEn: 'Record incoming supplier delivery bills and purchase orders',
+    descUr: 'سپلائرز سے مال وصولی کے بل اور انوائس درج کرنا',
+    subActions: [
+      {
+        key: 'action_record_purchase',
+        parentModule: 'module_purchases',
+        isModule: false,
+        labelEn: 'Post Purchase Invoice',
+        labelUr: 'خریداری کا نیا بل درج کرنا',
+        descEn: 'Record wholesale purchase bills and stock quantities',
+        descUr: 'ہول سیل سے آنے والے سامان کا بل سسٹم میں درج کرنا',
       },
     ],
   },
@@ -365,6 +455,24 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     descUr: 'ماہانہ اقساط، نفع شرح اور ایڈوانس کا فوری حساب کتاب',
     subActions: [],
   },
+  {
+    moduleKey: 'module_portal',
+    labelEn: 'Customer Digital Passbook',
+    labelUr: 'کسٹمر پاس بک (Customer Passbook)',
+    descEn: 'Customer self-service installment passbook view',
+    descUr: 'گاہک کی موبائل پاس بک کا لائیو پیش نظارہ',
+    subActions: [
+      {
+        key: 'action_view_passbook',
+        parentModule: 'module_portal',
+        isModule: false,
+        labelEn: 'Open Customer Passbook Preview',
+        labelUr: 'پاس بک پریویو دیکھنا',
+        descEn: 'Allow inspecting customer passbook simulation',
+        descUr: 'گاہک کی پاس بک اور اقساط کی ہسٹری دیکھنا',
+      },
+    ],
+  },
 ];
 
 /**
@@ -377,22 +485,13 @@ export function getDefaultPermissionsForRole(role: UserRole): string[] {
 
   if (role === 'manager') {
     return [
-      // Modules
-      'module_dashboard',
+      // Basic Operational Modules (Executive tabs strictly reserved for Owner toggle)
       'module_pos',
       'module_customers',
       'module_contracts',
       'module_installments',
       'module_payments',
-      'module_products',
       'module_inventory',
-      'module_suppliers',
-      'module_purchases',
-      'module_expenses',
-      'module_recovery',
-      'module_reports',
-      'module_staff',
-      'module_calculator',
       // Sub-actions
       'action_create_cash_sale',
       'action_create_installment_sale',
@@ -402,22 +501,7 @@ export function getDefaultPermissionsForRole(role: UserRole): string[] {
       'action_view_contracts',
       'action_collect_payment',
       'action_print_receipt',
-      'action_add_product',
-      'action_edit_product',
       'action_mark_damaged_stock',
-      'action_record_purchase',
-      'action_record_expense',
-      'action_record_visit_proof',
-      'action_reassign_recovery',
-      'action_view_monthly_audit',
-      'action_download_audit_pdf',
-      // Legacy compatibility
-      'manage_products',
-      'manage_inventory',
-      'view_reports',
-      'assign_recovery',
-      'can_manage_staff',
-      'grant_discounts',
     ];
   }
 

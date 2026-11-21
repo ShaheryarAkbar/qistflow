@@ -127,12 +127,17 @@ export const StaffRepository = {
           role: 'manager',
           status: 'active',
           permissions: [
-            'manage_products',
-            'manage_inventory',
-            'view_reports',
-            'assign_recovery',
-            'can_manage_staff',
-            'grant_discounts',
+            'module_pos',
+            'action_create_cash_sale',
+            'action_create_installment_sale',
+            'action_grant_discount',
+            'module_customers',
+            'action_add_customer',
+            'module_contracts',
+            'action_view_contracts',
+            'module_installments',
+            'action_collect_payment',
+            'module_payments',
           ],
           designation: 'Shop Manager (Main Branch)',
           monthlySalaryPaisa: 4500000, // Rs. 45,000
@@ -267,7 +272,7 @@ export const StaffRepository = {
       : role === 'owner'
       ? ['all']
       : role === 'manager'
-      ? ['manage_products', 'manage_inventory', 'view_reports', 'assign_recovery', 'can_manage_staff', 'grant_discounts']
+      ? ['module_pos', 'action_create_cash_sale', 'action_create_installment_sale', 'action_grant_discount', 'module_customers', 'action_add_customer', 'module_contracts', 'action_view_contracts', 'module_installments', 'action_collect_payment', 'module_payments']
       : role === 'accountant'
       ? ['view_financial_reports', 'record_expenses', 'request_reversals', 'view_contracts', 'view_customers']
       : ['assigned_collections'];

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileText,
   Printer,
@@ -314,8 +315,94 @@ export const MonthlyExecutiveAuditPdf: React.FC<MonthlyExecutiveAuditPdfProps> =
     timeStyle: 'short',
   });
 
-  return (
-    <div className="modal-overlay" style={{ zIndex: 1250, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+  return createPortal(
+    <div className="modal-overlay monthly-audit-modal-root" style={{ zIndex: 1250, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`
+        @media print {
+          #root {
+            display: none !important;
+          }
+          html, body {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .modal-overlay.monthly-audit-modal-root {
+            position: static !important;
+            display: block !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            z-index: auto !important;
+          }
+          .monthly-audit-modal-root .modal-box {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #monthly-audit-print-area {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 4mm 6mm !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-size: 8.5pt !important;
+          }
+          #monthly-audit-print-area div,
+          #monthly-audit-print-area [style*="overflow"],
+          #monthly-audit-print-area [style*="max-height"] {
+            max-height: none !important;
+            overflow: visible !important;
+            height: auto !important;
+          }
+          #monthly-audit-print-area table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            font-size: 8pt !important;
+            page-break-inside: auto !important;
+          }
+          #monthly-audit-print-area tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #monthly-audit-print-area th,
+          #monthly-audit-print-area td {
+            padding: 3px 5px !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 8mm 6mm;
+          }
+        }
+      `}</style>
       <div
         className="modal-box"
         style={{
@@ -428,29 +515,40 @@ export const MonthlyExecutiveAuditPdf: React.FC<MonthlyExecutiveAuditPdfProps> =
               paddingBottom: '1rem',
               marginBottom: '1.25rem',
               textAlign: 'center',
-              position: 'relative',
             }}
           >
-            {/* Serial badge */}
+            {/* Top Serial & Timestamp Meta Bar (No absolute positioning = Zero overlap on mobile) */}
             <div
               style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+                borderBottom: '1px solid #e2e8f0',
+                paddingBottom: '0.4rem',
+                marginBottom: '0.75rem',
                 fontSize: '9px',
-                textAlign: 'right',
                 color: '#64748b',
               }}
             >
-              <div style={{ fontWeight: 700, color: '#0f172a' }}>{auditReportSerial}</div>
-              <div>Generated: {generatedTimestamp}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontWeight: 700, color: '#047857', backgroundColor: '#ecfdf5', padding: '1px 6px', borderRadius: '3px' }}>
+                  OFFICIAL AUDIT REPORT
+                </span>
+                <span style={{ fontWeight: 700, color: '#0f172a' }}>{auditReportSerial}</span>
+              </div>
+              <div style={{ marginInlineStart: 'auto', textAlign: 'right' }}>
+                <span style={{ color: '#475569', fontWeight: 600 }}>تاریخ اجرا (Generated): </span>
+                <span style={{ fontWeight: 700, color: '#0f172a' }}>{generatedTimestamp}</span>
+              </div>
             </div>
 
-            {/* Shop Titles */}
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', marginBottom: '2px' }}>
+            {/* Shop Titles (Urdu & English) - Completely Unobstructed */}
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', marginBottom: '2px', lineHeight: 1.3 }}>
               {tenant.businessNameUr || tenant.businessName}
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {tenant.businessName}
             </div>
 
@@ -467,24 +565,30 @@ export const MonthlyExecutiveAuditPdf: React.FC<MonthlyExecutiveAuditPdfProps> =
               )}
             </div>
 
-            {/* Document Title Banner */}
+            {/* Document Title Banner with Distinct Respective Month Reference */}
             <div
               style={{
-                display: 'inline-block',
+                display: 'inline-flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px',
                 marginTop: '10px',
-                padding: '4px 14px',
-                backgroundColor: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                fontWeight: 700,
-                fontSize: '12px',
-                color: '#0f172a',
-                letterSpacing: '0.02em',
+                padding: '6px 16px',
+                backgroundColor: '#f8fafc',
+                border: '1.5px solid #0f172a',
+                borderRadius: '6px',
               }}
             >
-              {language === 'ur'
-                ? `ماہانہ جامع ایگزیکٹو بزنس آڈٹ، انوینٹری و مالیاتی رپورٹ — ${currentMonthLabel}`
-                : `MONTHLY EXECUTIVE BUSINESS AUDIT & FINANCIAL LEDGER — ${currentMonthLabel.toUpperCase()}`}
+              <div style={{ fontWeight: 800, fontSize: '13px', color: '#0f172a' }}>
+                {language === 'ur'
+                  ? `ماہانہ جامع بزنس آڈٹ و مالیاتی لیجر — ${currentMonthLabel}`
+                  : `MONTHLY EXECUTIVE BUSINESS AUDIT & FINANCIAL LEDGER — ${currentMonthLabel.toUpperCase()}`}
+              </div>
+              <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#047857' }}>
+                {language === 'ur'
+                  ? `رپورٹ برائے ماہ: ${currentMonthLabel} (${selectedMonth})`
+                  : `Audit Month: ${currentMonthLabel} (${selectedMonth})`}
+              </div>
             </div>
           </div>
 
@@ -1048,6 +1152,7 @@ export const MonthlyExecutiveAuditPdf: React.FC<MonthlyExecutiveAuditPdfProps> =
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

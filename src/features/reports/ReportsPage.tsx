@@ -589,6 +589,7 @@ export const ReportsPage: React.FC = () => {
           inventoryMovements={inventoryMovements}
           purchases={purchases}
           customers={customers}
+          staff={staff}
           onClose={() => setShowMonthlyAuditModal(false)}
         />
       )}

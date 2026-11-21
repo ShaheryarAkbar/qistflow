@@ -79,7 +79,7 @@ interface CollectedTableItem {
 
 export const DashboardPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant, isOwner, isManager, isAccountant, isRecovery } = useTenant();
+  const { activeTenant, isOwner, isManager, isAccountant, isRecovery, hasPermission } = useTenant();
   const { currentUser, isDemoUser } = useAuth();
   const navigate = useNavigate();
 
@@ -152,8 +152,10 @@ export const DashboardPage: React.FC = () => {
 
       const todayReceived = todayPayments.reduce((sum, p) => sum + p.amountPaisa, 0);
 
-      // Active contracts & outstanding
-      const activeContracts = contracts.filter((c) => c.status === 'active');
+      // Active & non-settled contracts for total outstanding
+      const activeContracts = contracts.filter(
+        (c) => c.status !== 'fully_paid' && c.status !== 'cancelled' && c.status !== 'written_off'
+      );
       const totalOutstanding = activeContracts.reduce(
         (sum, c) => sum + (c.outstandingPaisa || 0),
         0
@@ -371,7 +373,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {(isOwner || isManager) && (
+          {(isOwner || (isManager && hasPermission('module_pos'))) && (
             <button
               onClick={() => navigate('/sales/new')}
               className="btn btn-primary"

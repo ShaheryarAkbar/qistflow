@@ -115,10 +115,6 @@ export const StaffPage: React.FC = () => {
   };
   const [saving, setSaving] = useState(false);
 
-  // Permission Configuration Modal State
-  const [targetMemberForPerms, setTargetMemberForPerms] = useState<StaffMemberRecord | null>(null);
-  const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
-  const [savingPerms, setSavingPerms] = useState(false);
 
   // Success Credential Card Modal
   const [createdCredentials, setCreatedCredentials] = useState<{
@@ -384,120 +380,6 @@ export const StaffPage: React.FC = () => {
     await loadStaff();
   };
 
-  const handleOpenPermissionsModal = (member: StaffMemberRecord) => {
-    setTargetMemberForPerms(member);
-    setSelectedPerms(member.permissions || []);
-  };
-
-  const handleTogglePermission = (permKey: string) => {
-    if (selectedPerms.includes(permKey)) {
-      setSelectedPerms(selectedPerms.filter((p) => p !== permKey));
-    } else {
-      setSelectedPerms([...selectedPerms, permKey]);
-    }
-  };
-
-  const handleSavePermissions = async () => {
-    if (!activeTenant || !targetMemberForPerms) return;
-    setSavingPerms(true);
-    try {
-      await StaffRepository.updateStaffPermissions(
-        activeTenant.tenantId,
-        targetMemberForPerms.userId,
-        selectedPerms,
-        isDemoUser
-      );
-      await reloadMembership();
-      setTargetMemberForPerms(null);
-      await loadStaff();
-    } finally {
-      setSavingPerms(false);
-    }
-  };
-
-  const managerPermOptions = [
-    {
-      key: 'manage_products',
-      labelEn: 'Manage Products & Catalog',
-      labelUr: 'پراڈکٹس اور کیٹلاگ شامل/تبدیل کرنا',
-      descEn: 'Can create and edit inventory products and retail prices',
-      descUr: 'نیا سامان شامل کرنے اور نقد/اقساط قیمتیں سیٹ کرنے کی اجازت',
-    },
-    {
-      key: 'manage_inventory',
-      labelEn: 'Stock Movements & Warehouse',
-      labelUr: 'اسٹاک اور گودام مینجمنٹ',
-      descEn: 'Can post stock movements (purchase-in, adjustments, damage)',
-      descUr: 'مال کی خریداری انٹری اور گودام کے اسٹاک ایڈجسٹمنٹ',
-    },
-    {
-      key: 'view_reports',
-      labelEn: 'Shop Analytics & Reports',
-      labelUr: 'دکان کی رپورٹس اور تجزئیے',
-      descEn: 'Can view monthly collection summaries and sales reports',
-      descUr: 'ماہانہ سیلز اور ریکوری چارٹس دیکھنے کی رسائی',
-    },
-    {
-      key: 'assign_recovery',
-      labelEn: 'Assign Recovery Officers',
-      labelUr: 'ریکوری ملازمین کو گاہک تفویض کرنا',
-      descEn: 'Can assign pending customer installments to field agents',
-      descUr: 'واجب الادا قسطوں کی ریکوری کے لیے ملازم مقرر کرنا',
-    },
-    {
-      key: 'can_manage_staff',
-      labelEn: 'Manage Staff Logins',
-      labelUr: 'ملازمین کے لاگ ان سنبھالنا',
-      descEn: 'Can create or suspend sub-staff accounts',
-      descUr: 'اکاؤنٹنٹ اور فیلڈ آفیسر کے لاگ ان بنانے یا معطل کرنے کا اختیار',
-    },
-    {
-      key: 'grant_discounts',
-      labelEn: 'POS Special Discounts',
-      labelUr: 'سیلز میں رعایت (ڈسکاؤنٹ) دینا',
-      descEn: 'Can approve customer discounts during checkout',
-      descUr: 'نقد یا اقساط پر رعایت دینے کی اجازت',
-    },
-  ];
-
-  const accountantPermOptions = [
-    {
-      key: 'view_financial_reports',
-      labelEn: 'Full Financial Statements',
-      labelUr: 'مکمل مالیاتی بیانات اور لیجر',
-      descEn: 'Access to balance sheet, ledger summaries and P&L metrics',
-      descUr: 'کھاتہ جاتی خلاصے اور نفع و نقصان کی تفصیلی رپورٹس',
-    },
-    {
-      key: 'record_expenses',
-      labelEn: 'Record Shop Expenses',
-      labelUr: 'روزمرہ اخراجات کا اندراج',
-      descEn: 'Can record shop expenses (rent, electricity, salaries, tea)',
-      descUr: 'دکان کے روزمرہ اخراجات درج کرنے کی اجازت',
-    },
-    {
-      key: 'request_reversals',
-      labelEn: 'Payment Reversals',
-      labelUr: 'پیمنٹ ریورسل / تصحیح',
-      descEn: 'Can request reversal of mistakenly posted payments',
-      descUr: 'غلط درج شدہ ادائیگی کی تصحیح یا منسوخی',
-    },
-    {
-      key: 'view_contracts',
-      labelEn: 'View Installment Contracts',
-      labelUr: 'اقساط کے تمام معاہدات دیکھنا',
-      descEn: 'Access to customer installment schedules and outstanding balances',
-      descUr: 'کسٹمر کی قسطوں کے شیڈول اور بقیہ رقم کی معلومات',
-    },
-    {
-      key: 'view_customers',
-      labelEn: 'Customer Account Details',
-      labelUr: 'گاہکوں کے کھاتے اور رابطے',
-      descEn: 'View customer contact and guarantor info for audit',
-      descUr: 'گاہکوں کے رابطے اور ضامن کی تصدیق',
-    },
-  ];
-
   const getRoleBadge = (r: UserRole) => {
     switch (r) {
       case 'owner':
@@ -709,7 +591,7 @@ export const StaffPage: React.FC = () => {
                       </tr>
                     ) : displayedStaff.map((member) => {
                       const roleBadge = getRoleBadge(member.role);
-                      const canConfigureThisMember = isOwner && (member.role === 'manager' || member.role === 'accountant');
+                      const canConfigureThisMember = member.role !== 'owner' && (isOwner || (isManager && member.role === 'recovery'));
 
                       return (
                         <tr key={member.userId}>
@@ -745,8 +627,6 @@ export const StaffPage: React.FC = () => {
                           <td>
                             {member.role === 'owner' ? (
                               <span className="badge badge-success">Full Business Access</span>
-                            ) : member.role === 'recovery' ? (
-                              <span className="badge badge-slate">Restricted Mobile Field</span>
                             ) : (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
                                 <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
@@ -754,10 +634,13 @@ export const StaffPage: React.FC = () => {
                                 </span>
                                 {canConfigureThisMember && (
                                   <button
-                                    onClick={() => handleOpenPermissionsModal(member)}
+                                    onClick={() => {
+                                      setSelectedSecurityUserId(member.userId);
+                                      setActiveTab('security');
+                                    }}
                                     className="btn btn-outline btn-sm"
                                     style={{ padding: '0.125rem 0.5rem', fontSize: '0.6875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                    title="Owner Configure Permissions"
+                                    title="Configure Permissions"
                                   >
                                     <Sliders size={12} />
                                     <span>{language === 'ur' ? 'اختیارات تبدیل کریں' : 'Configure'}</span>
@@ -904,7 +787,10 @@ export const StaffPage: React.FC = () => {
                                 )}
                                 {canConfigureThisMember && (
                                   <button
-                                    onClick={() => handleOpenPermissionsModal(member)}
+                                    onClick={() => {
+                                      setSelectedSecurityUserId(member.userId);
+                                      setActiveTab('security');
+                                    }}
                                     className="btn btn-sm btn-outline text-primary"
                                     style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                                   >
@@ -1793,111 +1679,6 @@ export const StaffPage: React.FC = () => {
         </div>
       )}
 
-      {/* Owner-Configurable Permissions Modal */}
-      {targetMemberForPerms && (
-        <div className="modal-overlay" style={{ zIndex: 65 }}>
-          <div className="modal-box" style={{ maxWidth: '560px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Sliders size={20} className="text-primary" />
-                <div>
-                  <h3 className="modal-title" style={{ fontSize: '1.125rem' }}>
-                    {language === 'ur'
-                      ? `${targetMemberForPerms.displayName} کے اختیارات`
-                      : `Permissions: ${targetMemberForPerms.displayName}`}
-                  </h3>
-                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                    {language === 'ur'
-                      ? 'دکان کا مالک اپنی مرضی سے اختیارات آن یا آف کر سکتا ہے'
-                      : 'Owner can toggle specific operational or financial permissions'}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setTargetMemberForPerms(null)}
-                className="btn btn-icon btn-outline btn-sm"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-              <div className="alert alert-info mb-4" style={{ fontSize: '0.8125rem' }}>
-                <span>
-                  {language === 'ur'
-                    ? `عہدہ: ${targetMemberForPerms.role.toUpperCase()} — نیچے دیے گئے اختیارات میں سے جو آپ منتخب کریں گے، ملازم کو صرف انہی حصوں تک رسائی ہوگی۔`
-                    : `Role: ${targetMemberForPerms.role.toUpperCase()} — This staff member will strictly only be able to perform checked actions.`}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {(targetMemberForPerms.role === 'manager'
-                  ? managerPermOptions
-                  : accountantPermOptions
-                ).map((opt) => {
-                  const isChecked = selectedPerms.includes(opt.key);
-                  return (
-                    <label
-                      key={opt.key}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        padding: '0.75rem',
-                        borderRadius: '0.5rem',
-                        border: isChecked ? '1px solid #10b981' : '1px solid #e2e8f0',
-                        backgroundColor: isChecked ? '#f0fdf4' : '#fff',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleTogglePermission(opt.key)}
-                        style={{ marginTop: '0.25rem', width: '16px', height: '16px', accentColor: '#10b981' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>
-                          {language === 'ur' ? opt.labelUr : opt.labelEn}
-                        </div>
-                        <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.125rem' }}>
-                          {language === 'ur' ? opt.descUr : opt.descEn}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                {selectedPerms.length} {language === 'ur' ? 'اختیارات منتخب' : 'permissions granted'}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setTargetMemberForPerms(null)}
-                  className="btn btn-secondary btn-sm"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSavePermissions}
-                  disabled={savingPerms}
-                  className="btn btn-primary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  <Check size={14} />
-                  <span>{savingPerms ? t('common.loading') : language === 'ur' ? 'محفوظ کریں' : 'Save Permissions'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Salary Modal */}
       {editingSalaryMember && (

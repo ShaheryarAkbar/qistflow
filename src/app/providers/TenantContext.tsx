@@ -357,12 +357,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return activeMembership?.permissions?.includes(permission) ?? false;
   };
 
-  const canManageStaff = isOwner || (isManager && hasPermission('can_manage_staff'));
+  const canManageStaff = isOwner || (isManager && (hasPermission('can_manage_staff') || hasPermission('module_staff')));
   const canManageSettings = isOwner;
-  const canAccessFinancials = isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('record_expenses'))) || (isManager && hasPermission('view_reports'));
-  const canAccessInventory = isOwner || (isManager && hasPermission('manage_inventory'));
-  const canAccessSales = isOwner || isManager;
-  const canViewReports = isOwner || (isManager && hasPermission('view_reports')) || (isAccountant && hasPermission('view_financial_reports'));
+  const canAccessFinancials = isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('record_expenses') || hasPermission('module_expenses'))) || (isManager && (hasPermission('view_reports') || hasPermission('module_reports')));
+  const canAccessInventory = isOwner || (isManager && (hasPermission('manage_inventory') || hasPermission('module_inventory')));
+  const canAccessSales = isOwner || (isManager && hasPermission('module_pos'));
+  const canViewReports = isOwner || (isManager && (hasPermission('view_reports') || hasPermission('module_reports'))) || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('module_reports')));
 
   return (
     <TenantContext.Provider

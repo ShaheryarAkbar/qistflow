@@ -71,3 +71,7 @@ export function formatPKR(
   return `${sign}Rs. ${finalNumber}`;
 }
 
+export function formatPaisa(paisa: number): string {
+  return formatPKR(paisa, { showCurrencySymbol: false });
+}
+

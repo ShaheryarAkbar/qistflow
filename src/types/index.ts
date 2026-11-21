@@ -91,6 +91,7 @@ export type RecoveryVisitOutcome =
   | 'other';
 
 export type StaffPermission =
+  // Standard Legacy Permissions
   | 'manage_products'
   | 'manage_inventory'
   | 'view_reports'
@@ -101,7 +102,49 @@ export type StaffPermission =
   | 'record_expenses'
   | 'request_reversals'
   | 'view_contracts'
-  | 'view_customers';
+  | 'view_customers'
+  | 'assigned_collections'
+  | 'all'
+  // Granular Main Module Level Permissions
+  | 'module_dashboard'
+  | 'module_pos'
+  | 'module_customers'
+  | 'module_contracts'
+  | 'module_installments'
+  | 'module_payments'
+  | 'module_products'
+  | 'module_inventory'
+  | 'module_suppliers'
+  | 'module_purchases'
+  | 'module_expenses'
+  | 'module_recovery'
+  | 'module_reports'
+  | 'module_branches'
+  | 'module_staff'
+  | 'module_calculator'
+  | 'module_settings'
+  // Granular Minor Sub-Action Permissions
+  | 'action_create_cash_sale'
+  | 'action_create_installment_sale'
+  | 'action_grant_discount'
+  | 'action_add_customer'
+  | 'action_edit_customer'
+  | 'action_delete_customer'
+  | 'action_collect_payment'
+  | 'action_reverse_payment'
+  | 'action_print_receipt'
+  | 'action_add_product'
+  | 'action_edit_product'
+  | 'action_mark_damaged_stock'
+  | 'action_record_purchase'
+  | 'action_record_expense'
+  | 'action_approve_expense'
+  | 'action_edit_salary'
+  | 'action_pay_salary'
+  | 'action_reassign_recovery'
+  | 'action_record_visit_proof'
+  | 'action_view_monthly_audit'
+  | 'action_download_audit_pdf';
 
 // --- Entities ---
 

@@ -27,6 +27,7 @@ export interface StaffMemberRecord {
   monthlySalaryPaisa?: number;
   joinedAt: string;
   password?: string;
+  isBlocked?: boolean;
 }
 
 const DEMO_STAFF_KEY = 'qistflow_demo_staff';
@@ -404,6 +405,7 @@ export const StaffRepository = {
       const target = staff.find((s) => s.userId === userId);
       if (target) {
         target.status = status;
+        target.isBlocked = status === 'suspended';
         localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(staff));
       }
       return;
@@ -413,6 +415,33 @@ export const StaffRepository = {
       membershipStatus: status,
       updatedAt: serverTimestamp(),
     });
+  },
+
+  async toggleStaffBlock(
+    tenantId: string,
+    userId: string,
+    isDemo = false
+  ): Promise<boolean> {
+    if (isDemo) {
+      const staff = await this.getStaffMembers(tenantId, true);
+      const target = staff.find((s) => s.userId === userId);
+      if (target) {
+        const willBeBlocked = !target.isBlocked && target.status !== 'suspended';
+        target.isBlocked = willBeBlocked;
+        target.status = willBeBlocked ? 'suspended' : 'active';
+        localStorage.setItem(`${DEMO_STAFF_KEY}_${tenantId}`, JSON.stringify(staff));
+        return willBeBlocked;
+      }
+      return false;
+    }
+
+    const membershipRef = doc(db, 'tenants', tenantId, 'memberships', userId);
+    // For live firestore, default to suspended
+    await updateDoc(membershipRef, {
+      membershipStatus: 'suspended',
+      updatedAt: serverTimestamp(),
+    });
+    return true;
   },
 
   async updateStaffSalary(

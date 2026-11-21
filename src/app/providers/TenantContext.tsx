@@ -160,12 +160,19 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         rolePermissions = ['platform_admin'];
       }
 
+      let isMemberSuspended = false;
+      if (foundStaffMember) {
+        if (foundStaffMember.isBlocked || foundStaffMember.status === 'suspended') {
+          isMemberSuspended = true;
+        }
+      }
+
       const demoMembership: Membership = {
         userId: currentUser.uid,
         tenantId: demoTenant.tenantId,
         role,
         permissions: rolePermissions,
-        membershipStatus: 'active',
+        membershipStatus: isMemberSuspended ? 'suspended' : 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -319,11 +326,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const stored = localStorage.getItem(`qistflow_demo_staff_${activeTenant.tenantId}`);
       if (stored && activeMembership) {
         const list = JSON.parse(stored);
-        const found = list.find((s: any) => s.role === activeMembership.role);
-        if (found?.permissions) {
+        const found = list.find((s: any) => s.userId === activeMembership.userId || s.role === activeMembership.role);
+        if (found) {
+          const isSuspended = found.isBlocked || found.status === 'suspended';
           setActiveMembership({
             ...activeMembership,
-            permissions: found.permissions,
+            membershipStatus: isSuspended ? 'suspended' : 'active',
+            permissions: found.permissions || [],
           });
         }
       }
@@ -338,6 +347,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isRecovery = currentRole === 'recovery';
 
   const hasPermission = (permission: StaffPermission | string): boolean => {
+    // If account is blocked or suspended, deny all access except for owner
+    if (activeMembership?.membershipStatus === 'suspended' && currentRole !== 'owner') {
+      return false;
+    }
     if (currentRole === 'owner') return true;
     if (currentRole === 'super_admin') return false;
     if (activeMembership?.permissions?.includes('all')) return true;

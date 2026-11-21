@@ -22,16 +22,37 @@ import {
   CheckCircle2,
   AlertCircle,
   Users,
+  FileText,
+  Boxes,
+  DownloadCloud,
+  FileCheck,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTenant } from '@/app/providers/TenantContext';
 import { useAuth } from '@/app/providers/AuthContext';
-import { Sale, Payment, Expense, Contract, RecoveryVisit, RecoveryAssignment } from '@/types';
+import {
+  Sale,
+  Payment,
+  Expense,
+  Contract,
+  RecoveryVisit,
+  RecoveryAssignment,
+  Product,
+  InventoryMovement,
+  Customer,
+  Purchase,
+  StaffPayrollRecord,
+} from '@/types';
 import { SaleRepository } from '@/repositories/sale.repository';
 import { PaymentRepository } from '@/repositories/payment.repository';
 import { ExpenseRepository } from '@/repositories/expense.repository';
 import { RecoveryRepository } from '@/repositories/recovery.repository';
 import { StaffRepository, StaffMemberRecord } from '@/repositories/staff.repository';
+import { ProductRepository } from '@/repositories/product.repository';
+import { InventoryRepository } from '@/repositories/inventory.repository';
+import { CustomerRepository } from '@/repositories/customer.repository';
+import { SupplierRepository } from '@/repositories/supplier.repository';
+import { MonthlyExecutiveAuditPdf } from '@/components/shared/MonthlyExecutiveAuditPdf';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 
 export const ReportsPage: React.FC = () => {
@@ -47,6 +68,13 @@ export const ReportsPage: React.FC = () => {
   const [visits, setVisits] = useState<RecoveryVisit[]>([]);
   const [staff, setStaff] = useState<StaffMemberRecord[]>([]);
   const [assignments, setAssignments] = useState<RecoveryAssignment[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<StaffPayrollRecord[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState('2026-11');
+  const [showMonthlyAuditModal, setShowMonthlyAuditModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +82,7 @@ export const ReportsPage: React.FC = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const [sList, pList, eList, cList, vList, stList, aList] = await Promise.all([
+        const [sList, pList, eList, cList, vList, stList, aList, prList, mList, purList, custList, payrList] = await Promise.all([
           SaleRepository.getSales(activeTenant.tenantId, isDemoUser),
           PaymentRepository.getPayments(activeTenant.tenantId, isDemoUser),
           ExpenseRepository.getExpenses(activeTenant.tenantId, isDemoUser),
@@ -62,6 +90,11 @@ export const ReportsPage: React.FC = () => {
           RecoveryRepository.getVisits(activeTenant.tenantId, isDemoUser),
           StaffRepository.getStaffMembers(activeTenant.tenantId, isDemoUser),
           RecoveryRepository.getAssignments(activeTenant.tenantId, undefined, isDemoUser),
+          ProductRepository.getProducts(activeTenant.tenantId, isDemoUser),
+          InventoryRepository.getMovements(activeTenant.tenantId, isDemoUser),
+          SupplierRepository.getPurchases(activeTenant.tenantId, isDemoUser),
+          CustomerRepository.getCustomers(activeTenant.tenantId, isDemoUser),
+          StaffRepository.getPayrollRecords(activeTenant.tenantId, selectedMonth, isDemoUser),
         ]);
         setSales(sList);
         setPayments(pList);
@@ -70,12 +103,17 @@ export const ReportsPage: React.FC = () => {
         setVisits(vList);
         setStaff(stList);
         setAssignments(aList);
+        setProducts(prList);
+        setInventoryMovements(mList);
+        setPurchases(purList);
+        setCustomers(custList);
+        setPayrollRecords(payrList);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [activeTenant, isDemoUser]);
+  }, [activeTenant, selectedMonth, isDemoUser]);
 
   // Aggregate metrics
   const totalSalesPaisa = sales.reduce(
@@ -145,12 +183,144 @@ export const ReportsPage: React.FC = () => {
 
         <div className="page-action-group">
           <button
+            onClick={() => setShowMonthlyAuditModal(true)}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <FileText size={16} />
+            <span>{language === 'ur' ? 'ماہانہ ایگزیکٹو بزنس آڈٹ (پی ڈی ایف)' : 'Monthly Executive Audit (PDF)'}</span>
+          </button>
+          <button
             onClick={() => window.print()}
             className="btn btn-outline"
           >
             <Printer size={16} />
             <span>{t('common.print')} Report</span>
           </button>
+        </div>
+      </div>
+
+      {/* Featured Executive Monthly Business Audit & Official PDF Download Banner */}
+      <div
+        className="card mb-6"
+        style={{
+          background: 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #0f766e 100%)',
+          color: '#ffffff',
+          borderRadius: '0.75rem',
+          boxShadow: '0 10px 25px -5px rgba(5, 150, 105, 0.3)',
+          border: 'none',
+          overflow: 'hidden',
+        }}
+      >
+        <div className="card-body" style={{ padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(8px)',
+                  borderRadius: '0.625rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <FileCheck size={28} color="#a7f3d0" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#ffffff' }}>
+                    {language === 'ur'
+                      ? 'ماہانہ ایگزیکٹو بزنس آڈٹ و لیجر رپورٹ'
+                      : 'Official Monthly Executive Business Audit'}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      padding: '2px 8px',
+                      borderRadius: '9999px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    A4 Official PDF
+                  </span>
+                </div>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8125rem', color: '#d1fae5', maxWidth: '620px' }}>
+                  {language === 'ur'
+                    ? 'دکان کا مکمل ماہانہ حساب: اسٹاک (کتنا پڑا ہے، کتنا بیکا، کتنا خراب ہے)، دفتری اخراجات، کس کو کتنی تنخواہ ملی، نقد و اقساط سیلز اور ریکوری کا باضابطہ مہر و دستخط شدہ پرنٹ۔'
+                    : 'Complete audited monthly ledger: stock on hand, units sold, damaged stock, itemized expenses, staff payroll disbursements, cash vs installment sales & dual authorization stamps.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Month Picker & Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.35rem 0.65rem', borderRadius: '0.5rem' }}>
+                <Calendar size={15} color="#a7f3d0" />
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="2026-11" style={{ color: '#0f172a' }}>November 2026 (نومبر 2026)</option>
+                  <option value="2026-10" style={{ color: '#0f172a' }}>October 2026 (اکتوبر 2026)</option>
+                  <option value="2026-09" style={{ color: '#0f172a' }}>September 2026 (ستمبر 2026)</option>
+                  <option value="2026-08" style={{ color: '#0f172a' }}>August 2026 (اگست 2026)</option>
+                  <option value="2026-07" style={{ color: '#0f172a' }}>July 2026 (جولائی 2026)</option>
+                  <option value="2026-06" style={{ color: '#0f172a' }}>June 2026 (جون 2026)</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => setShowMonthlyAuditModal(true)}
+                className="btn"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#065f46',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  border: 'none',
+                }}
+              >
+                <FileText size={15} />
+                <span>{language === 'ur' ? 'مکمل ایگزیکٹو آڈٹ کھولیں' : 'View Full Executive Audit'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowMonthlyAuditModal(true)}
+                className="btn"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <Printer size={15} />
+                <span>{language === 'ur' ? 'پرنٹ / پی ڈی ایف' : 'Print / PDF'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -403,6 +573,25 @@ export const ReportsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Monthly Executive Business Audit Modal (A4 Printable Document) */}
+      {showMonthlyAuditModal && activeTenant && (
+        <MonthlyExecutiveAuditPdf
+          tenant={activeTenant}
+          selectedMonth={selectedMonth}
+          onMonthChange={setSelectedMonth}
+          sales={sales}
+          contracts={contracts}
+          payments={payments}
+          expenses={expenses}
+          payrollRecords={payrollRecords}
+          products={products}
+          inventoryMovements={inventoryMovements}
+          purchases={purchases}
+          customers={customers}
+          onClose={() => setShowMonthlyAuditModal(false)}
+        />
+      )}
     </div>
   );
 };

@@ -42,6 +42,7 @@ export const AppLayout: React.FC = () => {
   const { currentUser, logout, isDemoUser } = useAuth();
   const {
     activeTenant,
+    activeMembership,
     currentRole,
     isOwner,
     isManager,
@@ -61,28 +62,49 @@ export const AppLayout: React.FC = () => {
     navigate('/login');
   };
 
+  const isUserBlocked = activeMembership?.membershipStatus === 'suspended' && !isOwner;
+
+  interface NavItem {
+    to: string;
+    label: string;
+    icon: any;
+    highlight?: boolean;
+  }
+
   // Build role-tailored navigation items
-  const getNavItems = () => {
+  const getNavItems = (): NavItem[] => {
+    // If account has been suspended/blocked by shop owner, hide all navigational items
+    if (isUserBlocked) {
+      return [];
+    }
+
     // 1. Recovery Employee View (STRICTLY RESTRICTED TO FIELD RECOVERY)
     if (isRecovery) {
-      return [
-        {
+      const items: NavItem[] = [];
+      if (hasPermission('module_recovery') || hasPermission('assigned_collections')) {
+        items.push({
           to: '/recovery',
           label: language === 'ur' ? 'ریکوری فیلڈ پورٹل' : 'Recovery Field Portal',
           icon: Coins,
           highlight: true,
-        },
-        {
+        });
+      }
+      if (hasPermission('module_customers') || hasPermission('view_customers')) {
+        items.push({ to: '/customers', label: t('nav.customers'), icon: Users });
+      }
+      if (hasPermission('module_calculator') !== false) {
+        items.push({
           to: '/calculator',
           label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
           icon: Calculator,
-        },
-        {
-          to: '/portal',
-          label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
-          icon: Smartphone,
-        },
-      ];
+        });
+      }
+      items.push({
+        to: '/portal',
+        label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
+        icon: Smartphone,
+      });
+      return items;
     }
 
     // 2. Platform Super-Admin View (STRICTLY SAAS GOVERNANCE - NO SHOP PRODUCTS/SALES/CALCULATOR/PASSBOOK)
@@ -104,28 +126,34 @@ export const AppLayout: React.FC = () => {
 
     // 3. Accountant View (FINANCIAL ONLY & OWNER-CONFIGURABLE)
     if (isAccountant) {
-      const items = [
+      const items: NavItem[] = [
         { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-        { to: '/installments/due', label: t('nav.installments'), icon: CalendarClock, highlight: true },
-        { to: '/payments', label: t('nav.payments'), icon: Receipt },
       ];
-      if (hasPermission('view_contracts')) {
+      if (hasPermission('module_installments')) {
+        items.push({ to: '/installments/due', label: t('nav.installments'), icon: CalendarClock, highlight: true });
+      }
+      if (hasPermission('module_payments')) {
+        items.push({ to: '/payments', label: t('nav.payments'), icon: Receipt });
+      }
+      if (hasPermission('module_contracts') || hasPermission('view_contracts')) {
         items.push({ to: '/contracts', label: t('nav.contracts'), icon: FileText });
       }
-      if (hasPermission('view_customers')) {
+      if (hasPermission('module_customers') || hasPermission('view_customers')) {
         items.push({ to: '/customers', label: t('nav.customers'), icon: Users });
       }
-      if (hasPermission('record_expenses')) {
+      if (hasPermission('module_expenses') || hasPermission('record_expenses')) {
         items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
       }
-      if (hasPermission('view_financial_reports')) {
+      if (hasPermission('module_reports') || hasPermission('view_financial_reports')) {
         items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
       }
-      items.push({
-        to: '/calculator',
-        label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
-        icon: Calculator,
-      });
+      if (hasPermission('module_calculator')) {
+        items.push({
+          to: '/calculator',
+          label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
+          icon: Calculator,
+        });
+      }
       items.push({
         to: '/portal',
         label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
@@ -136,37 +164,51 @@ export const AppLayout: React.FC = () => {
 
     // 4. Manager / Admin View (OPERATIONAL ACCESS & OWNER-CONFIGURABLE)
     if (isManager) {
-      const items = [
+      const items: NavItem[] = [
         { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-        { to: '/sales/new', label: t('nav.pos'), icon: PlusCircle, highlight: true },
-        { to: '/customers', label: t('nav.customers'), icon: Users },
-        { to: '/contracts', label: t('nav.contracts'), icon: FileText },
-        { to: '/installments/due', label: t('nav.installments'), icon: CalendarClock },
-        { to: '/payments', label: t('nav.payments'), icon: Receipt },
       ];
-      if (hasPermission('manage_products')) {
+      if (hasPermission('module_pos')) {
+        items.push({ to: '/sales/new', label: t('nav.pos'), icon: PlusCircle, highlight: true });
+      }
+      if (hasPermission('module_customers') || hasPermission('view_customers')) {
+        items.push({ to: '/customers', label: t('nav.customers'), icon: Users });
+      }
+      if (hasPermission('module_contracts') || hasPermission('view_contracts')) {
+        items.push({ to: '/contracts', label: t('nav.contracts'), icon: FileText });
+      }
+      if (hasPermission('module_installments')) {
+        items.push({ to: '/installments/due', label: t('nav.installments'), icon: CalendarClock });
+      }
+      if (hasPermission('module_payments')) {
+        items.push({ to: '/payments', label: t('nav.payments'), icon: Receipt });
+      }
+      if (hasPermission('module_inventory') || hasPermission('manage_products')) {
         items.push({ to: '/products', label: t('nav.products'), icon: Package });
       }
-      if (hasPermission('manage_inventory')) {
+      if (hasPermission('module_inventory') || hasPermission('manage_inventory')) {
         items.push({ to: '/inventory', label: t('nav.inventory'), icon: Boxes });
         items.push({ to: '/suppliers', label: t('nav.suppliers'), icon: Truck });
         items.push({ to: '/purchases', label: t('nav.purchases'), icon: ShoppingCart });
       }
-      items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
-      if (hasPermission('assign_recovery')) {
+      if (hasPermission('module_expenses') || hasPermission('record_expenses')) {
+        items.push({ to: '/expenses', label: t('nav.expenses'), icon: CreditCard });
+      }
+      if (hasPermission('module_recovery') || hasPermission('assign_recovery')) {
         items.push({ to: '/recovery', label: t('nav.recovery'), icon: Coins });
       }
-      if (hasPermission('view_reports')) {
+      if (hasPermission('module_reports') || hasPermission('view_reports')) {
         items.push({ to: '/reports', label: t('nav.reports'), icon: BarChart3 });
       }
-      if (hasPermission('can_manage_staff')) {
+      if (hasPermission('module_staff') || hasPermission('can_manage_staff')) {
         items.push({ to: '/staff', label: t('nav.staff'), icon: UserCheck });
       }
-      items.push({
-        to: '/calculator',
-        label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
-        icon: Calculator,
-      });
+      if (hasPermission('module_calculator')) {
+        items.push({
+          to: '/calculator',
+          label: language === 'ur' ? 'حساب کتاب کیلکولیٹر' : 'Installment Calculator',
+          icon: Calculator,
+        });
+      }
       items.push({
         to: '/portal',
         label: language === 'ur' ? 'کسٹمر پاس بک (پیش نظارہ)' : 'Customer Passbook',
@@ -688,7 +730,57 @@ export const AppLayout: React.FC = () => {
 
         {/* Dynamic page content */}
         <main className="app-content">
-          <Outlet />
+          {isUserBlocked ? (
+            <div
+              className="card"
+              style={{
+                maxWidth: '560px',
+                margin: '2rem auto',
+                padding: '2rem',
+                textAlign: 'center',
+                border: '2px solid #ef4444',
+                backgroundColor: '#fef2f2',
+                borderRadius: '0.75rem',
+              }}
+            >
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  margin: 'auto',
+                  borderRadius: '50%',
+                  backgroundColor: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#dc2626',
+                  marginBottom: '1rem',
+                }}
+              >
+                <ShieldAlert size={30} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#991b1b', margin: 0 }}>
+                {language === 'ur'
+                  ? 'آپ کا اکاؤنٹ دکان انتظامیہ کی طرف سے معطل / بلاک کر دیا گیا ہے'
+                  : 'Account Suspended by Shop Administration'}
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#7f1d1d', marginTop: '0.5rem', lineHeight: 1.6 }}>
+                {language === 'ur'
+                  ? 'دکان کے مالک نے آپ کی رسائی عارضی طور پر بند کی ہے۔ دوبارہ بحال کروانے کے لیے دکان کے مالک یا ایڈمن سے رابطہ کریں۔'
+                  : 'The business owner has temporarily locked your access privileges. Please contact the shop owner to reactivate your account.'}
+              </p>
+              <button
+                onClick={handleLogout}
+                className="btn btn-danger"
+                style={{ marginTop: '1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <LogOut size={16} />
+                <span>{language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Sign Out'}</span>
+              </button>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
 
         {/* Native Mobile Bottom Navigation Bar (Visible on mobile/tablets) */}

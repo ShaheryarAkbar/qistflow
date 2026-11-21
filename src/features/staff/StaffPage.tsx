@@ -47,17 +47,19 @@ import { SessionTrackerService, ActiveSessionRecord } from '@/services/sessionTr
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { MoneyDisplay } from '@/components/shared/MoneyDisplay';
 import { rupeesToPaisa } from '@/domain/money/paisa';
+import { PERMISSION_GROUPS, getDefaultPermissionsForRole, canActorManageTarget } from '@/domain/permissions/definitions';
 
 export const StaffPage: React.FC = () => {
   const { t, language } = useI18n();
-  const { activeTenant, isOwner, isManager, canManageStaff, reloadMembership } = useTenant();
+  const { activeTenant, isOwner, isManager, isAccountant, canManageStaff, reloadMembership } = useTenant();
   const { currentUser, isDemoUser, switchDemoStaff } = useAuth();
   const navigate = useNavigate();
 
   const [staff, setStaff] = useState<StaffMemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'payroll'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'payroll' | 'security'>('members');
+  const [selectedSecurityUserId, setSelectedSecurityUserId] = useState<string>('');
 
   // Payroll state
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
@@ -557,7 +559,7 @@ export const StaffPage: React.FC = () => {
       </div>
 
       {/* Tab Switcher (Horizontal Swipeable on Mobile) */}
-      <div className="mobile-tab-scroll" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
+      <div className="mobile-tab-scroll" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('members')}
           className={`btn btn-sm ${activeTab === 'members' ? 'btn-primary' : 'btn-outline'}`}
@@ -573,6 +575,14 @@ export const StaffPage: React.FC = () => {
         >
           <Banknote size={15} />
           <span>{language === 'ur' ? 'تنخواہوں کا رجسٹر و سلیپ (Salaries & Payroll)' : 'Salaries & Payroll Register'}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`btn btn-sm ${activeTab === 'security' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+        >
+          <Shield size={15} />
+          <span>{language === 'ur' ? 'سیکیورٹی و اختیارات کنٹرول (Permissions & Access)' : 'Security & Permissions Governance'}</span>
         </button>
       </div>
 
@@ -1086,6 +1096,456 @@ export const StaffPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TAB 3: Hierarchical Security & Granular Permission Governance */}
+      {activeTab === 'security' && (() => {
+        const currentActorRole: UserRole = isOwner ? 'owner' : isManager ? 'manager' : isAccountant ? 'accountant' : 'recovery';
+        const manageableStaff = staff.filter((s) => s.role !== 'owner' && (isOwner || canActorManageTarget(currentActorRole, s.role)));
+        const targetMember = staff.find((s) => s.userId === selectedSecurityUserId) || manageableStaff[0];
+
+        const handleToggleBlockMember = async (member: StaffMemberRecord) => {
+          if (!activeTenant) return;
+          const willBlock = !member.isBlocked && member.status !== 'suspended';
+          await StaffRepository.toggleStaffBlock(activeTenant.tenantId, member.userId, isDemoUser);
+          await loadStaff();
+          await reloadMembership();
+          showToast(
+            willBlock
+              ? (language === 'ur' ? `اکاؤنٹ (${member.displayName}) فوری طور پر بلاک کر دیا گیا!` : `Account for ${member.displayName} suspended!`)
+              : (language === 'ur' ? `اکاؤنٹ (${member.displayName}) کامیابی سے بحال ہو گیا!` : `Account for ${member.displayName} reactivated!`)
+          );
+        };
+
+        const handleToggleModulePerm = async (member: StaffMemberRecord, moduleKey: string) => {
+          if (!activeTenant) return;
+          const group = PERMISSION_GROUPS.find((g) => g.moduleKey === moduleKey);
+          const subKeys = group ? group.subActions.map((a) => a.key) : [];
+          const currentPerms = member.permissions || [];
+          let updated: string[];
+
+          if (currentPerms.includes(moduleKey)) {
+            // Turning OFF module: strip moduleKey and its child actions
+            updated = currentPerms.filter((p) => p !== moduleKey && !subKeys.includes(p));
+          } else {
+            // Turning ON module: add moduleKey and enable its default child actions
+            updated = Array.from(new Set([...currentPerms, moduleKey, ...subKeys]));
+          }
+
+          await StaffRepository.updateStaffPermissions(activeTenant.tenantId, member.userId, updated, isDemoUser);
+          await loadStaff();
+          await reloadMembership();
+          showToast(language === 'ur' ? 'اختیارات تبدیل ہو گئے!' : 'Permissions updated!');
+        };
+
+        const handleToggleSubPerm = async (member: StaffMemberRecord, actionKey: string, parentModuleKey: string) => {
+          if (!activeTenant) return;
+          const currentPerms = member.permissions || [];
+          let updated: string[];
+
+          if (currentPerms.includes(actionKey)) {
+            updated = currentPerms.filter((p) => p !== actionKey);
+          } else {
+            // Turn ON: ensure parent module is active too
+            updated = Array.from(new Set([...currentPerms, parentModuleKey, actionKey]));
+          }
+
+          await StaffRepository.updateStaffPermissions(activeTenant.tenantId, member.userId, updated, isDemoUser);
+          await loadStaff();
+          await reloadMembership();
+          showToast(language === 'ur' ? 'اختیارات تبدیل ہو گئے!' : 'Sub-permission updated!');
+        };
+
+        const handleResetMemberDefaults = async (member: StaffMemberRecord) => {
+          if (!activeTenant) return;
+          const defaults = getDefaultPermissionsForRole(member.role);
+          await StaffRepository.updateStaffPermissions(activeTenant.tenantId, member.userId, defaults, isDemoUser);
+          if (member.isBlocked || member.status === 'suspended') {
+            await StaffRepository.updateStaffStatus(activeTenant.tenantId, member.userId, 'active', isDemoUser);
+          }
+          await loadStaff();
+          await reloadMembership();
+          showToast(language === 'ur' ? 'طے شدہ فیکٹری اختیارات بحال ہو گئے!' : 'Role default permissions restored!');
+        };
+
+        return (
+          <div>
+            {/* Header Governance Banner */}
+            <div
+              className="card mb-6"
+              style={{
+                background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e293b 100%)',
+                color: '#ffffff',
+                padding: '1.25rem',
+                borderRadius: '0.75rem',
+                border: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ padding: '0.625rem', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '0.5rem', display: 'flex' }}>
+                  <Shield size={24} color="#818cf8" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#ffffff' }}>
+                    {language === 'ur'
+                      ? 'درجہ بدرجہ سیکیورٹی، ٹیبز رسائی و تفصیلی اختیارات کنٹرول'
+                      : 'Hierarchical Staff Security & Granular Permission Governance'}
+                  </h3>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#c7d2fe', maxWidth: '750px' }}>
+                    {language === 'ur'
+                      ? 'دکان کا مالک مینیجر، اکاؤنٹنٹ اور ریکوری آفیسرز میں سے ہر فرد کو انفرادی طور پر بڑے ٹیبز اور ان کے اندر چھوٹے اختیارات الاؤ یا ہائیڈ کر سکتا ہے، یا مکمل بلاک کر کے بعد میں دوبارہ بحال کر سکتا ہے۔'
+                      : 'Granular access control: toggle entire modules/tabs, configure minor sub-features, or execute instant account suspensions with one-click reactivations.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {manageableStaff.length === 0 ? (
+              <div className="card text-center" style={{ padding: '3rem 1.5rem' }}>
+                <Shield size={36} className="text-muted" style={{ margin: 'auto', marginBottom: '0.75rem' }} />
+                <h4 style={{ margin: 0 }}>{language === 'ur' ? 'کوئی ذیلی ملازم موجود نہیں' : 'No Subordinate Staff Members Found'}</h4>
+                <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                  {language === 'ur'
+                    ? 'پہلے عملہ ٹیب سے نیا ملازم رجسٹر کریں تاکہ اس کے اختیارات سنبھالے جا سکیں۔'
+                    : 'Create staff accounts first to configure individual permissions.'}
+                </p>
+              </div>
+            ) : (
+              <div>
+                {/* Staff Member Selector Pills */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#475569' }}>
+                    {language === 'ur' ? 'ملازم منتخب کریں جس کے اختیارات تبدیل کرنے ہیں:' : 'Select Employee to Configure Access & Security:'}
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+                    {manageableStaff.map((m) => {
+                      const isSelected = targetMember?.userId === m.userId;
+                      const isBlocked = m.isBlocked || m.status === 'suspended';
+                      return (
+                        <button
+                          key={m.userId}
+                          type="button"
+                          onClick={() => setSelectedSecurityUserId(m.userId)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.625rem',
+                            padding: '0.5rem 0.85rem',
+                            borderRadius: '0.5rem',
+                            border: isSelected ? '2px solid #4f46e5' : '1px solid #cbd5e1',
+                            backgroundColor: isSelected ? '#eef2ff' : '#ffffff',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: isBlocked ? '#fee2e2' : '#dbeafe',
+                              color: isBlocked ? '#dc2626' : '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '0.8125rem',
+                            }}
+                          >
+                            {m.displayName.charAt(0)}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
+                              {m.displayName}
+                            </div>
+                            <div style={{ fontSize: '0.6875rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{m.role}</span>
+                              <span>•</span>
+                              <span style={{ color: isBlocked ? '#dc2626' : '#16a34a', fontWeight: 700 }}>
+                                {isBlocked ? (language === 'ur' ? 'معطل' : 'Blocked') : (language === 'ur' ? 'فعال' : 'Active')}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {targetMember && (() => {
+                  const isBlocked = targetMember.isBlocked || targetMember.status === 'suspended';
+                  const memberPerms = targetMember.permissions || [];
+
+                  return (
+                    <div className="card" style={{ border: isBlocked ? '2px solid #ef4444' : '1px solid #cbd5e1' }}>
+                      {/* Member Identity & Master Account Block Toggle */}
+                      <div
+                        style={{
+                          padding: '1.25rem',
+                          borderBottom: '1px solid #e2e8f0',
+                          backgroundColor: isBlocked ? '#fef2f2' : '#f8fafc',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '1rem',
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800 }}>
+                              {targetMember.displayName}
+                            </h3>
+                            <span
+                              style={{
+                                fontSize: '0.6875rem',
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                backgroundColor: targetMember.role === 'manager' ? '#e0e7ff' : targetMember.role === 'accountant' ? '#fef3c7' : '#dcfce7',
+                                color: targetMember.role === 'manager' ? '#3730a3' : targetMember.role === 'accountant' ? '#92400e' : '#166534',
+                              }}
+                            >
+                              {targetMember.designation || targetMember.role.toUpperCase()}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.6875rem',
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                                fontWeight: 700,
+                                backgroundColor: isBlocked ? '#fee2e2' : '#dcfce7',
+                                color: isBlocked ? '#991b1b' : '#15803d',
+                              }}
+                            >
+                              {isBlocked ? (language === 'ur' ? '🔒 اکاؤنٹ مکمل بلاک / معطل' : '🔒 Account Blocked') : (language === 'ur' ? '✅ اکاؤنٹ فعال (Active)' : '✅ Account Active')}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.25rem' }}>
+                            <span>Email: {targetMember.email}</span>
+                            {targetMember.phone && <span style={{ margin: '0 0.5rem' }}>• Phone: {targetMember.phone}</span>}
+                          </div>
+                        </div>
+
+                        {/* Master Block/Unblock & Reset Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBlockMember(targetMember)}
+                            className={`btn ${isBlocked ? 'btn-success' : 'btn-danger'}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700, fontSize: '0.8125rem' }}
+                          >
+                            <Lock size={15} />
+                            <span>
+                              {isBlocked
+                                ? (language === 'ur' ? 'اکاؤنٹ بحال کریں (Unblock)' : 'Unblock Account')
+                                : (language === 'ur' ? 'اکاؤنٹ بلاک کریں (Block / Suspend)' : 'Block / Suspend')}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleResetMemberDefaults(targetMember)}
+                            className="btn btn-outline"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem' }}
+                            title="Restore standard role-based access"
+                          >
+                            <RefreshCw size={14} />
+                            <span>{language === 'ur' ? 'طے شدہ اختیارات بحال کریں' : 'Reset to Defaults'}</span>
+                          </button>
+
+                          {isDemoUser && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                switchDemoStaff(targetMember);
+                                if (targetMember.role === 'recovery') navigate('/recovery');
+                                else navigate('/dashboard');
+                              }}
+                              className="btn btn-outline text-primary"
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem' }}
+                            >
+                              <Eye size={14} />
+                              <span>{language === 'ur' ? 'اس کا ویو ٹیسٹ کریں' : 'Test This View'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Account Block Warning if Suspended */}
+                      {isBlocked && (
+                        <div
+                          style={{
+                            margin: '1rem 1.25rem 0',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            borderRadius: '0.5rem',
+                            color: '#991b1b',
+                            fontSize: '0.8125rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <AlertCircle size={18} />
+                          <span>
+                            {language === 'ur'
+                              ? 'یہ اکاؤنٹ دکان انتظامیہ کی طرف سے بلاک ہے۔ اس ملازم کی تمام ٹیبز، نیویگیشن اور لاگ ان رسائی عارضی طور پر بند ہے۔ بحال کرنے کے لیے اوپر "اکاؤنٹ بحال کریں" پر کلک کریں۔'
+                              : 'This user is currently blocked. All module access and permissions are locked. Click Unblock above to restore full access.'}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Permission Modules & Sub-Actions Matrix */}
+                      <div style={{ padding: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 700 }}>
+                              {language === 'ur' ? 'بڑے ٹیبز اور ذیلی اختیارات کا میٹرکس' : 'Main Modules & Minor Sub-Actions Matrix'}
+                            </h4>
+                            <p style={{ margin: '0.125rem 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                              {language === 'ur'
+                                ? 'کسی بھی ٹیب کو مکمل بند کرنے کے لیے اس کا مین سوئچ آف کریں، یا ٹیب کے اندر مخصوص اختیارات منتخب کریں۔'
+                                : 'Toggle the master switch to show/hide the whole section, or pick specific minor permissions inside.'}
+                            </p>
+                          </div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4f46e5', backgroundColor: '#eef2ff', padding: '3px 8px', borderRadius: '4px' }}>
+                            {memberPerms.length} {language === 'ur' ? 'اختیارات فعال ہیں' : 'Permissions Enabled'}
+                          </span>
+                        </div>
+
+                        {/* Modules Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {PERMISSION_GROUPS.map((group) => {
+                            const isModuleActive = memberPerms.includes(group.moduleKey) || memberPerms.includes('all');
+
+                            return (
+                              <div
+                                key={group.moduleKey}
+                                style={{
+                                  borderRadius: '0.625rem',
+                                  border: isModuleActive ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                                  backgroundColor: isModuleActive ? '#ffffff' : '#f8fafc',
+                                  overflow: 'hidden',
+                                  boxShadow: isModuleActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
+                                }}
+                              >
+                                {/* Module Header & Master Toggle */}
+                                <div
+                                  style={{
+                                    padding: '0.75rem 1rem',
+                                    backgroundColor: isModuleActive ? '#f0fdf4' : '#f1f5f9',
+                                    borderBottom: '1px solid #e2e8f0',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: isModuleActive ? '#065f46' : '#334155' }}>
+                                      {language === 'ur' ? group.labelUr : group.labelEn}
+                                    </div>
+                                    <div style={{ fontSize: '0.6875rem', color: '#64748b', marginTop: '0.125rem' }}>
+                                      {language === 'ur' ? group.descUr : group.descEn}
+                                    </div>
+                                  </div>
+
+                                  {/* Master Toggle Switch */}
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '0.35rem' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isModuleActive}
+                                      onChange={() => handleToggleModulePerm(targetMember, group.moduleKey)}
+                                      style={{
+                                        width: '18px',
+                                        height: '18px',
+                                        accentColor: '#10b981',
+                                        cursor: 'pointer',
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: isModuleActive ? '#059669' : '#64748b' }}>
+                                      {isModuleActive ? (language === 'ur' ? 'کھلا ہے' : 'ALLOWED') : (language === 'ur' ? 'بند ہے' : 'HIDDEN')}
+                                    </span>
+                                  </label>
+                                </div>
+
+                                {/* Minor Sub-Actions Inside Tab */}
+                                <div style={{ padding: '0.75rem 1rem' }}>
+                                  {group.subActions.length === 0 ? (
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic' }}>
+                                      {language === 'ur' ? 'کوئی الگ ذیلی اختیار نہیں (مکمل ٹیب رسائی)' : 'No minor sub-actions (Master toggle applies)'}
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                      <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        {language === 'ur' ? 'اس ٹیب کے اندر چھوٹے اختیارات (Minor Features):' : 'Minor Permissions Inside Tab:'}
+                                      </div>
+                                      {group.subActions.map((sub) => {
+                                        const isSubActive = memberPerms.includes(sub.key) || memberPerms.includes('all');
+                                        return (
+                                          <label
+                                            key={sub.key}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'flex-start',
+                                              gap: '0.5rem',
+                                              padding: '0.4rem 0.5rem',
+                                              borderRadius: '0.375rem',
+                                              backgroundColor: isSubActive ? '#f0fdf4' : 'transparent',
+                                              border: isSubActive ? '1px solid #bbf7d0' : '1px solid transparent',
+                                              cursor: 'pointer',
+                                              opacity: isModuleActive ? 1 : 0.45,
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isSubActive}
+                                              disabled={!isModuleActive}
+                                              onChange={() => handleToggleSubPerm(targetMember, sub.key, group.moduleKey)}
+                                              style={{ marginTop: '0.15rem', width: '15px', height: '15px', accentColor: '#10b981' }}
+                                            />
+                                            <div style={{ flex: 1 }}>
+                                              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#0f172a' }}>
+                                                {language === 'ur' ? sub.labelUr : sub.labelEn}
+                                              </div>
+                                              <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>
+                                                {language === 'ur' ? sub.descUr : sub.descEn}
+                                              </div>
+                                            </div>
+                                            <span
+                                              style={{
+                                                fontSize: '0.625rem',
+                                                padding: '1px 5px',
+                                                borderRadius: '3px',
+                                                fontWeight: 700,
+                                                backgroundColor: isSubActive ? '#dcfce7' : '#f1f5f9',
+                                                color: isSubActive ? '#15803d' : '#64748b',
+                                              }}
+                                            >
+                                              {isSubActive ? 'ON' : 'OFF'}
+                                            </span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Created Credentials Handover Card Modal */}
       {createdCredentials && (

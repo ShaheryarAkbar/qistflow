@@ -40,7 +40,7 @@ import { UserRole } from '@/types';
 import { QuickCalculatorModal } from '@/components/shared/QuickCalculatorModal';
 export const AppLayout: React.FC = () => {
   const { t, language, toggleLanguage } = useI18n();
-  const { currentUser, logout, isDemoUser, enableDemoMode } = useAuth();
+  const { currentUser, logout, isDemoUser } = useAuth();
   const {
     activeTenant,
     activeMembership,
@@ -524,77 +524,6 @@ export const AppLayout: React.FC = () => {
               <LogOut size={16} />
             </button>
           </div>
-
-          {/* Quick Role Switch between Owner and Super-Admin in Demo Evaluation */}
-          {isDemoUser && !isSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                enableDemoMode('super_admin', {
-                  userId: 'super_admin_01',
-                  displayName: 'Platform Super-Admin',
-                  email: 'superadmin@qistflow.pk',
-                  role: 'super_admin',
-                });
-                navigate('/admin');
-              }}
-              className="btn btn-xs btn-outline"
-              style={{
-                fontSize: '0.6875rem',
-                padding: '0.35rem 0.5rem',
-                marginTop: '0.5rem',
-                width: '100%',
-                borderColor: '#f59e0b',
-                color: '#92400e',
-                background: '#fef3c7',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.35rem',
-                borderRadius: '0.375rem',
-              }}
-              title="Switch to Super-Admin to manage shop block/unblock and SaaS licensing"
-            >
-              <ShieldAlert size={13} className="text-warning" />
-              <span>{language === 'ur' ? 'سپر ایڈمن پورٹل پر جائیں' : 'Switch to Super-Admin'}</span>
-            </button>
-          )}
-
-          {isDemoUser && isSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                enableDemoMode('owner', {
-                  userId: 'demo-owner-01',
-                  displayName: 'Haji Abdul Malik',
-                  email: 'owner@qistflow-demo.pk',
-                  role: 'owner',
-                });
-                navigate('/dashboard');
-              }}
-              className="btn btn-xs btn-outline"
-              style={{
-                fontSize: '0.6875rem',
-                padding: '0.35rem 0.5rem',
-                marginTop: '0.5rem',
-                width: '100%',
-                borderColor: '#10b981',
-                color: '#065f46',
-                background: '#ecfdf5',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.35rem',
-                borderRadius: '0.375rem',
-              }}
-              title="Switch back to Malik Electronics Shop Owner"
-            >
-              <Store size={13} className="text-success" />
-              <span>{language === 'ur' ? 'دکان دار (Owner) پر جائیں' : 'Switch to Shop Owner'}</span>
-            </button>
-          )}
         </div>
       </aside>
 
@@ -811,49 +740,6 @@ export const AppLayout: React.FC = () => {
                       <Smartphone size={16} className="text-primary" />
                       <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{language === 'ur' ? 'کسٹمر پاس بک' : 'Customer Passbook'}</span>
                     </button>
-
-                    {/* Quick Super-Admin Switch in Mobile Actions */}
-                    {isDemoUser && !isSuperAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMobileActionsOpen(false);
-                          enableDemoMode('super_admin', {
-                            userId: 'super_admin_01',
-                            displayName: 'Platform Super-Admin',
-                            email: 'superadmin@qistflow.pk',
-                            role: 'super_admin',
-                          });
-                          navigate('/admin');
-                        }}
-                        className="btn btn-sm btn-outline"
-                        style={{ justifyContent: 'flex-start', border: '1px solid #fcd34d', background: '#fef3c7', color: '#92400e', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%', marginTop: '0.25rem' }}
-                      >
-                        <ShieldAlert size={16} className="text-warning" />
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700 }}>{language === 'ur' ? 'سپر ایڈمن پورٹل پر جائیں' : 'Switch to Super-Admin'}</span>
-                      </button>
-                    )}
-
-                    {isDemoUser && isSuperAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMobileActionsOpen(false);
-                          enableDemoMode('owner', {
-                            userId: 'demo-owner-01',
-                            displayName: 'Haji Abdul Malik',
-                            email: 'owner@qistflow-demo.pk',
-                            role: 'owner',
-                          });
-                          navigate('/dashboard');
-                        }}
-                        className="btn btn-sm btn-outline"
-                        style={{ justifyContent: 'flex-start', border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', padding: '0.5rem 0.75rem', gap: '0.5rem', width: '100%', marginTop: '0.25rem' }}
-                      >
-                        <Store size={16} className="text-success" />
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700 }}>{language === 'ur' ? 'دکان دار (Owner) پر جائیں' : 'Switch to Shop Owner'}</span>
-                      </button>
-                    )}
 
                     {/* Direct Logout Option */}
                     <button

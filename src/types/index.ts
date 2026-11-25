@@ -176,6 +176,10 @@ export interface Tenant {
   subscriptionStatus: SubscriptionStatus;
   planId?: string;
   licenceType?: 'subscription' | 'lifetime';
+  isBlocked?: boolean;
+  blockedReason?: string;
+  blockedAt?: string;
+  blockedBy?: string;
   createdAt: any;
   createdBy: string;
   updatedAt: any;

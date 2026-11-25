@@ -31,6 +31,7 @@ import {
   Smartphone,
   Sparkles,
   MoreVertical,
+  Lock,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -49,6 +50,8 @@ export const AppLayout: React.FC = () => {
     isAccountant,
     isRecovery,
     isSuperAdmin,
+    isShopSuspended,
+    shopBlockedReason,
     hasPermission,
   } = useTenant();
 
@@ -62,7 +65,8 @@ export const AppLayout: React.FC = () => {
     navigate('/login');
   };
 
-  const isUserBlocked = activeMembership?.membershipStatus === 'suspended' && !isOwner;
+  const isShopBlocked = isShopSuspended && !isSuperAdmin;
+  const isUserBlocked = !isShopBlocked && activeMembership?.membershipStatus === 'suspended' && !isOwner;
 
   interface NavItem {
     to: string;
@@ -73,8 +77,8 @@ export const AppLayout: React.FC = () => {
 
   // Build role-tailored navigation items
   const getNavItems = (): NavItem[] => {
-    // If account has been suspended/blocked by shop owner, hide all navigational items
-    if (isUserBlocked) {
+    // If shop itself is suspended by Super-Admin, or user account is suspended by Owner, hide all navigational items
+    if (isShopBlocked || isUserBlocked) {
       return [];
     }
 
@@ -287,6 +291,10 @@ export const AppLayout: React.FC = () => {
 
   // Render Mobile Bottom Bar (App-like navigation)
   const renderMobileBottomBar = () => {
+    if (isShopBlocked || isUserBlocked) {
+      return null;
+    }
+
     if (isRecovery) {
       return (
         <nav className="mobile-app-nav" aria-label="Mobile Navigation">
@@ -755,7 +763,83 @@ export const AppLayout: React.FC = () => {
 
         {/* Dynamic page content */}
         <main className="app-content">
-          {isUserBlocked ? (
+          {isShopBlocked ? (
+            <div
+              className="card"
+              style={{
+                maxWidth: '620px',
+                margin: '2rem auto',
+                padding: '2.5rem 2rem',
+                textAlign: 'center',
+                border: '2px solid #ef4444',
+                backgroundColor: '#fef2f2',
+                borderRadius: '1rem',
+                boxShadow: '0 10px 25px -5px rgba(239, 68, 68, 0.15)',
+              }}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  margin: '0 auto 1.25rem',
+                  borderRadius: '50%',
+                  backgroundColor: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#dc2626',
+                }}
+              >
+                <Lock size={34} />
+              </div>
+              <span className="badge badge-danger mb-2" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
+                {language === 'ur' ? 'پلیٹ فارم سپر ایڈمن کی طرف سے دکان معطل' : 'Shop Suspended by Platform Admin'}
+              </span>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#991b1b', margin: '0.5rem 0 0' }}>
+                {activeTenant?.businessNameUr || activeTenant?.businessName}
+              </h3>
+              <p style={{ fontSize: '0.9375rem', color: '#b91c1c', fontWeight: 600, marginTop: '0.25rem' }}>
+                {language === 'ur'
+                  ? 'اس دکان کی تمام سرگرمیاں اور تمام یوزرز کے لاگ انز عارضی طور پر معطل ہیں'
+                  : 'All shop operations and staff accounts are temporarily suspended'}
+              </p>
+
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '0.5rem',
+                  padding: '1rem',
+                  margin: '1.25rem 0',
+                  border: '1px solid #fecaca',
+                  textAlign: language === 'ur' ? 'right' : 'left',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  {language === 'ur' ? 'معطلی کی وجہ (Suspension Reason):' : 'Suspension Reason:'}
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.5, fontWeight: 500 }}>
+                  {shopBlockedReason ||
+                    (language === 'ur'
+                      ? 'سافٹ ویئر لائسنس کی تجدید یا فیس کی عدم ادائیگی کی بنا پر سپر ایڈمن نے دکان کو بلاک کر دیا ہے۔'
+                      : 'The shop account has been locked due to overdue subscription dues or licence renewal.')}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.75rem', borderTop: '1px dashed #e5e7eb', paddingTop: '0.5rem' }}>
+                  {language === 'ur'
+                    ? 'نوٹ: مالک، منیجر، اکاؤنٹنٹ اور ریکوری ایجنٹ سمیت کسی بھی رکن کو پورٹل استعمال کرنے کی اجازت نہیں ہے۔ سروس بحال کروانے کے لیے ہیلپ لائن 0300-1234567 یا سپر ایڈمن سے رابطہ کریں۔'
+                    : 'Notice: Access is completely blocked for Owner, Manager, Accountant, and Recovery officers. Contact Super-Admin at 0300-1234567 to reactivate.'}
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="btn btn-danger"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.5rem', fontWeight: 600 }}
+              >
+                <LogOut size={16} />
+                <span>{language === 'ur' ? 'اکاؤنٹ لاگ آؤٹ کریں' : 'Sign Out'}</span>
+              </button>
+            </div>
+          ) : isUserBlocked ? (
             <div
               className="card"
               style={{

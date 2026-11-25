@@ -28,6 +28,8 @@ interface TenantContextType {
   isAccountant: boolean;
   isRecovery: boolean;
   isSuperAdmin: boolean;
+  isShopSuspended: boolean;
+  shopBlockedReason: string;
   canManageStaff: boolean;
   canManageSettings: boolean;
   canAccessFinancials: boolean;
@@ -48,12 +50,86 @@ interface TenantContextType {
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
+const getShopSuspensionStatus = (tenant: Tenant | null): { isSuspended: boolean; reason: string } => {
+  if (!tenant) return { isSuspended: false, reason: '' };
+
+  if (tenant.subscriptionStatus === 'suspended' || (tenant as any).isBlocked === true) {
+    return {
+      isSuspended: true,
+      reason: (tenant as any).blockedReason || '',
+    };
+  }
+
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('qistflow_registered_shops') : null;
+    if (raw) {
+      const shops = JSON.parse(raw);
+      if (Array.isArray(shops)) {
+        const found = shops.find((s: any) => s.tenantId === tenant.tenantId);
+        if (found) {
+          if (found.status === 'suspended' || found.isBlocked === true) {
+            return {
+              isSuspended: true,
+              reason: found.blockedReason || found.supportNotes || '',
+            };
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  return { isSuspended: false, reason: '' };
+};
+
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, isDemoUser, currentDemoRole, loading: authLoading } = useAuth();
   const [activeTenant, setActiveTenant] = useState<Tenant | null>(null);
   const [activeMembership, setActiveMembership] = useState<Membership | null>(null);
   const [userTenants, setUserTenants] = useState<{ tenant: Tenant; membership: Membership }[]>([]);
   const [loadingTenant, setLoadingTenant] = useState<boolean>(true);
+  const [shopSuspensionState, setShopSuspensionState] = useState<{ isSuspended: boolean; reason: string }>({
+    isSuspended: false,
+    reason: '',
+  });
+
+  useEffect(() => {
+    const checkSuspension = () => {
+      if (!activeTenant) {
+        setShopSuspensionState({ isSuspended: false, reason: '' });
+        return;
+      }
+      const res = getShopSuspensionStatus(activeTenant);
+      setShopSuspensionState(res);
+      if (res.isSuspended !== (activeTenant.subscriptionStatus === 'suspended' || !!activeTenant.isBlocked)) {
+        setActiveTenant((prev) =>
+          prev
+            ? {
+                ...prev,
+                subscriptionStatus: res.isSuspended ? 'suspended' : 'active',
+                isBlocked: res.isSuspended,
+                blockedReason: res.reason,
+              }
+            : null
+        );
+      }
+    };
+
+    checkSuspension();
+
+    const handleShopChange = () => {
+      checkSuspension();
+      reloadMembership();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('qistflow_shop_status_changed', handleShopChange);
+      window.addEventListener('storage', handleShopChange);
+      return () => {
+        window.removeEventListener('qistflow_shop_status_changed', handleShopChange);
+        window.removeEventListener('storage', handleShopChange);
+      };
+    }
+  }, [activeTenant?.tenantId]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -96,6 +172,25 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         } catch (e) {}
       }
+
+      // Sync latest block/suspension status from registered shops
+      try {
+        const rawRegistered = localStorage.getItem('qistflow_registered_shops');
+        if (rawRegistered) {
+          const regShops = JSON.parse(rawRegistered);
+          if (Array.isArray(regShops)) {
+            const foundShop = regShops.find((s: any) => s.tenantId === demoTenant.tenantId);
+            if (foundShop) {
+              const isLocked = foundShop.status === 'suspended' || foundShop.isBlocked === true;
+              if (isLocked) {
+                demoTenant.subscriptionStatus = 'suspended';
+                demoTenant.isBlocked = true;
+                demoTenant.blockedReason = foundShop.blockedReason || foundShop.supportNotes || '';
+              }
+            }
+          }
+        }
+      } catch (e) {}
 
       let role: UserRole = currentDemoRole || 'owner';
       const storedStaff = localStorage.getItem(`qistflow_demo_staff_${demoTenant.tenantId}`);
@@ -328,6 +423,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const reloadMembership = async () => {
     if (isDemoUser && activeTenant) {
+      try {
+        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('qistflow_registered_shops') : null;
+        if (raw) {
+          const shops = JSON.parse(raw);
+          const foundShop = shops.find((s: any) => s.tenantId === activeTenant.tenantId);
+          if (foundShop) {
+            const isBlocked = foundShop.status === 'suspended' || !!foundShop.isBlocked;
+            setShopSuspensionState({
+              isSuspended: isBlocked,
+              reason: foundShop.blockedReason || foundShop.supportNotes || '',
+            });
+            setActiveTenant((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    subscriptionStatus: isBlocked ? 'suspended' : (foundShop.status || 'active'),
+                    isBlocked,
+                    blockedReason: foundShop.blockedReason || '',
+                  }
+                : null
+            );
+          }
+        }
+      } catch (e) {}
+
       const stored = localStorage.getItem(`qistflow_demo_staff_${activeTenant.tenantId}`);
       if (stored && activeMembership) {
         const list = JSON.parse(stored);
@@ -351,8 +471,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAccountant = currentRole === 'accountant';
   const isRecovery = currentRole === 'recovery';
 
+  // Cascading Shop Suspension (Super-Admin locks whole shop -> Owner, Manager, Staff all blocked)
+  const isShopSuspended = shopSuspensionState.isSuspended || activeTenant?.subscriptionStatus === 'suspended' || !!activeTenant?.isBlocked;
+  const shopBlockedReason = shopSuspensionState.reason || activeTenant?.blockedReason || '';
+
   const hasPermission = (permission: StaffPermission | string): boolean => {
-    // If account is blocked or suspended, deny all access except for owner
+    // If shop itself is suspended/blocked by Super-Admin, NO ONE in this shop has access (Owner, Manager, Staff all blocked)
+    if (isShopSuspended) {
+      return false;
+    }
+    // If individual account is blocked or suspended, deny all access except for owner
     if (activeMembership?.membershipStatus === 'suspended' && currentRole !== 'owner') {
       return false;
     }
@@ -362,12 +490,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return activeMembership?.permissions?.includes(permission) ?? false;
   };
 
-  const canManageStaff = isOwner || (isManager && (hasPermission('can_manage_staff') || hasPermission('module_staff')));
-  const canManageSettings = isOwner;
-  const canAccessFinancials = isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('record_expenses') || hasPermission('module_expenses'))) || (isManager && (hasPermission('view_reports') || hasPermission('module_reports')));
-  const canAccessInventory = isOwner || (isManager && (hasPermission('manage_inventory') || hasPermission('module_inventory')));
-  const canAccessSales = isOwner || (isManager && hasPermission('module_pos'));
-  const canViewReports = isOwner || (isManager && (hasPermission('view_reports') || hasPermission('module_reports'))) || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('module_reports')));
+  const canManageStaff = !isShopSuspended && (isOwner || (isManager && (hasPermission('can_manage_staff') || hasPermission('module_staff'))));
+  const canManageSettings = !isShopSuspended && isOwner;
+  const canAccessFinancials = !isShopSuspended && ((isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('record_expenses') || hasPermission('module_expenses'))) || (isManager && (hasPermission('view_reports') || hasPermission('module_reports')))));
+  const canAccessInventory = !isShopSuspended && (isOwner || (isManager && (hasPermission('manage_inventory') || hasPermission('module_inventory'))));
+  const canAccessSales = !isShopSuspended && (isOwner || (isManager && hasPermission('module_pos')));
+  const canViewReports = !isShopSuspended && (isOwner || (isManager && (hasPermission('view_reports') || hasPermission('module_reports'))) || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('module_reports'))));
 
   return (
     <TenantContext.Provider
@@ -382,6 +510,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isAccountant,
         isRecovery,
         isSuperAdmin,
+        isShopSuspended,
+        shopBlockedReason,
         canManageStaff,
         canManageSettings,
         canAccessFinancials,

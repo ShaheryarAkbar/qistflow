@@ -40,6 +40,9 @@ import {
   Mail,
   RotateCcw,
   Trash2,
+  Lock,
+  Unlock,
+  ShieldX,
 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nContext';
 import { useAuth } from '@/app/providers/AuthContext';
@@ -80,6 +83,11 @@ export const PlatformAdminPage: React.FC = () => {
   const [editSubDueDate, setEditSubDueDate] = useState('');
   const [editSubLastPaidDate, setEditSubLastPaidDate] = useState('');
 
+  // Shop Level Suspension / Block State (Cascades to Owner, Manager, Staff)
+  const [blockingShopModal, setBlockingShopModal] = useState<any | null>(null);
+  const [blockReasonInput, setBlockReasonInput] = useState('ماہانہ سبسکرپشن فیس واجب الادا ہے (Subscription Dues Overdue)');
+  const [customBlockReason, setCustomBlockReason] = useState('');
+
   // New Shop Form State
   const [newShopName, setNewShopName] = useState('');
   const [newShopNameUr, setNewShopNameUr] = useState('');
@@ -90,8 +98,30 @@ export const PlatformAdminPage: React.FC = () => {
   const [newShopPhone, setNewShopPhone] = useState('0300-1234567');
   const [newShopPlan, setNewShopPlan] = useState('Professional Monthly (Rs. 3,499)');
 
+  // Platform Tenant Record Interface
+  interface PlatformTenant {
+    tenantId: string;
+    businessName: string;
+    businessNameUr: string;
+    ownerName: string;
+    ownerEmail: string;
+    ownerPassword: string;
+    phone: string;
+    city: string;
+    plan: string;
+    licenceType: string;
+    status: string;
+    activeContracts: number;
+    createdAt: string;
+    supportNotes: string;
+    isBlocked?: boolean;
+    blockedReason?: string;
+    blockedAt?: string;
+    unblockedAt?: string;
+  }
+
   // Platform tenants: 1 Main Reference Demo Shop + 1 Fresh Clean Empty Demo Shop
-  const defaultPlatformTenants = [
+  const defaultPlatformTenants: PlatformTenant[] = [
     {
       tenantId: 'tenant-demo-ryk-01',
       businessName: 'Malik Electronics & Installments',
@@ -155,7 +185,7 @@ export const PlatformAdminPage: React.FC = () => {
     },
   ];
 
-  const [tenants, setTenants] = useState(defaultPlatformTenants);
+  const [tenants, setTenants] = useState<PlatformTenant[]>(defaultPlatformTenants);
   const [shopSubscriptions, setShopSubscriptions] = useState(defaultShopSubscriptions);
 
   // Platform Plans Definitions (PRD Section 5)
@@ -357,17 +387,152 @@ export const PlatformAdminPage: React.FC = () => {
     }
   };
 
-  const handleSaveTenantStatus = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTenant) return;
+  const handleOpenBlockModal = (tenant: any) => {
+    setBlockingShopModal(tenant);
+    setBlockReasonInput('ماہانہ سبسکرپشن فیس واجب الادا ہے (Subscription Dues Overdue)');
+    setCustomBlockReason('');
+  };
+
+  const handleConfirmBlockShop = () => {
+    if (!blockingShopModal) return;
+    const finalReason =
+      blockReasonInput === 'other'
+        ? (customBlockReason.trim() || 'سپر ایڈمن کی طرف سے دکان معطل')
+        : blockReasonInput;
 
     const updated = tenants.map((t) =>
-      t.tenantId === selectedTenant.tenantId
-        ? { ...t, status: editStatus, supportNotes: notesInput }
+      t.tenantId === blockingShopModal.tenantId
+        ? {
+            ...t,
+            status: 'suspended',
+            isBlocked: true,
+            blockedReason: finalReason,
+            blockedAt: new Date().toISOString(),
+          }
         : t
     );
     setTenants(updated);
     localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
+
+    // Synchronize active demo tenant if matches
+    const savedCustomTenant =
+      sessionStorage.getItem('qistflow_demo_tenant') || localStorage.getItem('qistflow_demo_tenant');
+    if (savedCustomTenant) {
+      try {
+        const parsed = JSON.parse(savedCustomTenant);
+        if (parsed.tenantId === blockingShopModal.tenantId) {
+          const updatedTenant = {
+            ...parsed,
+            subscriptionStatus: 'suspended',
+            isBlocked: true,
+            blockedReason: finalReason,
+          };
+          localStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+          sessionStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+        }
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('qistflow_shop_status_changed'));
+    }
+
+    setActionSuccess(
+      language === 'ur'
+        ? `دکان (${blockingShopModal.businessName}) اور اس کے تمام ملازمین (مالک، منیجر، اکاؤنٹنٹ، ریکوری عملہ) کامیابی سے معطل / بلاک کر دیے گئے۔`
+        : `Shop (${blockingShopModal.businessName}) and all staff members (Owner, Manager, Staff) have been suspended.`
+    );
+    setBlockingShopModal(null);
+    setTimeout(() => setActionSuccess(null), 4000);
+  };
+
+  const handleUnblockShop = (tenant: any) => {
+    const updated = tenants.map((t) =>
+      t.tenantId === tenant.tenantId
+        ? {
+            ...t,
+            status: 'active',
+            isBlocked: false,
+            blockedReason: '',
+            unblockedAt: new Date().toISOString(),
+          }
+        : t
+    );
+    setTenants(updated);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
+
+    // Synchronize active demo tenant if matches
+    const savedCustomTenant =
+      sessionStorage.getItem('qistflow_demo_tenant') || localStorage.getItem('qistflow_demo_tenant');
+    if (savedCustomTenant) {
+      try {
+        const parsed = JSON.parse(savedCustomTenant);
+        if (parsed.tenantId === tenant.tenantId) {
+          const updatedTenant = {
+            ...parsed,
+            subscriptionStatus: 'active',
+            isBlocked: false,
+            blockedReason: '',
+          };
+          localStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+          sessionStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+        }
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('qistflow_shop_status_changed'));
+    }
+
+    setActionSuccess(
+      language === 'ur'
+        ? `دکان (${tenant.businessName}) کامیابی سے بحال (Unblocked) کر دی گئی ہے۔ تمام ملازمین کی رسائی بحال ہے۔`
+        : `Shop (${tenant.businessName}) reactivated successfully. All staff permissions restored.`
+    );
+    setTimeout(() => setActionSuccess(null), 4000);
+  };
+
+  const handleSaveTenantStatus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTenant) return;
+
+    const isNowSuspended = editStatus === 'suspended';
+    const updated = tenants.map((t) =>
+      t.tenantId === selectedTenant.tenantId
+        ? {
+            ...t,
+            status: editStatus,
+            isBlocked: isNowSuspended,
+            blockedReason: isNowSuspended ? (notesInput || 'سپر ایڈمن کی طرف سے دکان معطل') : '',
+            supportNotes: notesInput,
+          }
+        : t
+    );
+    setTenants(updated);
+    localStorage.setItem('qistflow_registered_shops', JSON.stringify(updated));
+
+    const savedCustomTenant =
+      sessionStorage.getItem('qistflow_demo_tenant') || localStorage.getItem('qistflow_demo_tenant');
+    if (savedCustomTenant) {
+      try {
+        const parsed = JSON.parse(savedCustomTenant);
+        if (parsed.tenantId === selectedTenant.tenantId) {
+          const updatedTenant = {
+            ...parsed,
+            subscriptionStatus: editStatus,
+            isBlocked: isNowSuspended,
+            blockedReason: isNowSuspended ? (notesInput || 'سپر ایڈمن کی طرف سے دکان معطل') : '',
+          };
+          localStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+          sessionStorage.setItem('qistflow_demo_tenant', JSON.stringify(updatedTenant));
+        }
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('qistflow_shop_status_changed'));
+    }
+
     setSelectedTenant(null);
     setActionSuccess('Shop status updated successfully!');
     setTimeout(() => setActionSuccess(null), 3000);
@@ -688,8 +853,8 @@ export const PlatformAdminPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                navigator.clipboard.writeText(t.ownerPassword);
-                                setActionSuccess(`پاس ورڈ کاپی ہو گیا: ${t.ownerPassword}`);
+                                navigator.clipboard.writeText(t.ownerPassword || '');
+                                setActionSuccess(`پاس ورڈ کاپی ہو گیا: ${t.ownerPassword || ''}`);
                                 setTimeout(() => setActionSuccess(null), 2500);
                               }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#0284c7' }}
@@ -715,22 +880,58 @@ export const PlatformAdminPage: React.FC = () => {
                         <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{t.plan}</div>
                       </td>
                       <td>
-                        <span
-                          className={`badge ${
-                            t.status === 'active'
-                              ? 'badge-success'
-                              : t.status === 'trial'
-                              ? 'badge-info'
-                              : t.status === 'grace'
-                              ? 'badge-warning'
-                              : 'badge-danger'
-                          }`}
-                        >
-                          {t.status.toUpperCase()}
-                        </span>
+                        {t.status === 'suspended' || t.isBlocked ? (
+                          <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem' }}>
+                            <Lock size={12} />
+                            <span>{language === 'ur' ? 'معطل / بلاک' : 'SUSPENDED'}</span>
+                          </span>
+                        ) : (
+                          <span
+                            className={`badge ${
+                              t.status === 'active'
+                                ? 'badge-success'
+                                : t.status === 'trial'
+                                ? 'badge-info'
+                                : t.status === 'grace'
+                                ? 'badge-warning'
+                                : 'badge-danger'
+                            }`}
+                          >
+                            {t.status.toUpperCase()}
+                          </span>
+                        )}
+                        {t.blockedReason && (t.status === 'suspended' || t.isBlocked) && (
+                          <div style={{ fontSize: '0.6875rem', color: '#b91c1c', marginTop: '0.2rem', maxWidth: '140px', lineHeight: 1.2 }}>
+                            {t.blockedReason}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          {/* Super-Admin Lock / Unlock Shop Control */}
+                          {(t.status === 'suspended' || t.isBlocked) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUnblockShop(t)}
+                              className="btn btn-sm btn-outline text-success"
+                              title={language === 'ur' ? 'دکان اور تمام ملازمین کی رسائی بحال کریں' : 'Unblock shop & staff'}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                            >
+                              <Unlock size={13} />
+                              <span>{language === 'ur' ? 'بحال کریں' : 'Unblock'}</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBlockModal(t)}
+                              className="btn btn-sm btn-outline text-danger"
+                              title={language === 'ur' ? 'دکان اور تمام ملازمین (مالک، منیجر، عملہ) کو بلاک کریں' : 'Suspend shop & all staff'}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderColor: '#fca5a5', background: '#fef2f2' }}
+                            >
+                              <Lock size={13} />
+                              <span>{language === 'ur' ? 'بلاک' : 'Block'}</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => setShareTenantHandover(t)}
                             className="btn btn-sm btn-outline text-success"
@@ -868,6 +1069,8 @@ export const PlatformAdminPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {shopSubscriptions.map((sub) => {
+                    const shopTenant = tenants.find((t) => t.tenantId === sub.tenantId);
+                    const isShopLocked = shopTenant?.status === 'suspended' || !!shopTenant?.isBlocked;
                     const reminderMessage = `السلام علیکم ${sub.ownerName}! ${sub.businessName} کے قسط فلو سوفٹ ویئر کی ماہانہ فیس مبلغ Rs. ${sub.monthlyFeePKR.toLocaleString()} واجب الادا ہے۔ تجدید کے لیے رابطہ کریں۔ شکریہ`;
                     const annualFee = sub.monthlyFeePKR * 12;
 
@@ -898,20 +1101,52 @@ export const PlatformAdminPage: React.FC = () => {
                           <div className="text-muted" style={{ fontSize: '0.75rem' }}>Last Paid: {sub.lastPaidDate}</div>
                         </td>
                         <td>
-                          <span
-                            className={`badge ${
-                              sub.status === 'paid' || sub.status === 'lifetime'
-                                ? 'badge-success'
-                                : sub.status === 'due'
-                                ? 'badge-warning'
-                                : 'badge-danger'
-                            }`}
-                          >
-                            {sub.status.toUpperCase()}
-                          </span>
+                          {isShopLocked ? (
+                            <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Lock size={11} />
+                              <span>{language === 'ur' ? 'دکان معطل' : 'LOCKED'}</span>
+                            </span>
+                          ) : (
+                            <span
+                              className={`badge ${
+                                sub.status === 'paid' || sub.status === 'lifetime'
+                                  ? 'badge-success'
+                                  : sub.status === 'due'
+                                  ? 'badge-warning'
+                                  : 'badge-danger'
+                              }`}
+                            >
+                              {sub.status.toUpperCase()}
+                            </span>
+                          )}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {/* Super-Admin Lock / Unlock Shop Toggle in Dues Tab */}
+                            {isShopLocked ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUnblockShop(shopTenant || { tenantId: sub.tenantId, businessName: sub.businessName })}
+                                className="btn btn-sm btn-outline text-success"
+                                title={language === 'ur' ? 'دکان کی رسائی بحال کریں' : 'Unblock shop'}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                              >
+                                <Unlock size={12} />
+                                <span>{language === 'ur' ? 'بحال کریں' : 'Unblock'}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenBlockModal(shopTenant || { tenantId: sub.tenantId, businessName: sub.businessName })}
+                                className="btn btn-sm btn-ghost text-danger"
+                                title={language === 'ur' ? 'فیس کی عدم ادائیگی پر دکان معطل / بلاک کریں' : 'Suspend shop for overdue dues'}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '0.25rem 0.4rem', fontSize: '0.75rem' }}
+                              >
+                                <Lock size={12} />
+                                <span>{language === 'ur' ? 'معطل' : 'Lock'}</span>
+                              </button>
+                            )}
+
                             {sub.status !== 'paid' && sub.status !== 'lifetime' ? (
                               <>
                                 <button
@@ -1115,6 +1350,103 @@ export const PlatformAdminPage: React.FC = () => {
                   <span className="font-semibold">Rahim Yar Khan, Khanpur, Sadiqabad</span>
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Super-Admin Shop Level Suspension Modal */}
+      {blockingShopModal && (
+        <div className="modal-overlay" style={{ zIndex: 65 }}>
+          <div className="card" style={{ width: '92%', maxWidth: '540px', padding: '1.5rem', border: '2px solid #ef4444' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
+                  <ShieldX size={22} />
+                </div>
+                <div>
+                  <h3 className="card-title" style={{ margin: 0, color: '#991b1b', fontSize: '1.15rem' }}>
+                    {language === 'ur' ? 'دکان اور تمام ملازمین کو معطل / بلاک کریں' : 'Suspend Shop & Lock All Staff Access'}
+                  </h3>
+                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                    {blockingShopModal.businessName} ({blockingShopModal.ownerName})
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBlockingShopModal(null)}
+                className="btn btn-icon btn-outline btn-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="alert alert-danger mb-4" style={{ fontSize: '0.8125rem', padding: '0.75rem 1rem', lineHeight: 1.5 }}>
+              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <div>
+                <strong>{language === 'ur' ? 'انتباہ (Strict Enforcement):' : 'Strict Enforcement Warning:'}</strong>{' '}
+                {language === 'ur'
+                  ? 'دکان بلاک کرنے کی صورت میں دکان کے مالک (Owner)، منیجر (Manager)، اکاؤنٹنٹ (Accountant) اور تمام ریکوری فیلڈ آفیسرز کی پورٹل رسائی فوراً بند ہو جائے گی اور کوئی بھی عملہ ڈیٹا نہیں دیکھ سکے گا۔'
+                  : 'Suspending this shop immediately terminates portal access for the Owner, Manager, Accountant, and all field recovery officers.'}
+              </div>
+            </div>
+
+            <div className="form-group mb-4">
+              <label className="form-label font-semibold">
+                {language === 'ur' ? 'معطلی کا بنیادی سبب (Suspension Reason) *' : 'Suspension Reason *'}
+              </label>
+              <select
+                className="form-input"
+                value={blockReasonInput}
+                onChange={(e) => setBlockReasonInput(e.target.value)}
+              >
+                <option value="ماہانہ سبسکرپشن فیس واجب الادا ہے (Subscription Dues Overdue)">
+                  ماہانہ سبسکرپشن فیس واجب الادا ہے (Subscription Dues Overdue)
+                </option>
+                <option value="لائسنس کی معیاد ختم ہو چکی ہے (Licence Expired)">
+                  لائسنس کی معیاد ختم ہو چکی ہے (Licence Expired)
+                </option>
+                <option value="سروس معاہدہ اور پالیسی کی خلاف ورزی (Terms of Service Violation)">
+                  سروس معاہدہ اور پالیسی کی خلاف ورزی (Terms of Service Violation)
+                </option>
+                <option value="دکان دار کی اپنی درخواست پر عارضی بندش (Suspended per Owner Request)">
+                  دکان دار کی اپنی درخواست پر عارضی بندش (Suspended per Owner Request)
+                </option>
+                <option value="other">دیگر وجہ خود درج کریں (Custom Reason...)</option>
+              </select>
+            </div>
+
+            {blockReasonInput === 'other' && (
+              <div className="form-group mb-4">
+                <label className="form-label">{language === 'ur' ? 'تفصیلی وجہ لکھیں' : 'Custom Reason'}</label>
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  value={customBlockReason}
+                  onChange={(e) => setCustomBlockReason(e.target.value)}
+                  placeholder={language === 'ur' ? 'وجہ درج کریں...' : 'Enter suspension details...'}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => setBlockingShopModal(null)}
+                className="btn btn-outline"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBlockShop}
+                className="btn btn-danger"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Lock size={15} />
+                <span>{language === 'ur' ? 'دکان اور تمام ملازمین معطل کریں' : 'Confirm & Suspend All Staff'}</span>
+              </button>
             </div>
           </div>
         </div>

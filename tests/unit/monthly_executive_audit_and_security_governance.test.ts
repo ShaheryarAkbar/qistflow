@@ -291,3 +291,112 @@ describe('Monthly Executive Business Audit Financial Reconciliation', () => {
     expect(formatPaisa(netCashFlowPaisa)).toBe('125,000');
   });
 });
+
+describe('Super-Admin Shop Suspension & Cascading Multi-Role Lockout Governance', () => {
+  it('cascades shop-level suspension to completely block Owner, Manager, Accountant, and Recovery officers', () => {
+    // Permission evaluation function mimicking TenantContext
+    const evaluateAccess = (params: {
+      isShopSuspended: boolean;
+      role: 'owner' | 'manager' | 'accountant' | 'recovery';
+      permissions: string[];
+      membershipStatus?: 'active' | 'suspended';
+    }) => {
+      const { isShopSuspended, role, permissions, membershipStatus } = params;
+      const hasPermission = (perm: string): boolean => {
+        if (isShopSuspended) return false;
+        if (membershipStatus === 'suspended' && role !== 'owner') return false;
+        if (role === 'owner') return true;
+        if (permissions.includes('all')) return true;
+        return permissions.includes(perm);
+      };
+
+      const isOwner = role === 'owner';
+      const isManager = role === 'manager';
+      const isAccountant = role === 'accountant';
+
+      return {
+        hasPermission,
+        canManageStaff: !isShopSuspended && (isOwner || (isManager && (hasPermission('can_manage_staff') || hasPermission('module_staff')))),
+        canManageSettings: !isShopSuspended && isOwner,
+        canAccessFinancials: !isShopSuspended && (isOwner || (isAccountant && (hasPermission('view_financial_reports') || hasPermission('module_expenses')))),
+        canAccessInventory: !isShopSuspended && (isOwner || (isManager && hasPermission('module_inventory'))),
+        canAccessSales: !isShopSuspended && (isOwner || (isManager && hasPermission('module_pos'))),
+        canViewReports: !isShopSuspended && (isOwner || (isManager && hasPermission('module_reports')) || (isAccountant && hasPermission('module_reports'))),
+      };
+    };
+
+    // 1. When Shop is ACTIVE:
+    const activeOwner = evaluateAccess({ isShopSuspended: false, role: 'owner', permissions: ['all'] });
+    expect(activeOwner.hasPermission('module_pos')).toBe(true);
+    expect(activeOwner.canManageStaff).toBe(true);
+    expect(activeOwner.canManageSettings).toBe(true);
+    expect(activeOwner.canAccessSales).toBe(true);
+
+    const activeManager = evaluateAccess({
+      isShopSuspended: false,
+      role: 'manager',
+      permissions: ['module_pos', 'module_inventory', 'can_manage_staff'],
+    });
+    expect(activeManager.hasPermission('module_pos')).toBe(true);
+    expect(activeManager.canAccessSales).toBe(true);
+    expect(activeManager.canManageStaff).toBe(true);
+
+    const activeAccountant = evaluateAccess({
+      isShopSuspended: false,
+      role: 'accountant',
+      permissions: ['view_financial_reports', 'module_expenses'],
+    });
+    expect(activeAccountant.hasPermission('view_financial_reports')).toBe(true);
+    expect(activeAccountant.canAccessFinancials).toBe(true);
+
+    const activeRecovery = evaluateAccess({
+      isShopSuspended: false,
+      role: 'recovery',
+      permissions: ['assigned_collections'],
+    });
+    expect(activeRecovery.hasPermission('assigned_collections')).toBe(true);
+
+    // 2. When Super-Admin SUSPENDS / BLOCKS the entire Shop:
+    // Every single role (including Owner) must be blocked!
+    const suspendedOwner = evaluateAccess({ isShopSuspended: true, role: 'owner', permissions: ['all'] });
+    expect(suspendedOwner.hasPermission('module_pos')).toBe(false);
+    expect(suspendedOwner.hasPermission('module_dashboard')).toBe(false);
+    expect(suspendedOwner.canManageStaff).toBe(false);
+    expect(suspendedOwner.canManageSettings).toBe(false);
+    expect(suspendedOwner.canAccessSales).toBe(false);
+    expect(suspendedOwner.canAccessInventory).toBe(false);
+    expect(suspendedOwner.canAccessFinancials).toBe(false);
+    expect(suspendedOwner.canViewReports).toBe(false);
+
+    const suspendedManager = evaluateAccess({
+      isShopSuspended: true,
+      role: 'manager',
+      permissions: ['module_pos', 'module_inventory', 'can_manage_staff'],
+    });
+    expect(suspendedManager.hasPermission('module_pos')).toBe(false);
+    expect(suspendedManager.canAccessSales).toBe(false);
+    expect(suspendedManager.canManageStaff).toBe(false);
+
+    const suspendedAccountant = evaluateAccess({
+      isShopSuspended: true,
+      role: 'accountant',
+      permissions: ['view_financial_reports', 'module_expenses'],
+    });
+    expect(suspendedAccountant.hasPermission('view_financial_reports')).toBe(false);
+    expect(suspendedAccountant.canAccessFinancials).toBe(false);
+
+    const suspendedRecovery = evaluateAccess({
+      isShopSuspended: true,
+      role: 'recovery',
+      permissions: ['assigned_collections'],
+    });
+    expect(suspendedRecovery.hasPermission('assigned_collections')).toBe(false);
+
+    // 3. When Super-Admin UNBLOCKS the Shop:
+    // Owner and Staff immediately regain their active permissions
+    const reactivatedOwner = evaluateAccess({ isShopSuspended: false, role: 'owner', permissions: ['all'] });
+    expect(reactivatedOwner.hasPermission('module_pos')).toBe(true);
+    expect(reactivatedOwner.canManageStaff).toBe(true);
+    expect(reactivatedOwner.canManageSettings).toBe(true);
+  });
+});

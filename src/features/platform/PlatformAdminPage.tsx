@@ -784,8 +784,8 @@ export const PlatformAdminPage: React.FC = () => {
               </h3>
               <p className="card-subtitle">
                 {language === 'ur'
-                  ? 'سپر ایڈمن دکان کا کھاتہ اور مالک کا جی میل / پاس ورڈ بنا کر دیتا ہے (No public signup)'
-                  : 'Platform super-admin provisions shop tenancies and creates owner login credentials.'}
+                  ? 'سپر ایڈمن دکان کا کھاتہ بناتا ہے، اور کسی بھی وقت دکان کو بلاک (Suspend) یا بحال (Unblock) کر سکتا ہے۔'
+                  : 'Platform super-admin provisions shop tenancies and controls shop-level suspension.'}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -807,6 +807,16 @@ export const PlatformAdminPage: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Quick Guidance Alert for Super Admin */}
+          <div style={{ padding: '0.6rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span className="badge badge-danger" style={{ fontSize: '0.6875rem' }}>🔒 Block / Unblock Controls</span>
+            <span>
+              {language === 'ur'
+                ? 'کسی بھی دکان کو معطل یا بحال کرنے کا بٹن نیچے اسٹیٹس (Status) اور ایکشنز (Actions) دونوں جگہ نمایاں موجود ہے۔'
+                : 'Direct Shop Block and Unblock buttons are available both in the Status column and the Actions column below.'}
+            </span>
           </div>
 
           <div className="table-wrapper">
@@ -881,41 +891,65 @@ export const PlatformAdminPage: React.FC = () => {
                       </td>
                       <td>
                         {t.status === 'suspended' || t.isBlocked ? (
-                          <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem' }}>
-                            <Lock size={12} />
-                            <span>{language === 'ur' ? 'معطل / بلاک' : 'SUSPENDED'}</span>
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start' }}>
+                            <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', fontWeight: 700 }}>
+                              <Lock size={12} />
+                              <span>{language === 'ur' ? 'معطل / بلاک' : 'SUSPENDED'}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUnblockShop(t)}
+                              className="btn btn-xs"
+                              title={language === 'ur' ? 'دکان کی رسائی بحال کریں' : 'Unblock shop'}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: '#16a34a', color: '#ffffff', border: 'none', borderRadius: '4px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              <Unlock size={11} />
+                              <span>{language === 'ur' ? 'دکان بحال کریں' : 'Unblock Shop'}</span>
+                            </button>
+                            {t.blockedReason && (
+                              <div style={{ fontSize: '0.6875rem', color: '#b91c1c', maxWidth: '160px', lineHeight: 1.25 }}>
+                                {t.blockedReason}
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          <span
-                            className={`badge ${
-                              t.status === 'active'
-                                ? 'badge-success'
-                                : t.status === 'trial'
-                                ? 'badge-info'
-                                : t.status === 'grace'
-                                ? 'badge-warning'
-                                : 'badge-danger'
-                            }`}
-                          >
-                            {t.status.toUpperCase()}
-                          </span>
-                        )}
-                        {t.blockedReason && (t.status === 'suspended' || t.isBlocked) && (
-                          <div style={{ fontSize: '0.6875rem', color: '#b91c1c', marginTop: '0.2rem', maxWidth: '140px', lineHeight: 1.2 }}>
-                            {t.blockedReason}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start' }}>
+                            <span
+                              className={`badge ${
+                                t.status === 'active'
+                                  ? 'badge-success'
+                                  : t.status === 'trial'
+                                  ? 'badge-info'
+                                  : t.status === 'grace'
+                                  ? 'badge-warning'
+                                  : 'badge-danger'
+                              }`}
+                            >
+                              {t.status.toUpperCase()}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBlockModal(t)}
+                              className="btn btn-xs"
+                              title={language === 'ur' ? 'دکان اور تمام ملازمین کو معطل / بلاک کریں' : 'Suspend shop'}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '4px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              <Lock size={11} />
+                              <span>{language === 'ur' ? 'دکان بلاک کریں' : 'Block Shop'}</span>
+                            </button>
                           </div>
                         )}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          {/* Super-Admin Lock / Unlock Shop Control */}
+                          {/* Super-Admin High-Contrast Lock / Unlock Shop Control in Actions Column */}
                           {(t.status === 'suspended' || t.isBlocked) ? (
                             <button
                               type="button"
                               onClick={() => handleUnblockShop(t)}
-                              className="btn btn-sm btn-outline text-success"
+                              className="btn btn-sm"
                               title={language === 'ur' ? 'دکان اور تمام ملازمین کی رسائی بحال کریں' : 'Unblock shop & staff'}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderColor: '#86efac', background: '#f0fdf4' }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: '#16a34a', color: '#ffffff', border: 'none', fontWeight: 700, borderRadius: '0.375rem', cursor: 'pointer' }}
                             >
                               <Unlock size={13} />
                               <span>{language === 'ur' ? 'بحال کریں' : 'Unblock'}</span>
@@ -924,12 +958,12 @@ export const PlatformAdminPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenBlockModal(t)}
-                              className="btn btn-sm btn-outline text-danger"
+                              className="btn btn-sm"
                               title={language === 'ur' ? 'دکان اور تمام ملازمین (مالک، منیجر، عملہ) کو بلاک کریں' : 'Suspend shop & all staff'}
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderColor: '#fca5a5', background: '#fef2f2' }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: '#dc2626', color: '#ffffff', border: 'none', fontWeight: 700, borderRadius: '0.375rem', cursor: 'pointer' }}
                             >
                               <Lock size={13} />
-                              <span>{language === 'ur' ? 'بلاک' : 'Block'}</span>
+                              <span>{language === 'ur' ? 'بلاک کریں' : 'Block'}</span>
                             </button>
                           )}
                           <button
@@ -1472,6 +1506,58 @@ export const PlatformAdminPage: React.FC = () => {
               <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.8125rem' }}>
                 <div className="font-semibold">{selectedTenant.businessName}</div>
                 <div className="text-muted">{selectedTenant.city} • {selectedTenant.ownerName} ({selectedTenant.phone})</div>
+              </div>
+
+              {/* Direct Shop Suspension / Reactivation Box inside Manage Modal */}
+              <div
+                style={{
+                  background: editStatus === 'suspended' ? '#fef2f2' : '#f0fdf4',
+                  border: editStatus === 'suspended' ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                  borderRadius: '0.5rem',
+                  padding: '0.85rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: editStatus === 'suspended' ? '#991b1b' : '#166534', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {editStatus === 'suspended' ? <Lock size={15} /> : <Unlock size={15} />}
+                    <span>
+                      {editStatus === 'suspended'
+                        ? (language === 'ur' ? 'دکان معطل / بلاک شدہ ہے' : 'Shop is Suspended / Blocked')
+                        : (language === 'ur' ? 'دکان فعال اور ایکٹو ہے' : 'Shop is Active')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.6875rem', color: editStatus === 'suspended' ? '#b91c1c' : '#15803d', marginTop: '0.2rem' }}>
+                    {editStatus === 'suspended'
+                      ? (language === 'ur' ? 'مالک، منیجر اور فیلڈ عملہ سمیت تمام افراد کی رسائی بند ہے۔' : 'All staff and owner access is blocked.')
+                      : (language === 'ur' ? 'مالک اور ملازمین پورٹل استعمال کر سکتے ہیں۔' : 'All staff and owner access is active.')}
+                  </div>
+                </div>
+                {editStatus === 'suspended' ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('active')}
+                    className="btn btn-sm"
+                    style={{ background: '#16a34a', color: '#fff', border: 'none', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 700, padding: '0.35rem 0.65rem', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  >
+                    <Unlock size={13} />
+                    <span>{language === 'ur' ? 'دکان بحال کریں' : 'Unblock'}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('suspended')}
+                    className="btn btn-sm"
+                    style={{ background: '#dc2626', color: '#fff', border: 'none', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 700, padding: '0.35rem 0.65rem', borderRadius: '0.375rem', cursor: 'pointer' }}
+                  >
+                    <Lock size={13} />
+                    <span>{language === 'ur' ? 'دکان بلاک کریں' : 'Block'}</span>
+                  </button>
+                )}
               </div>
 
               <div className="form-group mb-4">
